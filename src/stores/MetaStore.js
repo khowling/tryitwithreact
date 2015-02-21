@@ -21,7 +21,7 @@ var EventEmitter = require('events').EventEmitter;
 /* ES6 Object.assign() ponyfill */
 var assign = require('object-assign');
 
-var MetaConstants = require('../constants/MetaConstants');
+
 var CHANGE_EVENT = 'change';
 var _formdata = null;
 
@@ -34,7 +34,7 @@ function loadMeta (cb) {
     }
 
     let ch = xhr(xhr_opts);
-    AppDispatcher.dispatch({actionType: MetaConstants.META_LOADING});
+
     csp.takeAsync (ch, function(result) {
       _formdata = result.json;
       cb();
@@ -62,59 +62,5 @@ var MetaStore = assign({}, EventEmitter.prototype, {
     }
 });
 
-// Register callback function with Dispatcher
-AppDispatcher.register(function(action) {
-    var text;
-
-    switch(action.actionType) {
-        case MetaConstants.TODO_CREATE:
-            text = action.text.trim();
-            if (text !== '') {
-                create(text);
-            }
-            MetaStore.emitChange();
-            break;
-
-        case MetaConstants.TODO_TOGGLE_COMPLETE_ALL:
-            if (TodoStore.areAllComplete()) {
-                updateAll({complete: false});
-            } else {
-                updateAll({complete: true});
-            }
-            MetaStore.emitChange();
-            break;
-
-        case MetaConstants.TODO_UNDO_COMPLETE:
-            update(action.id, {complete: false});
-            MetaStore.emitChange();
-            break;
-
-        case MetaConstants.TODO_COMPLETE:
-            update(action.id, {complete: true});
-            MetaStore.emitChange();
-            break;
-
-        case MetaConstants.TODO_UPDATE_TEXT:
-            text = action.text.trim();
-            if (text !== '') {
-                update(action.id, {text: text});
-            }
-            MetaStore.emitChange();
-            break;
-
-        case MetaConstants.TODO_DESTROY:
-            destroy(action.id);
-            MetaStore.emitChange();
-            break;
-
-        case MetaConstants.TODO_DESTROY_COMPLETED:
-            destroyCompleted();
-            MetaStore.emitChange();
-            break;
-
-        default:
-        // no op
-    }
-});
 
 module.exports = MetaStore;

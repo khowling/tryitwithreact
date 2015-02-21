@@ -7,6 +7,7 @@ const t = require('transducers.js');
 const { range, seq, compose, map, filter } = t;
 const { Link, State } = require("react-router");
 const xhr = require('../lib/xhr');
+const MetaStore = require('../stores/MetaStore');
 
 var Report = React.createClass({
     getInitialState: function(){
@@ -160,7 +161,7 @@ var Tile = React.createClass({
 
         return (
             <div className="col-xs-12 col-sm-4 col-md-3 col-lg-2">
-                <Link to className={boxclass}>
+                <a className={boxclass}>
                     <div className="inner">
                         <h4>{tdata.name}</h4>
                         <p>{tdata.type}</p>
@@ -171,7 +172,7 @@ var Tile = React.createClass({
                     <div  className="small-box-footer">
                         Search {tdata.name} <i className="fa fa-arrow-circle-right"></i>
                     </div>
-                </Link>
+                </a>
             </div>
         );
     }
@@ -179,10 +180,9 @@ var Tile = React.createClass({
 
 var TileList= React.createClass({
     displayName: 'TileList',
-    mixins: [ State ],
     getInitialState: function(){
         console.log ('TileList InitialState : ' + this.props.meta);
-        return { breadcrumbs: [], meta: MetaStore.getMeta()};
+        return { breadcrumbs: []};
     },
     componentWillReceiveProps: function (nextProps) {
         let cbc = this.state.breadcrumbst;
@@ -251,9 +251,13 @@ var TileList= React.createClass({
 });
 
 var Test= React.createClass({
+  getInitialState: function(){
+      console.log ('Test InitialState : ' + this.props.meta);
+      return { breadcrumbs: [], meta: MetaStore.getMeta()};
+  },
   render: function () {
     return (
-      <div>TEST</div>
+      <a onClick={this.props.navTo} href="#TileList">TileList</a>
     )
   }
 });

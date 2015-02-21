@@ -3,7 +3,7 @@ var   express = require('express')
     , LocalStrategy = require('passport-local').Strategy
     , FacebookStrategy = require('passport-facebook').Strategy
     , ForceDotComStrategy = require('passport-forcedotcom').Strategy
-    , bcrypt = require('bcrypt')
+//    , bcrypt = require('bcrypt')
     , ObjectID = require('mongodb').ObjectID;
 
 
@@ -58,10 +58,10 @@ module.exports = function (passport, options) {
                 if (!user.provider.internal) {
                     return done(null, false, 'No password setup for this user');
                 }
-                if (!bcrypt.compareSync(password, user.provider.internal.password)) {
-                    console.log('login attempt : ' + 'Invalid password ');
-                    return done(null, false, 'Invalid password');
-                }
+      //          if (!bcrypt.compareSync(password, user.provider.internal.password)) {
+      //              console.log('login attempt : ' + 'Invalid password ');
+      //              return done(null, false, 'Invalid password');
+      //          }
                 return done(null, user);
             });
         }
