@@ -18,15 +18,7 @@ var compfact = CreateFactories(require('./tiles'));
 
 var MetaStore = require('../stores/MetaStore');
 
-var _isListening;
-var ensureSlash = function() {
-  var hashpath = decodeURI(
-    // We can't use window.location.hash here because it's not
-    // consistent across browsers - Firefox will pre-decode it!
-    window.location.href.split('#')[1] || '');
-  if (hashpath.charAt(0) !== '/')  hashpath = '/' + hashpath;
-  return hashpath;
-}
+
 
 module.exports  = React.createClass({
     displayName: 'App',
@@ -37,14 +29,24 @@ module.exports  = React.createClass({
 
       event.preventDefault();
       var newComp = $(event.target).attr('href').substring(1);
+      // HTML5 history API
       history.pushState({}, "page", "/#" + newComp);
       console.log ('App navTo ' + newComp);
       if (newComp !== this.state.renderThis) {
         this.setState ({renderThis: newComp});
       }
     },
-
+/*
     setupRouter: function () {
+      var _isListening;
+      var ensureSlash = function() {
+        var hashpath = decodeURI(
+          // We can't use window.location.hash here because it's not
+          // consistent across browsers - Firefox will pre-decode it!
+          window.location.href.split('#')[1] || '');
+        if (hashpath.charAt(0) !== '/')  hashpath = '/' + hashpath;
+        return hashpath;
+      }
 
       if (!_isListening) {
         if (false) { // use HTML5 history
@@ -64,7 +66,7 @@ module.exports  = React.createClass({
       }
     },
 
-
+*/
     componentDidMount: function() {
       MetaStore.addListener('change', this._onChange);
     },

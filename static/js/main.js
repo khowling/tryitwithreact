@@ -35,14 +35,13 @@ window.relocate = function(url) {
     router.replaceWith(url);
 }
 */
-
+/*
 const routes = require('../../src/routes');
 
 Router.run(routes, function (Handler) {
     console.log ('Route me');
     React.render(<Handler/>, document.getElementById('mount'));
 });
-/*
+*/
 var App = require('../../src/components/app');
 React.render(<App />, document.getElementById('mount'));
-*/
