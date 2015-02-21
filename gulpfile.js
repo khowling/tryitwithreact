@@ -97,35 +97,3 @@ gulp.task('run', gulp.series('6to5', function() {
     });
 }));
 
-
-gulp.task ('staticbower', function() {
-    return gulp.src('bower_components/**/*')
-        .pipe(zip("Bower.resource"))
-        .pipe(gulp.dest ('./sfdc_pkg/metadata/staticresources'));
-});
-
-gulp.task ('staticapp', function() {
-    return gulp.src(['static/css/*', 'static/output/*', 'static/images/*'])
-        .pipe(zip("App.resource"))
-        .pipe(gulp.dest ('./sfdc_pkg/metadata/staticresources'));
-});
-
-var staticids = {
-    App: '08124000000PZrPAAW',
-    Bower: '08124000000PZrQAAW'
-}
-
-// sed  's/\(href\|src\)="\/bower_components\/\([^"]*\)\"/\1=\"{!URLFOR($Resource.Bower, ''bower_components\/\2'')}\"/'
-gulp.task ('bootvf', function() {
-    return gulp.src(['static/index.html'])
-        .pipe(headerfooter.header('<apex:page applyHtmlTag="false" showHeader="false">'))
-        .pipe(headerfooter.footer('</apex:page>'))
-        .pipe(replace(/<!DOCTYPE html>/g, ''))
-        .pipe(replace(/(href|src)="\/bower_components\/([^"]*)\"/g, '$1=\"{!URLFOR($Resource.Bower, \'$2\')}\"'))
-        .pipe(replace(/(href|src)="\/output\/([^"]*)\"/g, '$1=\"{!URLFOR($Resource.App, \'$2\')}\"'))
-        .pipe(rename("myreact1.page"))
-        .pipe(gulp.dest ('./sfdc_pkg/metadata/pages'));
-});
-
-gulp.task('makesfdc', gulp.series('staticbower', 'staticapp', 'bootvf'));
-// then force import -v

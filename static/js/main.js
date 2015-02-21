@@ -1,6 +1,6 @@
 
 // https://6to5.org/docs/usage/polyfill/
-require("6to5/polyfill");
+require("babel/polyfill");
 
 const React = require('react');
 const Router = require('react-router');
@@ -9,9 +9,6 @@ const t = require('transducers.js');
 const { range, seq, compose, map, filter } = t;
 const csp = require('../../src/lib/csp');
 const { go, chan, take, put, operations: ops } = csp;
-
-
-const routes = require('src/routes');
 
 /*
 const bootstrap = require('src/bootstrap');
@@ -39,7 +36,13 @@ window.relocate = function(url) {
 }
 */
 
+const routes = require('../../src/routes');
+
 Router.run(routes, function (Handler) {
-    console.log ('call1');
+    console.log ('Route me');
     React.render(<Handler/>, document.getElementById('mount'));
 });
+/*
+var App = require('../../src/components/app');
+React.render(<App />, document.getElementById('mount'));
+*/

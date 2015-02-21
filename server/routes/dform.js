@@ -48,7 +48,7 @@ module.exports = function(options) {
         });
     });
 
-    
+
     router.post('/db/:form',  function(req, res) {
     	var formparam = req.params["form"],
             parentfieldid = req.query.parentfieldid,
@@ -88,7 +88,8 @@ module.exports = function(options) {
 
 
     router.get('/formdata', function(req, res) {
-    orm.getmeta (function success(j) {
+      res.setHeader('Content-Type', 'application/json');
+      orm.getmeta (function success(j) {
             res.json(j);
         }, function error(e) {
             res.status(400).send(e);
@@ -97,4 +98,3 @@ module.exports = function(options) {
 
     return router;
 };
-

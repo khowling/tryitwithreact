@@ -1,10 +1,14 @@
-const Router = require('react-router');
 const t = require('transducers.js');
 const { range, seq, compose, map, filter } = t;
 const csp = require('./lib/csp');
 const { go, chan, take, put, Throw, operations: ops } = csp;
 
+var Dispatcher = require('flux').Dispatcher;
 
+module.exports = new Dispatcher();
+
+
+/*
 function fetchData(state, user) {
     let requests = seq(state.routes, compose(
         filter(x => x.handler.fetchData),
@@ -77,4 +81,4 @@ function run(routes, location, user, initialData) {
     return { router: router, pageChan: ch };
 }
 
-module.exports = { run };
+*/
