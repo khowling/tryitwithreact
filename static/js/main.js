@@ -10,6 +10,10 @@ const { range, seq, compose, map, filter } = t;
 const csp = require('../../src/lib/csp');
 const { go, chan, take, put, operations: ops } = csp;
 
+const MetaStore = require('../../src/stores/MetaStore');
+
+var App = React.createElement(require('../../src/components/app'));
+React.render(App, document.getElementById('mount'));
 /*
 const bootstrap = require('src/bootstrap');
 
@@ -43,5 +47,3 @@ Router.run(routes, function (Handler) {
     React.render(<Handler/>, document.getElementById('mount'));
 });
 */
-var App = require('../../src/components/app');
-React.render(<App />, document.getElementById('mount'));

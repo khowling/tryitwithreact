@@ -18,17 +18,69 @@ var compfact = CreateFactories(require('./tiles'));
 
 var MetaStore = require('../stores/MetaStore');
 
+var _isListening = false,
+    setupRouterfunction = function  (onPopState) {
+
+  if (!_isListening) {
+    if (true) { // use HTML5 history
+      if (window.addEventListener) {
+        window.addEventListener('popstate', onPopState, false);
+      } else {
+        window.attachEvent('popstate', onPopState);
+      }
+    } else {
+      if (window.addEventListener) {
+        window.addEventListener('hashchange', onHashChange, false);
+      } else {
+        window.attachEvent('onhashchange', onHashChange);
+      }
+    }
+    _isListening = true;
+  }
+}
 
 
-module.exports  = React.createClass({
+var App  = React.createClass({
     displayName: 'App',
+    //can run them before any component instances are created, and the methods do not have access to the props or state
+    statics: {
+      _getURLNav:  function () {
+        var gethash = decodeURI(
+          // We can't use window.location.hash here because it's not
+          // consistent across browsers - Firefox will pre-decode it!
+          // window.location.pathname + window.location.search
+          window.location.href.split('#')[1] || ''
+          ) || 'Test';
+        console.log ('App _getURLNav url changed : ' + gethash);
+        let [comp, parms] = gethash.split('?');
+        let paramjson = {};
+        if (typeof parms !== 'undefined') {
+          let tfn = x => {let [n, v] = x.split('='); paramjson[n] = v; }
+          if (Array.isArray(parms))
+            parms.split['&'].map (tfn);
+          else
+            tfn (parms);
+        }
+        return ({hash: comp, params: paramjson});
+      },
+    },
     getInitialState: function() {
-        return { formdata: MetaStore.getMeta(), renderThis: 'Test'};
+        setupRouterfunction (function () {
+          var newComp = this.constructor._getURLNav();
+          console.log ('App url changed : ' + JSON.stringify(newComp));
+          //if (newComp !== this.state.renderThis) {
+            this.setState ({renderThis: newComp.hash, UrlPrarms: newComp.params});
+          //};
+        }.bind(this));
+        var newComp = this.constructor._getURLNav();
+        console.log ('App Initial URL : ' + JSON.stringify(newComp));
+        return {renderThis: newComp.hash, UrlPrarms: newComp.params, formdata: []};
     },
     navTo: function (element) {
 
       event.preventDefault();
-      var newComp = $(event.target).attr('href').substring(1);
+      //var newComp = $(event.target).attr('href').substring(1);
+      var newComp = $(element.currentTarget).attr('href').substring(1);
       // HTML5 history API
       history.pushState({}, "page", "/#" + newComp);
       console.log ('App navTo ' + newComp);
@@ -36,39 +88,8 @@ module.exports  = React.createClass({
         this.setState ({renderThis: newComp});
       }
     },
-/*
-    setupRouter: function () {
-      var _isListening;
-      var ensureSlash = function() {
-        var hashpath = decodeURI(
-          // We can't use window.location.hash here because it's not
-          // consistent across browsers - Firefox will pre-decode it!
-          window.location.href.split('#')[1] || '');
-        if (hashpath.charAt(0) !== '/')  hashpath = '/' + hashpath;
-        return hashpath;
-      }
-
-      if (!_isListening) {
-        if (false) { // use HTML5 history
-          if (window.addEventListener) {
-            window.addEventListener('popstate', onPopState, false);
-          } else {
-            window.attachEvent('popstate', onPopState);
-          }
-        } else {
-          if (window.addEventListener) {
-            window.addEventListener('hashchange', onHashChange, false);
-          } else {
-            window.attachEvent('onhashchange', onHashChange);
-          }
-          _isListening = true;
-        }
-      }
-    },
-
-*/
     componentDidMount: function() {
-      MetaStore.addListener('change', this._onChange);
+      MetaStore.dataReq ({opt: 'formdata', finished: this._onChange});
     },
 
     componentWillUnmount: function() {
@@ -77,12 +98,22 @@ module.exports  = React.createClass({
 
     render: function () {
       console.log ('App render : ' + this.state.renderThis);
-      return compfact[this.state.renderThis](
-        {meta: MetaStore.getMeta(),
-         navTo: this.navTo});
+      if (compfact[this.state.renderThis]) {
+        return compfact[this.state.renderThis](
+          {meta: this.state.formdata,
+           navTo: this.navTo,
+           UrlPrarms: this.state.UrlPrarms});
+      } else return (
+          <div>404</div>
+      );
 
     },
-    _onChange: function() {
-      this.setState({ formdata: MetaStore.getMeta()});
+    _onChange: function(req) {
+      if (this.isMounted()) {
+        if (req.opt === 'formdata')
+          this.setState({ formdata: req.data});
+      }
     }
 });
+
+module.exports = App;

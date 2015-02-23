@@ -11,7 +11,6 @@
  * 4. Your View Responds to the store "Change" Event (in componentDidMount)
  */
 
-var AppDispatcher = require('../bootstrap');
 const xhr = require('../lib/xhr');
 const csp = require('../lib/csp');
 const { go, chan, take, put, ops } = csp;
@@ -22,14 +21,14 @@ var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
 
 
-var CHANGE_EVENT = 'change';
 var _formdata = null;
+var requestQueue = {};
 
 var getFormMeta = () => _formdata;
 
-function loadMeta (cb) {
+function _getData (req, url) {
     let xhr_opts = {
-        url: '/dform/formdata',
+        url: url,
         headers: {  'Authorization': 'OAuth ' + 'bob'  }
     }
 
@@ -37,9 +36,11 @@ function loadMeta (cb) {
 
     csp.takeAsync (ch, function(result) {
       _formdata = result.json;
-      cb();
+      req.data = _formdata;
+      req.finished(req);
     });
 }
+
 
 /*
  * Assigns enumerable own properties of "EventEmitter.prototype" & "{...}" objects to the target object "{}"
@@ -50,17 +51,16 @@ function loadMeta (cb) {
  *  removeListener(event, listener)
  *  emit(event[, arg1][, arg2][, ...])  # Execute each of the listeners in order with the supplied arguments
  *  */
-var MetaStore = assign({}, EventEmitter.prototype, {
+var MetaStore =  {
 
-     getMeta: function() {
-       if (getFormMeta()) {
-         return getFormMeta();
-       } else {
-         loadMeta (() => this.emit(CHANGE_EVENT));
-         return [];
-       }
+    dataReq: function(req) {
+      if (req.opt === 'formdata') {
+        _getData (req, '/dform/formdata');
+      } else if (req.opt === 'dform') {
+        _getData (req, '/dform/db/' + req.form);
+      }
     }
-});
+};
 
 
 module.exports = MetaStore;

@@ -141,6 +141,61 @@ var Report = React.createClass({
     }
 });
 
+var RecordList = React.createClass({
+  getInitialState: function(){
+      console.log ('TileList InitialState : ' + this.props.UrlPrarms);
+      return { listdata: [] };
+  },
+  componentDidMount: function() {
+    MetaStore.dataReq ({opt: 'dform', form: this.props.UrlPrarms.id, finished: this._onChange});
+  },
+  _onChange: function(req) {
+    if (this.isMounted()) {
+      if (req.opt === 'dform')
+        this.setState({ listdata: req.data.documents});
+    }
+  },
+  render: function() {
+
+    return (
+          <div className="col-xs-12">
+              <div className="box">
+                <div className="box-header">
+                  <h3 className="box-title">Responsive Hover Table</h3>
+                  <div className="box-tools">
+                    <div className="input-group">
+                      <input type="text" name="table_search" className="form-control input-sm pull-right" style={{width: '150px'}} placeholder="Search"/>
+                      <div className="input-group-btn">
+                        <button className="btn btn-sm btn-default"><i className="fa fa-search"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="box-body table-responsive no-padding">
+                  <table className="table table-hover">
+                    <tbody><tr>
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th>Reason</th>
+                    </tr>
+                    {this.state.listdata.map(function(row, i) { return (
+                      <tr>
+                        <td>{row._id}</td>
+                        <td>{row.name}</td>
+                        <td>11-7-2014</td>
+                        <td><span className="label label-success">Approved</span></td>
+                        <td>Bacon ipsum dolor sit amet salami venison chicken flank fatback doner.</td>
+                      </tr>
+                    );})}
+                  </tbody></table>
+                </div>
+              </div>
+            </div>
+    )
+  }
+})
 
 
 var Tile = React.createClass({
@@ -161,7 +216,7 @@ var Tile = React.createClass({
 
         return (
             <div className="col-xs-12 col-sm-4 col-md-3 col-lg-2">
-                <a className={boxclass}>
+                <a className={boxclass} href={"#RecordList?id="+tdata._id} onClick={this.props.navTo}>
                     <div className="inner">
                         <h4>{tdata.name}</h4>
                         <p>{tdata.type}</p>
@@ -237,6 +292,19 @@ var TileList= React.createClass({
                         );})}
                     </ol>
                 </div>
+                { meta[0] && (
+                <div className="row">
+                  <div className="col-lg-12">
+                    <div className="info-box">
+                      <div className="box-body">
+                        <a onClick={this.props.navTo} href={"#DNew?id="+meta[0]._id} className="btn btn-app">
+                          <i className="fa fa-edit"></i> New
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
                 <div className="row">
 
@@ -253,7 +321,7 @@ var TileList= React.createClass({
 var Test= React.createClass({
   getInitialState: function(){
       console.log ('Test InitialState : ' + this.props.meta);
-      return { breadcrumbs: [], meta: MetaStore.getMeta()};
+      return {};
   },
   render: function () {
     return (
@@ -263,4 +331,4 @@ var Test= React.createClass({
 });
 
 
-module.exports = { TileList, Tile, Report, Test};
+module.exports = { TileList, Tile, Report, Test, RecordList};
