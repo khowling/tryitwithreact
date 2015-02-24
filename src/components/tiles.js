@@ -141,10 +141,145 @@ var Report = React.createClass({
     }
 });
 
+var Field = React.createClass({
+  mixins: [React.addons.LinkedStateMixin],
+  getInitialState: function() {
+    // ES6 Computed Propery names
+    return {[this.props.fielddef.name]: this.props.fielddef.default_value };
+  },
+  componentWillReceiveProps(nextProps) {
+    console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
+    if (nextProps.value) this.setState ({[this.props.fielddef.name]: nextProps.value});
+  },
+  render: function() {
+    console.log ('Field render');
+    let field;
+    if (!this.props.edit) switch (this.props.fielddef.type) {
+        case 'text':
+        case 'email':
+        case 'textarea':
+        case 'dropdown':
+        case 'lookup':
+            field = <div>{this.props.value}</div>;
+            break;
+        case 'childform':
+            field = <div></div>;
+            break;
+        case 'image':
+            field = <img className="direct-chat-img" src={"/dform/file/"+this.props.value} alt="message user image"/>;
+            break;
+        default:
+            field = <div>Unknown fieldtype {this.props.fielddef.type}</div>;
+            break;
+    } else {
+
+      switch (this.props.fielddef.type) {
+        case 'text':
+        case 'email':
+          field = <div className="form-group">
+                    <label>{this.props.fielddef.title}</label>
+                    <input type="text" className="form-control" placeholder={this.props.fielddef.placeholder} valueLink={this.linkState(this.props.fielddef.name)}/>
+                  </div>;
+          break;
+        case 'textarea':
+          field = <div className="form-group">
+                      <label>{this.props.fielddef.name}</label>
+                      <textarea className="form-control" rows="3" placeholder={this.props.fielddef.placeholder}></textarea>
+                    </div>;
+            break;
+        case 'dropdown':
+          field = <div className="form-group">
+                      <label>{this.props.fielddef.name}</label>
+                      <select className="form-control" valueLink={this.linkState(this.props.fielddef.name)}>
+                        {this.props.fielddef.dropdown_options.map (function(opt, i) { return (
+                        <option value={opt.value}>{opt.name}</option>
+                        );})}
+                      </select>
+                    </div>;
+            break;
+        case 'lookup':
+            field = <div className="form-group">
+                      <label>{this.props.fielddef.name}</label>
+                      <div className="input-group">
+                        <input type="text" className="form-control"/>
+                        <span className="input-group-addon"><i className="fa fa-search"></i></span>
+                      </div>
+                    </div>;
+            break;
+        case 'childform':
+            field = <div></div>;
+            break;
+        case 'image':
+            field = <div className="form-group">
+                        <label>{this.props.fielddef.name}</label>
+                        <input type="file" id="hiddenfileinput" name="file" style={{display: "none"}} accept="image/*" onchange="angular.element(this).scope().fileuploadhtml5(this);" />
+                        <div className="small -box">
+                          <div><img className="" src={"http://placehold.it/120x120"} alt="message user image"/></div>
+                          <a className="small-box-footer">Upload Picture <i className="fa fa-arrow-circle-right"></i></a>
+                        </div>
+                    </div>;
+            break;
+        default:
+            field = <div>Unknown fieldtype {this.props.fielddef.type}</div>;
+            break;
+      };
+    }
+
+    return field;
+  }
+});
+
+var Form = React.createClass({
+  getInitialState: function(){
+      console.log ('Form InitialState : ' + JSON.stringify(this.props.UrlPrarms));
+      return { recorddata: {}, metadef: this.props.meta.find (e => e._id === this.props.UrlPrarms.id) };
+  },
+  componentDidMount: function() {
+    MetaStore.dataReq ({opt: 'dform', form: this.props.UrlPrarms.id, q: {_id: this.props.UrlPrarms.rid}, finished: this._onChange});
+  },
+  _onChange: function(req) {
+    console.log ('Form _onChange : ' + JSON.stringify(req));
+    if (this.isMounted()) {
+      if (req.opt === 'dform')
+        this.setState({ recorddata: req.data.documents});
+    }
+  },
+  render: function() {
+    console.log ('Form render');
+    var self = this;
+    return (
+          <div className="col-xs-12">
+            <div className="box">
+              <div className="box-header">
+                <h3 className="box-title">{this.state.metadef.name}</h3>
+                <div className="box-tools">
+                  <div className="input-group">
+                    <input type="text" name="table_search" className="form-control input-sm pull-right" style={{width: '150px'}} placeholder="Search"/>
+                    <div className="input-group-btn">
+                      <button className="btn btn-sm btn-default"><i className="fa fa-search"></i></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="box-body">
+                {self.state.metadef.fields.map(function(field, i) { return (
+                  <Field fielddef={field} value={self.state.recorddata[field.name]} edit="true"/>
+                );})}
+              </div>
+              <div className="box-footer">
+                <button type="submit" className="btn btn-primary">Submit</button>
+              </div>
+            </div>
+          </div>
+        );
+  }
+});
+
+
 var RecordList = React.createClass({
   getInitialState: function(){
       console.log ('TileList InitialState : ' + this.props.UrlPrarms);
-      return { listdata: [] };
+      return { listdata: [], metadef: this.props.meta.find (e => e._id === this.props.UrlPrarms.id) };
   },
   componentDidMount: function() {
     MetaStore.dataReq ({opt: 'dform', form: this.props.UrlPrarms.id, finished: this._onChange});
@@ -156,12 +291,12 @@ var RecordList = React.createClass({
     }
   },
   render: function() {
-
+    var self = this;
     return (
           <div className="col-xs-12">
               <div className="box">
                 <div className="box-header">
-                  <h3 className="box-title">Responsive Hover Table</h3>
+                  <h3 className="box-title">{this.state.metadef.name}</h3>
                   <div className="box-tools">
                     <div className="input-group">
                       <input type="text" name="table_search" className="form-control input-sm pull-right" style={{width: '150px'}} placeholder="Search"/>
@@ -174,19 +309,21 @@ var RecordList = React.createClass({
                 <div className="box-body table-responsive no-padding">
                   <table className="table table-hover">
                     <tbody><tr>
-                      <th>ID</th>
-                      <th>Name</th>
-                      <th>Date</th>
-                      <th>Status</th>
-                      <th>Reason</th>
+                      <th>actions</th>
+                      {self.state.metadef.fields.map(function(field, i) { return (
+                      <th>{field.name}</th>
+                      );})}
+
                     </tr>
-                    {this.state.listdata.map(function(row, i) { return (
+                    {self.state.listdata.map(function(row, i) { return (
                       <tr>
-                        <td>{row._id}</td>
-                        <td>{row.name}</td>
-                        <td>11-7-2014</td>
-                        <td><span className="label label-success">Approved</span></td>
-                        <td>Bacon ipsum dolor sit amet salami venison chicken flank fatback doner.</td>
+                          <td>
+                            <a href={"#Form?id="+self.state.metadef._id+"&rid="+row._id} onClick={self.props.navTo}>edit</a>
+                          </td>
+                          {self.state.metadef.fields.map(function(field, i) { return (
+                            <td><Field fielddef={field} value={row[field.name]}/></td>
+                          );})}
+
                       </tr>
                     );})}
                   </tbody></table>
@@ -331,4 +468,4 @@ var Test= React.createClass({
 });
 
 
-module.exports = { TileList, Tile, Report, Test, RecordList};
+module.exports = { TileList, Tile, Report, Test, RecordList, Form};

@@ -57,7 +57,7 @@ var MetaStore =  {
       if (req.opt === 'formdata') {
         _getData (req, '/dform/formdata');
       } else if (req.opt === 'dform') {
-        _getData (req, '/dform/db/' + req.form);
+        _getData (req, '/dform/db/' + req.form + (req.q && ('?q=' + JSON.stringify(req.q)) || '') );
       }
     }
 };

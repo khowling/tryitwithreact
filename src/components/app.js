@@ -44,8 +44,8 @@ var App  = React.createClass({
     displayName: 'App',
     //can run them before any component instances are created, and the methods do not have access to the props or state
     statics: {
-      _getURLNav:  function () {
-        var gethash = decodeURI(
+      _getURLNav:  function (lnkhash) {
+        var gethash = lnkhash || decodeURI(
           // We can't use window.location.hash here because it's not
           // consistent across browsers - Firefox will pre-decode it!
           // window.location.pathname + window.location.search
@@ -56,8 +56,8 @@ var App  = React.createClass({
         let paramjson = {};
         if (typeof parms !== 'undefined') {
           let tfn = x => {let [n, v] = x.split('='); paramjson[n] = v; }
-          if (Array.isArray(parms))
-            parms.split['&'].map (tfn);
+          if (parms.indexOf ('&') > -1)
+            parms.split('&').map (tfn);
           else
             tfn (parms);
         }
@@ -80,13 +80,15 @@ var App  = React.createClass({
 
       event.preventDefault();
       //var newComp = $(event.target).attr('href').substring(1);
-      var newComp = $(element.currentTarget).attr('href').substring(1);
+      var href = $(element.currentTarget).attr('href').substring(1),
+          newComp = this.constructor._getURLNav (href);
+
       // HTML5 history API
-      history.pushState({}, "page", "/#" + newComp);
-      console.log ('App navTo ' + newComp);
-      if (newComp !== this.state.renderThis) {
-        this.setState ({renderThis: newComp});
-      }
+      history.pushState({}, "page", "/#" + href);
+      console.log ('App navTo ' + JSON.stringify(newComp));
+      //if (newComp !== this.state.renderThis) {
+      this.setState ({renderThis: newComp.hash, UrlPrarms: newComp.params});
+      //}
     },
     componentDidMount: function() {
       MetaStore.dataReq ({opt: 'formdata', finished: this._onChange});
@@ -98,14 +100,18 @@ var App  = React.createClass({
 
     render: function () {
       console.log ('App render : ' + this.state.renderThis);
-      if (compfact[this.state.renderThis]) {
-        return compfact[this.state.renderThis](
-          {meta: this.state.formdata,
-           navTo: this.navTo,
-           UrlPrarms: this.state.UrlPrarms});
+      if (this.state.formdata.length > 0) {
+        if (compfact[this.state.renderThis]) {
+          return compfact[this.state.renderThis](
+            {meta: this.state.formdata,
+             navTo: this.navTo,
+             UrlPrarms: this.state.UrlPrarms});
+        } else return (
+            <div>404</div>
+        )
       } else return (
-          <div>404</div>
-      );
+        <div>loading meta</div>
+      )
 
     },
     _onChange: function(req) {
