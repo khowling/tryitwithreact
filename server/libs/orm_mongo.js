@@ -148,12 +148,12 @@ module.exports = function(options) {
                         console.log('got document ' + JSON.stringify(doc));
 
                         if (ignoreLookups) {
-                            success({ documents: doc});
+                            success({ documents: [doc]});
                         } else {
                             var lookupkeys = collectforignids([doc]);
                             console.log('got query for foriegn key lookup ' + JSON.stringify(lookupkeys));
 
-                            runallsubqueries(lookupkeys, doc, function (docs) {
+                            runallsubqueries(lookupkeys, [doc], function (docs) {
                                 success({ documents: docs, subq: subq_res});
                             });
                         }
@@ -491,4 +491,3 @@ module.exports = function(options) {
     };
     return exps;
 }
-

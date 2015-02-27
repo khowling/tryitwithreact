@@ -55,7 +55,16 @@ var App  = React.createClass({
         let [comp, parms] = gethash.split('?');
         let paramjson = {};
         if (typeof parms !== 'undefined') {
-          let tfn = x => {let [n, v] = x.split('='); paramjson[n] = v; }
+          let tfn = x => {
+            let [n, v] = x.split('=');
+            if (n === 'gid') {
+              let [view, id] = v.split (':');
+              paramjson.view = view;
+              paramjson.id = id;
+            } else
+              paramjson[n] = v;
+            };
+
           if (parms.indexOf ('&') > -1)
             parms.split('&').map (tfn);
           else
@@ -69,31 +78,38 @@ var App  = React.createClass({
           var newComp = this.constructor._getURLNav();
           console.log ('App url changed : ' + JSON.stringify(newComp));
           //if (newComp !== this.state.renderThis) {
-            this.setState ({renderThis: newComp.hash, UrlPrarms: newComp.params});
+            this.setState ({renderThis: newComp.hash, urlparam: newComp.params});
           //};
         }.bind(this));
         var newComp = this.constructor._getURLNav();
         console.log ('App Initial URL : ' + JSON.stringify(newComp));
-        return {renderThis: newComp.hash, UrlPrarms: newComp.params, formdata: []};
+        return {renderThis: newComp.hash, urlparam: newComp.params, formdata: []};
     },
     navTo: function (element) {
-
-      event.preventDefault();
-      //var newComp = $(event.target).attr('href').substring(1);
-      var href = $(element.currentTarget).attr('href').substring(1),
-          newComp = this.constructor._getURLNav (href);
-
+      let href, newComp;
+      if (typeof element === 'object') {
+        event.preventDefault();
+        //var newComp = $(event.target).attr('href').substring(1);
+        href = $(element.currentTarget).attr('href').substring(1);
+        newComp = this.constructor._getURLNav (href);
+      } else if (typeof element === 'string') {
+        href = element;
+        newComp = this.constructor._getURLNav (href);
+      }
       // HTML5 history API
       history.pushState({}, "page", "/#" + href);
       console.log ('App navTo ' + JSON.stringify(newComp));
       //if (newComp !== this.state.renderThis) {
-      this.setState ({renderThis: newComp.hash, UrlPrarms: newComp.params});
+      this.setState ({renderThis: newComp.hash, urlparam: newComp.params});
       //}
     },
     componentDidMount: function() {
-      MetaStore.dataReq ({opt: 'formdata', finished: this._onChange});
+      MetaStore.initMeta (this._gotMeta);
     },
-
+    _gotMeta: function(data) {
+      //console.log ('App _gotMeta ' + JSON.stringify(data));
+      this.setState({ formdata: data});
+    },
     componentWillUnmount: function() {
       MetaStore.removeListener('change', this._onChange);
     },
@@ -105,7 +121,7 @@ var App  = React.createClass({
           return compfact[this.state.renderThis](
             {meta: this.state.formdata,
              navTo: this.navTo,
-             UrlPrarms: this.state.UrlPrarms});
+             urlparam: this.state.urlparam});
         } else return (
             <div>404</div>
         )
@@ -113,12 +129,6 @@ var App  = React.createClass({
         <div>loading meta</div>
       )
 
-    },
-    _onChange: function(req) {
-      if (this.isMounted()) {
-        if (req.opt === 'formdata')
-          this.setState({ formdata: req.data});
-      }
     }
 });
 
