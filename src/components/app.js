@@ -50,7 +50,7 @@ var App  = React.createClass({
           // consistent across browsers - Firefox will pre-decode it!
           // window.location.pathname + window.location.search
           window.location.href.split('#')[1] || ''
-          ) || 'Test';
+          ) || 'TileList';
         console.log ('App _getURLNav url changed : ' + gethash);
         let [comp, parms] = gethash.split('?');
         let paramjson = {};

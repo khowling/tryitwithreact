@@ -143,14 +143,17 @@ var Report = React.createClass({
 
 var ChildForm = React.createClass({
   render: function() {
-    console.log ('ChildForm render');
+    console.log ('ChildForm render fields: ' +
+        JSON.stringify(seq(this.props.form.fields, map(x => x.name))) +
+        '. records: ' + JSON.stringify(this.props.value));
+
     var self = this;
     return (
           <div className="col-xs-12">
             <div className="box">
               <div className="box-body no-padding">
                 <ul className="nav nav-pills nav-stacked">
-                {self.props.value.map(function(record, i) { return (
+                {self.props.value && self.props.value.map(function(record, i) { return (
                   <li>
                     {self.props.form.fields.map(function(fld, i) { return (
                       <Field fielddef={fld} value={record[fld.name]} />
@@ -176,7 +179,7 @@ var Field = React.createClass({
     return {[this.props.fielddef.name]: this.props.fielddef.default_value };
   },
   componentWillReceiveProps(nextProps) {
-    console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
+    //console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
     if (nextProps.value) this.setState ({[this.props.fielddef.name]: nextProps.value});
   },
   handleChange: function(newValue) {
@@ -184,33 +187,88 @@ var Field = React.createClass({
   //  this.setState(newState); // not needed as the change handler is at the form level, that will update props on this child!
     if (this.props.onChange) this.props.onChange (newState);
   },
+  _clickFile: function(e) {
+    //console.log ('Field _clickFile');
+    $(e.currentTarget).siblings("input:file").click();
+  },
+  _fileuploadhtml5: function(e) {
+
+    var self = this,
+        file = e.currentTarget.files[0];
+    var picupload = {};
+
+    console.log('Field _fileuploadhtml5 : ' + file.name);
+
+    var formData = new FormData();
+    formData.append('file', file);
+
+    var xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener("progress",  function (evt) {
+             if (evt.lengthComputable) {
+                 picupload.progress = Math.round(evt.loaded * 100 / evt.total);
+             } else {
+                 picupload.progress = 'unable to compute';
+             }
+    }, false);
+
+    xhr.addEventListener("load", function (evt) {
+         // This event is raised when the server send back a response
+         picupload.progressVisible = false;
+         console.log ('got :' + JSON.stringify (evt.target));
+         self.handleChange (evt.target.responseText);
+        //data.documents[field.name] = evt.target.responseText;
+     }, false);
+
+     xhr.addEventListener("error", function (evt) {
+         console.log ("There was an error attempting to upload the file:" + JSON.stringify(evt));
+         picupload.servererr = 'Upload failed';
+     }, false);
+
+     xhr.addEventListener("abort", function (evt) {
+       picupload.progressVisible = true;
+       picupload.servererr = 'Upload aborted';
+       console.log ("The upload has been canceled by the user or the browser dropped the connection.");
+     }, false);
+
+     xhr.addEventListener("loadstart", function (evt) {
+       console.log ('got loadstart:');
+     });
+
+
+     xhr.open("PUT", "/dform/file/"+file.name, true);
+     picupload.progressVisible = true;
+     xhr.send(file);
+     return false;
+  },
   render: function() {
-    console.log ('Field render');
+    //console.log ('Field render');
 
     let field;
     if (!this.props.edit) switch (this.props.fielddef.type) {
         case 'text':
         case 'email':
         case 'textarea':
-          field = <div>{this.props.value}</div>
+          field = <span>{this.props.value}</span>
           break;
         case 'dropdown':
           let option = this.props.fielddef.dropdown_options.filter(f => f.value === this.props.value)[0];
 
-          field = <div>{option && option.name || 'Unknown option <' + this.props.value +'>'}</div>
+          field = <span>{option && option.name || 'Unknown option <' + this.props.value +'>'}</span>
           break;
         case 'lookup':
-          field = <a href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value.id}>{this.props.value.primary}</a>;
+          field = <a  href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value.id}>{this.props.value.primary}</a>;
           break;
         case 'childform':
           let cform = MetaStore.getForm (this.props.fielddef.child_form);
           field = <ChildForm form={cform} value={this.props.value}/>;
           break;
         case 'image':
-          field = <img className="direct-chat-img" src={"/dform/file/"+this.props.value} alt="message user image"/>;
+          field = <span>
+                    <img className="" src={this.props.value && "/dform/file/"+this.props.value || "http://placehold.it/120x120"} alt="message user image"/>
+                  </span>
           break;
         default:
-          field = <div>Unknown fieldtype {this.props.fielddef.type}</div>;
+          field = <span>Unknown fieldtype {this.props.fielddef.type}</span>;
           break;
     } else {
 
@@ -244,11 +302,11 @@ var Field = React.createClass({
             field = <div></div>;
             break;
         case 'image':
-            field =   <div className="small -box">
-                          <input type="file" id="hiddenfileinput" name="file" style={{display: "none"}} accept="image/*" onchange="angular.element(this).scope().fileuploadhtml5(this);" />
-                          <div><img className="" src={"http://placehold.it/120x120"} alt="message user image"/></div>
-                          <a className="small-box-footer">Upload Picture <i className="fa fa-arrow-circle-right"></i></a>
-                        </div>;
+            field =  <div className="imgContainer">
+                        <input type="file"  name="file" style={{display: "none"}} accept="image/*" onChange={this._fileuploadhtml5} />
+                        <img className="" src={this.props.value && "/dform/file/"+this.props.value || "http://placehold.it/120x120"} alt="message user image"/>
+                        <a className="imglable" onClick={this._clickFile}>Upload Picture <i className="fa fa-arrow-circle-right"></i></a>
+                      </div>;
             break;
         default:
             field = <div>Unknown fieldtype {this.props.fielddef.type}</div>;
@@ -263,34 +321,53 @@ var Field = React.createClass({
 var Form = React.createClass({
   getInitialState: function(){
       console.log ('Form InitialState : ' + JSON.stringify(this.props.urlparam));
-      return { recorddata: {} };
+      return { recorddata: {}, changeddata: {}};
   },
   componentDidMount: function() {
     MetaStore.dataReq ({opt: 'dform', form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}, finished: this._gotServerData});
   },
   _gotServerData: function(req) {
-    console.log ('Form _gotServerData : ' + JSON.stringify(req));
+    console.log ('Form _gotServerData');
     if (this.isMounted()) {
-      if (req.opt === 'dform')
+      if (req.opt === 'dform') {
         this.setState({ recorddata: req.data[0]});
+        console.log ('Form _gotServerData : '+ JSON.stringify(this.state.recorddata));
+      }
     }
   },
   _fieldChange: function(d) {
     console.log ('Form _fieldChange : '+ JSON.stringify(d));
-    this.setState({ recorddata: Object.assign(this.state.recorddata, d)});
+    this.setState(
+      { recorddata: Object.assign(this.state.recorddata, d),
+         changeddata: Object.assign(this.state.changeddata, d)});
   },
   _save: function() {
-    var self = this;
-    console.log ('Form _save : '+ JSON.stringify(this.state.recorddata));
-    MetaStore.save ({opt: 'dform', form: this.props.urlparam.view, body: this.state.recorddata, finished: function(d) {
+    var self = this,
+        savechanges = Object.assign({_id: this.state.recorddata._id}, this.state.changeddata);
+
+    console.log ('Form _save : '+ JSON.stringify(savechanges));
+    MetaStore.save ({opt: 'dform', form: this.props.urlparam.view, body: savechanges, finished: function(d) {
+      console.log ('Form _save, response from server : ' + JSON.stringify(d));
       self.props.navTo('Form?gid='+self.props.urlparam.view+':'+d.data._id);
+      }});
+  },
+  _delete: function() {
+    var self = this;
+    MetaStore.delete ({opt: 'dform', form: this.props.urlparam.view, id: this.state.recorddata._id, finished: function(d) {
+      console.log ('Form _delete, response from server : ' + JSON.stringify(d));
+      self.props.navTo('RecordList?gid='+self.props.urlparam.view);
       }});
   },
   render: function() {
     console.log ('Form render ' + JSON.stringify(this.props.urlparam));
     var self = this,
-        metaview = this.props.meta.find (e => e._id === this.props.urlparam.view);
+        metaview = MetaStore.getForm (this.props.urlparam.view),
+        nonchildformfields = metaview.fields.filter(m => m.type !== 'childform'),
+        childformfields = metaview.fields.filter(m => m.type === 'childform');
+    var cx = React.addons.classSet;
+
     return (
+        <div className="row">
           <div className="col-xs-12">
             <div className="box">
               <div className="box-header">
@@ -299,28 +376,38 @@ var Form = React.createClass({
                   {!this.props.urlparam.e &&
                     <div className="input-group">
                       <a className="btn btn-primary pull-right" href={"#Form?gid="+metaview._id+":"+this.props.urlparam.id+"&e=true"}>edit</a>
+                      <button onClick={this._delete} className="btn btn-primary">Delete</button>
                     </div>
                   }
                 </div>
               </div>
               <div className="box-body">
-                {metaview.fields.map(function(field, i) { return (
-                  <div className="form-group">
-                    <label>{field.title}</label>
-                    <Field fielddef={field} value={self.state.recorddata[field.name]} edit={self.props.urlparam.e} onChange={self._fieldChange}/>
-                  </div>
-                );})}
+                <div className="row">
+                  {nonchildformfields.map(function(field, i) { return (
+                    <div className="col-xs-6 col-md-6">
+                      <div className="form-group">
+                        <label>{field.title}</label>
+                        <div className={cx({"rofield": !self.props.urlparam.e && field.type !== 'image'})}>
+                          <Field fielddef={field} value={self.state.recorddata[field.name]} edit={self.props.urlparam.e} onChange={self._fieldChange}/>
+                        </div>
+                      </div>
+                    </div>
+                  );})}
+                </div>
               </div>
               {this.props.urlparam.e &&
-              <div className="box-footer">
-
-                <button onClick={this._save} className="btn btn-primary">Save</button>
-                <a href={"#Form?gid="+self.props.urlparam.view+":"+self.state.recorddata._id} onClick={this.props.navTo} className="btn btn-primary">Cancel</a>
-
-              </div>
-            }
+                <div className="box-footer">
+                  <button onClick={this._save} className="btn btn-primary">Save</button>
+                  <a href={"#Form?gid="+self.props.urlparam.view+":"+self.state.recorddata._id} onClick={this.props.navTo} className="btn btn-primary">Cancel</a>
+                </div>
+              }
             </div>
           </div>
+          {childformfields.map(function(field, i) { return (
+            <RecordList view={field.child_form} value={self.state.recorddata[field.name]}/>
+          );})}
+        </div>
+
         );
   }
 });
@@ -328,25 +415,42 @@ var Form = React.createClass({
 
 var RecordList = React.createClass({
   getInitialState: function(){
-      console.log ('TileList InitialState : ' + JSON.stringify(this.props.urlparam));
-      return { listdata: [], metadef: this.props.meta.find (e => e._id === this.props.urlparam.view) };
+      console.log ('RecordList InitialState : ' + JSON.stringify(this.props.value));
+      return { value: this.props.value || [] };
   },
   componentDidMount: function() {
-    MetaStore.dataReq ({opt: 'dform', form: this.props.urlparam.view, finished: this._onChange});
+    if (this.props.urlparam && this.props.urlparam.view) {
+      console.log ('RecordList componentDidMount, got url para so running query : ' + JSON.stringify(this.props.urlparam.view));
+      MetaStore.dataReq ({opt: 'dform', form: this.props.urlparam.view, finished: this._onChange});
+    }
   },
   _onChange: function(req) {
     if (this.isMounted()) {
-      if (req.opt === 'dform')
-        this.setState({ listdata: req.data});
+      if (req.opt === 'dform') {
+        console.log ('RecordList _onChange : got data from query');
+        this.setState({ value: req.data});
+      }
+    }
+  },
+  _delete: function (e) {
+
+  },
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.value) {
+      console.log ('RecordList componentWillReceiveProps : got data from parent prop: ' + JSON.stringify(nextProps.value));
+      this.setState ({value: nextProps.value});
     }
   },
   render: function() {
-    var self = this;
+    var self = this,
+        metaview = MetaStore.getForm (this.props.urlparam && this.props.urlparam.view || this.props.view),
+        nonchildformfields = metaview.fields.filter(m => m.type !== 'childform');
+
     return (
           <div className="col-xs-12">
               <div className="box">
                 <div className="box-header">
-                  <h3 className="box-title">{this.state.metadef.name}</h3>
+                  <h3 className="box-title">{metaview.name}</h3>
                   <div className="box-tools">
                     <div className="input-group">
                       <input type="text" name="table_search" className="form-control input-sm pull-right" style={{width: '150px'}} placeholder="Search"/>
@@ -360,19 +464,18 @@ var RecordList = React.createClass({
                   <table className="table table-hover">
                     <tbody><tr>
                       <th>actions</th>
-                      {self.state.metadef.fields.map(function(field, i) { return (
+                      {nonchildformfields.map(function(field, i) { return (
                       <th>{field.name}</th>
                       );})}
 
                     </tr>
-                    {self.state.listdata.map(function(row, i) { return (
+                    {self.state.value.map(function(row, i) { return (
                       <tr>
                           <td>
-                            <a href={"#Form?gid="+self.state.metadef._id+":"+row._id+"&e=true"} onClick={self.props.navTo}>edit</a>
-                            <br/>
-                            <a href={"#Form?gid="+self.state.metadef._id+":"+row._id} onClick={self.props.navTo}>view</a>
+                            <a href={"#Form?gid="+metaview._id+":"+row._id+"&e=true"} onClick={self.props.navTo}>edit</a>
+                            <a href={"#Form?gid="+metaview._id+":"+row._id} onClick={self.props.navTo}>view</a>
                           </td>
-                          {self.state.metadef.fields.map(function(field, i) { return (
+                          {nonchildformfields.map(function(field, i) { return (
                             <td><Field fielddef={field} value={row[field.name]}/></td>
                           );})}
 

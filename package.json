@@ -23,7 +23,7 @@
     "passport-forcedotcom": "*",
     "react": "^0.12.2",
     "source-map-support": "^0.2.8",
-    "nprogress": "^0.1.6"
+    "nprogress": "^0.1.6",
   },
   "devDependencies": {
     "babel": "^4.1.1",

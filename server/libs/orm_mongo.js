@@ -226,12 +226,16 @@ module.exports = function(options) {
                     }
                 };
 
-                var query = {_id: new ObjectID(parentid)};
-                var update = { $pull: {} }
-                update["$pull"][embedfield] = { _id: new ObjectID(recid) };
+                if (parentid) {
+                  var query = {_id: new ObjectID(parentid)};
+                  var update = { $pull: {} }
+                  update["$pull"][embedfield] = { _id: new ObjectID(recid) };
 
-                console.log('/db/' + coll + ' query :' + JSON.stringify(query) + ' update :' + JSON.stringify(update));
-                db.collection(coll).update(query, update, callback);
+                  console.log('/db/' + coll + ' query :' + JSON.stringify(query) + ' update :' + JSON.stringify(update));
+                  db.collection(coll).update(query, update, callback);
+                } else {
+                  db.collection(coll).remove({_id: new ObjectID(recid)}, callback);
+                }
             }
         }, function (err) {
             error ('Cannot find form definitions ' + err);
@@ -271,7 +275,7 @@ module.exports = function(options) {
 
                 var savedEmbedDoc; // set later, used by callback
 
-                console.log('/db/'+coll+' embeded <' + embedfield  + '>: ' + JSON.stringify(userdoc));
+                console.log('/db/'+coll+' userdoc: ' + JSON.stringify(userdoc));
 
                 //callback gets two parameters - an error object (if an error occured) and the record if it was inserted or 1 if the record was updated.
                 var callback = function (err, recs) {
@@ -298,7 +302,9 @@ module.exports = function(options) {
                             if (embedField) {
                                 setval[embedfield+'.$.'+fname] = dataval[fname];
                             } else {
-                                setval[fname] = dataval[fname];
+                                if (dataval.hasOwnProperty(fname)) {
+                                  setval[fname] = dataval[fname];
+                                }
                             }
                         }
                     }
@@ -373,110 +379,33 @@ module.exports = function(options) {
      */
 
     exps.getfile = function (filename, res) {
-        console.log ('req.params.filename ' + filename);
+        console.log ('getfile() filename : ' + filename);
         var gs = new GridStore(db, filename, 'r');
         gs.open(function(err, gs){
-            console.log ('open gridstore ' + err);
-            if (err) res.end();
-            else gs.stream([autoclose=false]).pipe(res);
+
+            gs.on('close',function(){
+              console.log ('getfile() finished');
+            });
+
+            if (err) {
+              console.log ('getfile() cannot open GridStore: ' + JSON.stringify(err));
+              res.end();
+            } else {
+              console.log ('getfile() open GridStore pipe to response');
+              gs.stream([autoclose=false]).pipe(res);
+            }
         });
 
     };
 
-    // upload file into mongo, with help from formidable
     exps.putfile = function (req, res) {
+      var filename = 'profile-pic'+new ObjectID (),
+          gfs = Grid(db, mongo);
 
-            var uid = new ObjectID ();
-            var form = new formidable.IncomingForm();
-            var filename;
-
-            // overwrite this method if you are interested in directly accessing the multipart stream
-            form.onPart = function(part) {
-
-                console.log ('/file onPart, partname : ['+part.name+'], part.filename :  ' + part.filename);
-                if (part.filename === undefined) {
-                    console.log ('let formidable handle all non-file parts');
-                    return form.handlePart(part);
-
-                }
-
-                // this is now a filepart
-                var form = this;
-                form._flushing++;
-
-                form.emit('fileBegin', part.name, grid_ws);
-
-                // open gridFS write Stream
-                filename = 'profile-pic'+uid;
-
-                var options = {mode: 'w', content_type: part.mime};
-                if (form.chunk_size) options.chunk_size = this.chunk_size;
-                if (form.root) options.root = this.root;
-                if (form.metadata) options.metadata = this.metadata;
-                console.log ('/fileupload onPart  open gridFS ['+filename+']  : options : ' + JSON.stringify(options) );
-                // the filename is used by 'GridStore' to lookup the file.
-                var grid_ws = Grid(db, mongo).createWriteStream(filename, options);
-
-
-                // GRID_WS Events
-                var resume = function() {
-                    console.log ('/file grid_ws.drain : resuming form');
-                    form.resume();
-                }
-                grid_ws.on('drain', resume);
-
-                var onprogress = function  (size) {
-                    //file.lastModified = new Date;
-                    //file.size = size;
-                    //file.emit('progress', size);
-                    console.log ('/file writing data to grid_ws ' + size);
-                }
-                grid_ws.on('progress', onprogress);
-
-
-                // MULTIPART PART Events
-                var onData = function(buffer) {
-                    console.log ('/file event "data":   pause form & write to grid');
-                    form.pause();
-                    grid_ws.write(buffer);
-                };
-                part.on('data', onData);
-
-                var onEnd =function  () {
-                    console.log ('/file event "end"');
-                    part.removeListener('data', onData);
-                    part.removeListener('end', onEnd);
-                    //grid_ws.removeListener('drain', gridOnDrain);
-                    grid_ws.once ('close', function (_) { done(); });
-                    grid_ws.end();
-                };
-                part.once('end', onEnd);
-
-                var done = function (err) {
-                    if (done.err) return;
-                    if (err) return form.emit('error', done.err = err);
-
-                    grid_ws.removeListener('progress', onprogress);
-                    grid_ws.removeListener('drain', resume);
-                    grid_ws.removeListener('error', done);
-
-                    form._flushing--;
-                    form.emit('file', 'fileid', grid_ws.id);
-                    form._maybeEnd();
-                }
-                grid_ws.once('error', done);
-            }
-
-
-            // we disabled the bodyParser for multipart, so using formidable to stream the data to mongo gridFS
-
-            var myCB = function (err, fields, files) {
-                console.log ('/file parse file (error:'+err+')[' + filename + '] ' + JSON.stringify(files) + ', fields : ' + JSON.stringify(fields));
-                res.send(filename);
-            }
-            console.log ('/file parse the form in the request object');
-            form.parse(req, myCB);
-
+      req.pipe(gfs.createWriteStream({
+          filename: filename
+      }));
+      res.send(filename);
     };
 
     exps.getmeta = function (success, error) {

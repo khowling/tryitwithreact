@@ -22,15 +22,16 @@ var requestQueue = {};
 var getFormMeta = () => _formdata;
 var setFormMeta = (x) => _formdata = x;
 
-function _getData (req, url) {
+function _getData (req, url, method) {
     let xhr_opts = {
         url: url,
-        headers: {  'Authorization': 'OAuth ' + 'bob'  }
+        headers: {
+          "Authorization": "OAuth " + "bob",
+          "Content-Type": "application/json"  }
     }
-
+    xhr_opts.method = method || 'GET';
     if (req.body) {
-      xhr_opts.method = 'POST';
-      xhr_opts.body = req.body;
+      xhr_opts.body = JSON.stringify(req.body);
     }
 
     let ch = xhr(xhr_opts);
@@ -63,14 +64,13 @@ var MetaStore =  {
         let joineddata = ret.data.documents,
             formdef = MetaStore.getForm (req.form);
 
-
         let addPrimaryToLookup = function (formdef, val) {
           for (let recs of val) {
             for (let fld of formdef.fields) {
               if (fld.type === 'lookup') {
                 recs[fld.name] = {id: recs[fld.name], primary: ret.data.subq[recs[fld.name]]};
               }
-              if (fld.type === 'childform') {
+              if (fld.type === 'childform' && recs[fld.name]) {
                 addPrimaryToLookup(MetaStore.getForm (fld.child_form), recs[fld.name]);
               }
             }
@@ -87,7 +87,10 @@ var MetaStore =  {
     }
   },
   save: function(req) {
-    _getData (req, '/dform/db/' + req.form);
+    _getData (req, '/dform/db/' + req.form, 'POST');
+  },
+  delete: function(req) {
+    _getData (req, '/dform/db/' + req.form + '/' + req.id, 'DELETE');
   }
 };
 

@@ -25,8 +25,6 @@ module.exports = function(options) {
     router.get('/db/:form', function(req, res) {
         var formparam = req.params["form"],
             q = JSON.parse((req.query.q || '{}').replace(/<DOLLAR>/g, '$')); // replace required because angular $resource.query doesnt encode '$'
-
-        console.log ('calling orm.find : ' + orm);
         orm.find(formparam, q, function success(j) {
             res.json(j);
         }, function error(e) {
@@ -55,12 +53,12 @@ module.exports = function(options) {
     	    parentid = req.query.parentid,
     		//userdoc = JSON.parse(JSON.stringify(req.body).replace(/<DOLLAR>/g,'$'));
     	    userdoc = req.body;
-
-        orm.save (formparam, parentfieldid,parentid, userdoc, function success(j) {
-            res.json(j);
-        }, function error(e) {
-            res.status(400).send(e);
-        });
+      console.log ('save for : ' + JSON.stringify(userdoc));
+      orm.save (formparam, parentfieldid,parentid, userdoc, function success(j) {
+          res.json(j);
+      }, function error(e) {
+          res.status(400).send(e);
+      });
     });
 
 
