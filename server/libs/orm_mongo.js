@@ -382,15 +382,15 @@ module.exports = function(options) {
         console.log ('getfile() filename : ' + filename);
         var gs = new GridStore(db, filename, 'r');
         gs.open(function(err, gs){
-
-            gs.on('close',function(){
-              console.log ('getfile() finished');
-            });
-
             if (err) {
               console.log ('getfile() cannot open GridStore: ' + JSON.stringify(err));
               res.end();
             } else {
+
+              gs.on('close',function(){
+                console.log ('getfile() finished');
+              });
+
               console.log ('getfile() open GridStore pipe to response');
               gs.stream([autoclose=false]).pipe(res);
             }

@@ -176,7 +176,7 @@ var Field = React.createClass({
   //mixins: [React.addons.LinkedStateMixin],
   getInitialState: function() {
     // ES6 Computed Propery names
-    return {[this.props.fielddef.name]: this.props.fielddef.default_value };
+    return {[this.props.fielddef.name]: this.props.fielddef.default_value, picupload:0 };
   },
   componentWillReceiveProps(nextProps) {
     //console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
@@ -195,28 +195,27 @@ var Field = React.createClass({
 
     var self = this,
         file = e.currentTarget.files[0];
-    var picupload = {};
+
 
     console.log('Field _fileuploadhtml5 : ' + file.name);
-
-    var formData = new FormData();
-    formData.append('file', file);
+    //var formData = new FormData();   formData.append('file', file);
 
     var xhr = new XMLHttpRequest();
     xhr.upload.addEventListener("progress",  function (evt) {
-             if (evt.lengthComputable) {
-                 picupload.progress = Math.round(evt.loaded * 100 / evt.total);
-             } else {
-                 picupload.progress = 'unable to compute';
-             }
+      console.log ('progress ' + evt.loaded);
+      if (evt.lengthComputable) {
+        self.setState({picupload: Math.round(evt.loaded * 100 / evt.total)});
+      } else {
+        self.setState({picupload: 50});
+      }
     }, false);
 
     xhr.addEventListener("load", function (evt) {
-         // This event is raised when the server send back a response
-         picupload.progressVisible = false;
-         console.log ('got :' + JSON.stringify (evt.target));
-         self.handleChange (evt.target.responseText);
-        //data.documents[field.name] = evt.target.responseText;
+       // This event is raised when the server send back a response
+       self.setState({picupload : 0});
+       console.log ('got :' + JSON.stringify (evt.target));
+       self.handleChange (evt.target.responseText);
+      //data.documents[field.name] = evt.target.responseText;
      }, false);
 
      xhr.addEventListener("error", function (evt) {
@@ -236,8 +235,8 @@ var Field = React.createClass({
 
 
      xhr.open("PUT", "/dform/file/"+file.name, true);
-     picupload.progressVisible = true;
      xhr.send(file);
+     self.setState({picupload : 5});
      return false;
   },
   render: function() {
@@ -263,9 +262,9 @@ var Field = React.createClass({
           field = <ChildForm form={cform} value={this.props.value}/>;
           break;
         case 'image':
-          field = <span>
-                    <img className="" src={this.props.value && "/dform/file/"+this.props.value || "http://placehold.it/120x120"} alt="message user image"/>
-                  </span>
+          field = <div className="pictureAndText">
+                    <img height="120"  src={this.props.value && "/dform/file/"+this.props.value || "http://placehold.it/120x120"} alt="message user image"/>
+                  </div>
           break;
         default:
           field = <span>Unknown fieldtype {this.props.fielddef.type}</span>;
@@ -302,10 +301,15 @@ var Field = React.createClass({
             field = <div></div>;
             break;
         case 'image':
-            field =  <div className="imgContainer">
+            field =  <div className="pictureAndText">
                         <input type="file"  name="file" style={{display: "none"}} accept="image/*" onChange={this._fileuploadhtml5} />
-                        <img className="" src={this.props.value && "/dform/file/"+this.props.value || "http://placehold.it/120x120"} alt="message user image"/>
+                        <img height="120" src={this.props.value && "/dform/file/"+this.props.value || "http://placehold.it/120x120"} alt="message user image"/>
+                        {this.state.picupload == 0 &&
                         <a className="imglable" onClick={this._clickFile}>Upload Picture <i className="fa fa-arrow-circle-right"></i></a>
+                        ||
+                        <div className="imglable progress"><div className="progress-bar" style={{"width": this.state.picupload+"%"}}></div></div>
+                        }
+
                       </div>;
             break;
         default:
@@ -321,10 +325,14 @@ var Field = React.createClass({
 var Form = React.createClass({
   getInitialState: function(){
       console.log ('Form InitialState : ' + JSON.stringify(this.props.urlparam));
-      return { recorddata: {}, changeddata: {}};
+      return { recorddata: {}, changeddata: {}, edit: this.props.urlparam.e && true || false};
   },
   componentDidMount: function() {
-    MetaStore.dataReq ({opt: 'dform', form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}, finished: this._gotServerData});
+    if (this.props.urlparam.id) {
+      MetaStore.dataReq ({opt: 'dform', form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}, finished: this._gotServerData});
+    } else {
+      this.setState({ recorddata: {}, edit: true});
+    }
   },
   _gotServerData: function(req) {
     console.log ('Form _gotServerData');
@@ -343,7 +351,7 @@ var Form = React.createClass({
   },
   _save: function() {
     var self = this,
-        savechanges = Object.assign({_id: this.state.recorddata._id}, this.state.changeddata);
+        savechanges = this.state.recorddata._id && Object.assign({_id: this.state.recorddata._id}, this.state.changeddata) || this.state.changeddata;
 
     console.log ('Form _save : '+ JSON.stringify(savechanges));
     MetaStore.save ({opt: 'dform', form: this.props.urlparam.view, body: savechanges, finished: function(d) {
@@ -373,10 +381,17 @@ var Form = React.createClass({
               <div className="box-header">
                 <h3 className="box-title">{metaview.name}</h3>
                 <div className="box-tools">
-                  {!this.props.urlparam.e &&
-                    <div className="input-group">
-                      <a className="btn btn-primary pull-right" href={"#Form?gid="+metaview._id+":"+this.props.urlparam.id+"&e=true"}>edit</a>
-                      <button onClick={this._delete} className="btn btn-primary">Delete</button>
+                  {!this.state.edit &&
+                    <div className="margin">
+                      <div className="input-group">
+                        <a className="btn btn-primary pull-right" href={"#Form?gid="+metaview._id+":"+self.state.recorddata._id+"&e=true"}>edit</a>
+                        <button onClick={this._delete} className="btn btn-primary">Delete</button>
+                      </div>
+                    </div>
+                  ||
+                    <div className="margin">
+                      <button onClick={this._save} className="btn btn-primary pull-right">Save</button>
+                      <a href={"#Form?gid="+metaview._id+":"+self.state.recorddata._id} onClick={this.props.navTo} className="btn btn-primary pull-right">Cancel</a>
                     </div>
                   }
                 </div>
@@ -388,22 +403,20 @@ var Form = React.createClass({
                       <div className="form-group">
                         <label>{field.title}</label>
                         <div className={cx({"rofield": !self.props.urlparam.e && field.type !== 'image'})}>
-                          <Field fielddef={field} value={self.state.recorddata[field.name]} edit={self.props.urlparam.e} onChange={self._fieldChange}/>
+                          <Field fielddef={field} value={self.state.recorddata[field.name]} edit={self.state.edit} onChange={self._fieldChange}/>
                         </div>
                       </div>
                     </div>
                   );})}
                 </div>
               </div>
-              {this.props.urlparam.e &&
+
                 <div className="box-footer">
-                  <button onClick={this._save} className="btn btn-primary">Save</button>
-                  <a href={"#Form?gid="+self.props.urlparam.view+":"+self.state.recorddata._id} onClick={this.props.navTo} className="btn btn-primary">Cancel</a>
                 </div>
-              }
+
             </div>
           </div>
-          {childformfields.map(function(field, i) { return (
+          {this.state.edit  || childformfields.map(function(field, i) { return (
             <RecordList view={field.child_form} value={self.state.recorddata[field.name]}/>
           );})}
         </div>
@@ -452,6 +465,9 @@ var RecordList = React.createClass({
                 <div className="box-header">
                   <h3 className="box-title">{metaview.name}</h3>
                   <div className="box-tools">
+
+                    <a href={"#Form?gid="+metaview._id} onClick={this.props.navTo} className="btn btn-primary pull-right">New</a>
+
                     <div className="input-group">
                       <input type="text" name="table_search" className="form-control input-sm pull-right" style={{width: '150px'}} placeholder="Search"/>
                       <div className="input-group-btn">

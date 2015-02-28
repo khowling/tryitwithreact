@@ -53,7 +53,6 @@ module.exports = function(options) {
     	    parentid = req.query.parentid,
     		//userdoc = JSON.parse(JSON.stringify(req.body).replace(/<DOLLAR>/g,'$'));
     	    userdoc = req.body;
-      console.log ('save for : ' + JSON.stringify(userdoc));
       orm.save (formparam, parentfieldid,parentid, userdoc, function success(j) {
           res.json(j);
       }, function error(e) {
@@ -79,7 +78,6 @@ module.exports = function(options) {
     router.put ('/file/:filename'
          //, ensureAuthenticated
         , function(req,res) {
-
             orm.putfile(req, res);
         });
 

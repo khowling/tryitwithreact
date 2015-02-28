@@ -29,7 +29,7 @@ MongoClient.connect(process.env.MONGO_DB, function(err, db) {
     app.use('/bower_components', express.static(path.join(__dirname, '../bower_components')));
 
     app.use(bodyParser.json());
-    app.use(bodyParser.urlencoded());
+    app.use(bodyParser.urlencoded({extended: true}));
     app.use(cookieParser());
 
     app.use(session({
