@@ -18,7 +18,7 @@ module.exports = function(options) {
     var exps = {};
 
     exps.find = function (formparam, q, success, error, ignoreLookups) {
-        console.log ('orm_mongo:find formparam ' + formparam + ' q ' + JSON.stringify (q));
+        console.log ('find() formparam ' + formparam + ' q ' + JSON.stringify (q));
         /* search form meta-data for 'lookup' fields to resolve (also search through 'childform' subforms) */
         var subqarray = []; // lookup fields to query
         var fields = {}; // fields to return in find
@@ -33,7 +33,7 @@ module.exports = function(options) {
                 }
                 if (!ignoreLookups) {
                     if (field.type === 'lookup') {
-                        console.log('findlookupfields: found a lookup field on ' + form.name + ' field ' + field.name);
+                        console.log('find() findlookupfields: found a lookup field on ' + form.name + ' field ' + field.name);
                         var searchform = meta.findFormById(FORM_DATA, field.search_form);
                         if (searchform) {
                             var subqobj = {
@@ -48,10 +48,10 @@ module.exports = function(options) {
                     } else if (field.type === 'childform') {
                         var childform = meta.findFormById(FORM_DATA, field.child_form);
                         if (!childform) {
-                            error('Cannot find form definitions ' + field.child_form);
+                            error('find() Cannot find form definitions ' + field.child_form);
                             return;
                         } else {
-                            console.log('findlookupfields: found a childfield, recurse onit! name :' + field.child_form + ' : ' + childform.name);
+                            console.log('find() findlookupfields: found a childfield, recurse onit! name :' + field.child_form + ' : ' + childform.name);
                             findlookupfields(FORM_DATA, childform, field.name);
                         }
                     }
@@ -69,7 +69,7 @@ module.exports = function(options) {
                     if (! lookupkeys[subq_obj.collection])  lookupkeys[subq_obj.collection] = [];
                     if (subq_obj.subdocfield) {
                         for (var edidx in doc[subq_obj.subdocfield]) {
-                            console.log ('adding ' + JSON.stringify(doc[subq_obj.subdocfield]) + ' : ' + edidx + ' : ' + subq_obj.field);
+                            console.log ('find() collectforignids ' + JSON.stringify(doc[subq_obj.subdocfield]) + ' : ' + edidx + ' : ' + subq_obj.field);
                             if (doc[subq_obj.subdocfield][edidx][subq_obj.field])
                                 lookupkeys[subq_obj.collection].push(new ObjectID(doc[subq_obj.subdocfield][edidx][subq_obj.field]));
                         }
@@ -88,7 +88,7 @@ module.exports = function(options) {
         var runsubquery = function (scoll, objids, callwhendone, success, error) {
             var q = { _id: { $in: objids }};
             var flds = { name: 1 };
-            console.log('/db runsubquery find  ' + scoll + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(flds));
+            console.log('find() runsubquery() find  ' + scoll + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(flds));
 
             db.collection(scoll).find(q, flds, function(err, resultCursor) {
                 if (err) {
@@ -96,7 +96,7 @@ module.exports = function(options) {
                     callwhendone();
                 }
                 var fnProcessItem = function (err, item) {
-                    console.log ('got ' + JSON.stringify(item));
+                    //console.log ('got ' + JSON.stringify(item));
                     if (item === null) {
                         // finished
                         callwhendone();
@@ -129,62 +129,67 @@ module.exports = function(options) {
 
 
         meta.getFormMeta(function(FORM_DATA) {
-            console.log('looking for fields in form : ' + formparam);
+            console.log('find() looking for fields in form : ' + formparam);
             form = meta.findFormById(FORM_DATA, formparam);
 
-            console.log('looking for lookup fields in ' + form.name);
-            findlookupfields(FORM_DATA, form);
-            console.log('need to do additional queries to resolve lookups? ' + JSON.stringify(subqarray));
-
-
-            // its find one!  TIMEBOM??
-            if ("_id" in q || "provider.provider_id"  in q) {
-                console.log('findOne for ' + form.collection + ' id: ' + JSON.stringify(q));
-                if ("_id" in q)  q._id = new ObjectID(q._id);
-                db.collection(form.collection).findOne(q, function (err, doc) {
-                    if (err ) {
-                        error (err);
-                    } else {
-                        console.log('got document ' + JSON.stringify(doc));
-
-                        if (ignoreLookups) {
-                            success({ documents: [doc]});
-                        } else {
-                            var lookupkeys = collectforignids([doc]);
-                            console.log('got query for foriegn key lookup ' + JSON.stringify(lookupkeys));
-
-                            runallsubqueries(lookupkeys, [doc], function (docs) {
-                                success({ documents: docs, subq: subq_res});
-                            });
-                        }
-                    }
-                });
-
+            if (!form  || !form.collection) {
+              error ("find() form not Found or no defined collection : " + formparam);
             } else {
-                console.log('/db find ' + form.collection + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(fields));
-                db.collection(form.collection).find(q, fields, {}).toArray(function (err, docs) {
-                    if (err) {
-                        console.log('/db find ERROR :  ' + err);
-                        error (err);
-                    } else {
 
-                        console.log('got documents ' + JSON.stringify(docs));
+              //console.log('looking for lookup fields in ' + form.name);
+              findlookupfields(FORM_DATA, form);
+              console.log('find() need to do additional queries to resolve lookups? ' + JSON.stringify(subqarray));
 
-                        if (ignoreLookups) {
-                            success({ documents: docs});
-                        } else {
-                            var lookupkeys = collectforignids(docs);
-                            console.log('got query for foriegn key lookup ' + JSON.stringify(lookupkeys));
 
-                            runallsubqueries(lookupkeys, docs, function (docs) {
-                                success({ documents: docs, subq: subq_res});
-                            });
-                        }
-                    }
-                });
+              // its find one!  TIMEBOM??
+              if ("_id" in q || "provider.provider_id"  in q) {
+                  console.log('findOne for ' + form.collection + ' id: ' + JSON.stringify(q));
+                  if ("_id" in q)  q._id = new ObjectID(q._id);
+                  db.collection(form.collection).findOne(q, function (err, doc) {
+                      if (err ) {
+                          error (err);
+                      } else {
+                          console.log('find() got document ' + JSON.stringify(doc));
+
+                          if (ignoreLookups) {
+                              success({ documents: [doc]});
+                          } else {
+                              var lookupkeys = collectforignids([doc]);
+                              console.log('find() got query for foriegn key lookup ' + JSON.stringify(lookupkeys));
+
+                              runallsubqueries(lookupkeys, [doc], function (docs) {
+                                  success({ documents: docs, subq: subq_res});
+                              });
+                          }
+                      }
+                  });
+
+              } else {
+                  console.log('find() ' + form.collection + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(fields));
+                  db.collection(form.collection).find(q, fields, {}).toArray(function (err, docs) {
+                      if (err) {
+                          console.log('find() find ERROR :  ' + err);
+                          error (err);
+                      } else {
+
+                          console.log('find() documents ' + JSON.stringify(docs));
+
+                          if (ignoreLookups) {
+                              success({ documents: docs});
+                          } else {
+                              var lookupkeys = collectforignids(docs);
+                              console.log('find() query for foriegn key lookup ' + JSON.stringify(lookupkeys));
+
+                              runallsubqueries(lookupkeys, docs, function (docs) {
+                                  success({ documents: docs, subq: subq_res});
+                              });
+                          }
+                      }
+                  });
+              }
             }
         }, function (err) {
-            error ('Cannot find form definitions ' + err);
+            error ('find() Cannot find form definitions ' + err);
         });
     };
 
@@ -194,31 +199,31 @@ module.exports = function(options) {
             form = meta.findFormById(FORM_DATA, formparam);
 
             if (!form) {
-                error ("Not Found : " + formparam);
+                error ("delete() not Found : " + formparam);
             } else {
 
                 var coll = form.collection;
                 var embedfield;
 
                 if (form.type == "childform") {
-                    console.log('Its a childform, get the collection & field from the parent form : ' + parentfieldid);
+                    console.log('delete() Its a childform, get the collection & field from the parent form : ' + parentfieldid);
                     var parentmeta = meta.findFieldById(FORM_DATA, parentfieldid);
 
                     if (!parentmeta) {
-                        error ('Cannot find parent form field for this childform: ' + parentfieldid);
+                        error ('delete() Cannot find parent form field for this childform: ' + parentfieldid);
                     } else if (!(new ObjectID(form._id)).equals(parentmeta.field.child_form)) {
-                        error ('childform cannot be saved to parent (check your schema child_form): ' + parentfieldid);
+                        error ('delete() childform cannot be saved to parent (check your schema child_form): ' + parentfieldid);
                     } else {
                         coll = parentmeta.form.collection;
                         embedfield = parentmeta.field.name;
-                        console.log('collection : ' + coll + ', field : ' + embedfield);
+                        console.log('delete() collection : ' + coll + ', field : ' + embedfield);
                     }
                 }
 
                 //callback gets two parameters - an error object (if an error occured) and the record if it was inserted or 1 if the record was updated.
                 var callback = function (err, recs) {
                     if (err) error (err);
-                    console.log('saved  : ' + recs + ' doc : ' + recid);
+                    console.log('delete() done  : ' + JSON.stringify(recs) + ' doc : ' + recid);
                     if (recs == 1) { // updated
                         success({_id: recid}); // updated top level
                     } else {
@@ -231,14 +236,14 @@ module.exports = function(options) {
                   var update = { $pull: {} }
                   update["$pull"][embedfield] = { _id: new ObjectID(recid) };
 
-                  console.log('/db/' + coll + ' query :' + JSON.stringify(query) + ' update :' + JSON.stringify(update));
+                  console.log('delete()  ' + coll + ' query :' + JSON.stringify(query) + ' update :' + JSON.stringify(update));
                   db.collection(coll).update(query, update, callback);
                 } else {
                   db.collection(coll).remove({_id: new ObjectID(recid)}, callback);
                 }
             }
         }, function (err) {
-            error ('Cannot find form definitions ' + err);
+            error ('delete() cannot find form definitions ' + err);
         });
     };
 
@@ -246,41 +251,42 @@ module.exports = function(options) {
     exps.save = function (formparam, parentfieldid,parentid, userdoc, success, error) {
 
         meta.getFormMeta(function(FORM_DATA) {
-            form = meta.findFormById(FORM_DATA, formparam);
+            var form = meta.findFormById(FORM_DATA, formparam),
+                isInsert = typeof userdoc._id === 'undefined';
 
             if (!form) {
-                error ("Not Found : " + formparam);
+                error ("save() not Found : " + formparam);
             } else {
 
-                console.log ('post:/db/' + formparam + ' : got form : ' + form.name);
+                console.log ('save() ' + formparam + ' : got form : ' + form.name);
                 var coll = form.collection;
                 var embedfield;
 
                 if (form.type == "childform") {
-                    console.log ('Its a childform, get the collection & field from the parent parentfieldid : ' + parentfieldid);
+                    console.log ('save() Its a childform, get the collection & field from the parent parentfieldid : ' + parentfieldid);
                     var  parentmeta = meta.findFieldById(FORM_DATA, parentfieldid);
 
                     if (!parentmeta) {
-                        error ('Cannot find parent form field for this childform: ' + parentfieldid);
+                        error ('save() Cannot find parent form field for this childform: ' + parentfieldid);
                         return;
                     } else if (!(new ObjectID (form._id)).equals(parentmeta.field.child_form)) {
-                        error ('childform cannot be saved to parent (check your schema child_form): ' + parentfieldid);
+                        error ('save() childform cannot be saved to parent (check your schema child_form): ' + parentfieldid);
                         return;
                     } else {
                         coll = parentmeta.form.collection;
                         embedfield = parentmeta.field.name;
-                        console.log ('collection : ' + coll + ', field : ' + embedfield);
+                        console.log ('save() collection : ' + coll + ', field : ' + embedfield);
                     }
                 }
 
                 var savedEmbedDoc; // set later, used by callback
 
-                console.log('/db/'+coll+' userdoc: ' + JSON.stringify(userdoc));
+                console.log('save() '+coll+' userdoc: ' + JSON.stringify(userdoc));
 
                 //callback gets two parameters - an error object (if an error occured) and the record if it was inserted or 1 if the record was updated.
                 var callback = function (err, recs) {
                     if (err) error (err);
-                    console.log('saved  : ' + recs + ' doc : ' + JSON.stringify(userdoc));
+                    console.log('save() saved  : ' + JSON.stringify(recs) + ' doc : ' + JSON.stringify(userdoc));
                     if (recs == 1) { // updated
                         if (embedfield) { // embedded doc (insert or update)
                             success (savedEmbedDoc);
@@ -297,14 +303,16 @@ module.exports = function(options) {
                 var validateSetFields = function (formFields, dataval, embedField, allowchildform) {
                     var setval = {};
                     for (var f in formFields) {
+                        var fname = formFields[f].name;
                         if (formFields[f].type !== 'childform' || allowchildform) {
-                            var fname = formFields[f].name;
                             if (embedField) {
                                 setval[embedfield+'.$.'+fname] = dataval[fname];
                             } else {
-                                if (dataval.hasOwnProperty(fname)) {
-                                  setval[fname] = dataval[fname];
-                                }
+                              if (dataval.hasOwnProperty(fname)) {
+                                setval[fname] = dataval[fname];
+                              } else if (isInsert && formFields[f].type === 'childform') {
+                                setval[fname] = [];
+                              }
                             }
                         }
                     }
@@ -314,10 +322,13 @@ module.exports = function(options) {
                 if (!embedfield) {
                     //console.log('/db/'+coll+'  saving or updating a top-level document :' + userdoc._id);
 
-                    if (typeof userdoc._id !== 'undefined') {
+                    if (!isInsert) {
                         //console.log('/db/'+coll+' got _id,  update doc, use individual fields : ' + userdoc._id);
-
-                        var query = {_id: new ObjectID(userdoc._id)}
+                        try {
+                          var query = {_id: new ObjectID(userdoc._id)};
+                        } catch (e) {
+                          error ("save() _id not acceptable format : " + userdoc._id);
+                        }
                         var update = { '$set': validateSetFields(form.fields, userdoc, null) };
 
                         //console.log('/db/'+coll+'  update verified data : ' + JSON.stringify (update));
@@ -325,18 +336,20 @@ module.exports = function(options) {
                     } else {
                         //console.log('/db/'+coll+'  insert toplevel document, use individual fields');
                         var insert = validateSetFields(form.fields, userdoc, null, true);
-                        //console.log('/db/'+coll+'  insert verified data : ' + JSON.stringify (insert));
+                        console.log('save() '+coll+'  insert verified data : ' + JSON.stringify (insert));
                         db.collection(coll).insert (insert, callback);
                     }
 
                 } else {  // its modifing a embedded document
                     if (!parentid)  {
-                        error ("No Id Specified");
+                        error ("save() No parentid Specified");
                     } else {
                         //console.log('/db/'+coll+'  set or push a embedded document :' + parentid);
-
-                        var query = {_id: new ObjectID(parentid)}, update;
-
+                        try {
+                          var query = {_id: new ObjectID(parentid)}, update;
+                        } catch (e) {
+                          error ("save() parentid not acceptable format : " + parentid);
+                        }
                         /***** TRYING TO DO EMBEDDED ARRAY inside EMBEDDED ARRAY, BUT MONGO DOESNT SUPPORT NESTED POSITIONAL OPERATORS
                          var embedsplit = embedfield.split('.');
                          if (embedsplit.length == 2) {
@@ -345,7 +358,7 @@ module.exports = function(options) {
                             query = {_id: new ObjectID(parentid)};
                         }
                          */
-                        if (!userdoc._id) { // its $push'ing a new entry
+                        if (isInsert) { // its $push'ing a new entry
                             savedEmbedDoc = { _id: new ObjectID() };
 
                             var pushjson = {};
@@ -354,17 +367,21 @@ module.exports = function(options) {
                             // mongodb doesnt automatically provide a _Id for embedded docs!
                             update = {'$push': pushjson} ;
                         } else {
+                          try {
                             savedEmbedDoc = { _id: new ObjectID(userdoc._id) };
-                            query[embedfield] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
-                            update = { '$set': validateSetFields(form.fields, userdoc, embedfield) };
+                          } catch (e) {
+                            error ("save() _id not acceptable format : " + userdoc._id);
+                          }  
+                          query[embedfield] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
+                          update = { '$set': validateSetFields(form.fields, userdoc, embedfield) };
                         }
-                        //console.log('/db/'+coll+' query :' + JSON.stringify(query) +' update :' + JSON.stringify(update));
+                        console.log('find() '+coll+' query :' + JSON.stringify(query) +' update :' + JSON.stringify(update));
                         db.collection(coll).update(query, update, callback);
                     }
                 }
             }
         }, function (err) {
-            error ('Cannot find form definitions ' + err);
+            error ('find() Cannot find form definitions ' + err);
         });
     };
 

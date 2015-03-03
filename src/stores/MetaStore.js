@@ -22,7 +22,7 @@ var requestQueue = {};
 var getFormMeta = () => _formdata;
 var setFormMeta = (x) => _formdata = x;
 
-function _getData (req, url, method) {
+function _runxhr (req, url, method) {
     let xhr_opts = {
         url: url,
         headers: {
@@ -46,51 +46,49 @@ function _getData (req, url, method) {
 
 var MetaStore =  {
   initMeta: function (cb) {
-    _getData ({finished: function(req) {
+    _runxhr ({finished: function(req) {
       _formdata = req.data;
       cb(_formdata);
     }}, '/dform/formdata');
   },
   getForm: function (fid) {
     _formdata.length > 0 ||  console.log ("MetaStore.getForm : FormData Not Loaded");
-    return _formdata.filter(f => f._id === fid)[0];
+    if (!fid)
+      return _formdata;
+    else
+      return _formdata.filter(f => f._id === fid)[0];
   },
-  dataReq: function(req) {
-    if (req.opt === 'dform') {
+  query: function(req) {
+    // to join 'subq' with 'data' at data.__primary
+    var old_finished = req.finished;
+    var new_finished = function joinsubj(ret) {
+      let joineddata = ret.data.documents,
+          formdef = MetaStore.getForm (req.form);
 
-      // to join 'subq' with 'data' at data.__primary
-      var old_finished = req.finished;
-      var new_finished = function joinsubj(ret) {
-        let joineddata = ret.data.documents,
-            formdef = MetaStore.getForm (req.form);
-
-        let addPrimaryToLookup = function (formdef, val) {
-          for (let recs of val) {
-            for (let fld of formdef.fields) {
-              if (fld.type === 'lookup') {
-                recs[fld.name] = {id: recs[fld.name], primary: ret.data.subq[recs[fld.name]]};
-              }
-              if (fld.type === 'childform' && recs[fld.name]) {
-                addPrimaryToLookup(MetaStore.getForm (fld.child_form), recs[fld.name]);
-              }
+      let addPrimaryToLookup = function (formdef, val) {
+        for (let recs of val) {
+          for (let fld of formdef.fields) {
+            if (fld.type === 'lookup') {
+              recs[fld.name] = {id: recs[fld.name], primary: ret.data.subq[recs[fld.name]]};
+            }
+            if (fld.type === 'childform' && recs[fld.name]) {
+              addPrimaryToLookup(MetaStore.getForm (fld.child_form), recs[fld.name]);
             }
           }
         }
+      }
+      addPrimaryToLookup (formdef, joineddata);
+      old_finished (Object.assign(ret, {data: joineddata}));
+    };
 
-        addPrimaryToLookup (formdef, joineddata);
-
-        old_finished (Object.assign(ret, {data: joineddata}));
-      };
-
-      req.finished = new_finished;
-      _getData (req, '/dform/db/' + req.form + (req.q && ('?q=' + JSON.stringify(req.q)) || '') );
-    }
+    req.finished = new_finished;
+    _runxhr (req, '/dform/db/' + req.form + (req.q && ("?q=" + JSON.stringify(req.q)) || '') );
   },
   save: function(req) {
-    _getData (req, '/dform/db/' + req.form, 'POST');
+    _runxhr (req, '/dform/db/' + req.form + (req.parent && "?"+$.param(req.parent) || ''), 'POST');
   },
   delete: function(req) {
-    _getData (req, '/dform/db/' + req.form + '/' + req.id, 'DELETE');
+    _runxhr (req, '/dform/db/' + req.form + '/' + req.id + (req.parent && "?"+$.param(req.parent) || ''), 'DELETE');
   }
 };
 

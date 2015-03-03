@@ -409,19 +409,24 @@ module.exports = function(options) {
     }
 
     exps.findFormById = function (meta, name) {
-        var oname = new ObjectID(name);
-        //console.log ('findFormById() searching for: "' + oname +'"');
-        for (var i = 0, len = meta.length; i < len; i += 1) {
-            //console.log('findFormById() got the id: ' + meta[i].name + ' : "' + meta[i]._id + '"');
-            if (meta[i]._id.equals(oname)) {
-                //console.log ('findFormById() returning : ' + meta[i].name);
-                return meta[i];
-            }
+        try {
+          var oname = new ObjectID(name);
+          //console.log ('findFormById() searching for: "' + oname +'"');
+          for (var i = 0, len = meta.length; i < len; i += 1) {
+              //console.log('findFormById() got the id: ' + meta[i].name + ' : "' + meta[i]._id + '"');
+              if (meta[i]._id.equals(oname)) {
+                  //console.log ('findFormById() returning : ' + meta[i].name);
+                  return meta[i];
+              }
+          }
+        } catch (e) {
+          console.log('findFormById() err ' + JSON.stringify(e));
         }
         return;
     }
 
     exps.findFieldById = function (meta, name) {
+      try {
         var oname = new ObjectID(name);
         //console.log ('findFieldById() searching for: "' + oname +'"');
         for (var i = 0, ilen = meta.length; i < ilen; i += 1) {
@@ -437,6 +442,9 @@ module.exports = function(options) {
                 }
             }
         }
+      } catch (e) {
+        console.log('findFieldById() err ' + JSON.stringify(e));
+      }
         return;
     }
 

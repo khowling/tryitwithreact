@@ -118,9 +118,9 @@ var App  = React.createClass({
       console.log ('App render : ' + this.state.renderThis);
       if (this.state.formdata.length > 0) {
         if (compfact[this.state.renderThis]) {
+          console.log ('App render() - returning new Component ' + this.state.renderThis);
           return compfact[this.state.renderThis](
-            {meta: this.state.formdata,
-             navTo: this.navTo,
+            {navTo: this.navTo,
              urlparam: this.state.urlparam});
         } else return (
             <div>404</div>

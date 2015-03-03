@@ -176,7 +176,7 @@ var Field = React.createClass({
   //mixins: [React.addons.LinkedStateMixin],
   getInitialState: function() {
     // ES6 Computed Propery names
-    return {[this.props.fielddef.name]: this.props.fielddef.default_value, picupload:0 };
+    return {[this.props.fielddef.name]: this.props.value || this.props.fielddef.default_value, picupload:0 };
   },
   componentWillReceiveProps(nextProps) {
     //console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
@@ -240,7 +240,7 @@ var Field = React.createClass({
      return false;
   },
   render: function() {
-    //console.log ('Field render');
+    console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> : ' + JSON.stringify(this.props.value));
 
     let field;
     if (!this.props.edit) switch (this.props.fielddef.type) {
@@ -255,7 +255,11 @@ var Field = React.createClass({
           field = <span>{option && option.name || 'Unknown option <' + this.props.value +'>'}</span>
           break;
         case 'lookup':
-          field = <a  href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value.id}>{this.props.value.primary}</a>;
+          if (this.props.value) {
+            field = <a  href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value.id}>{this.props.value.primary}</a>;
+          } else  {
+            field = <div></div>
+          }
           break;
         case 'childform':
           let cform = MetaStore.getForm (this.props.fielddef.child_form);
@@ -324,74 +328,149 @@ var Field = React.createClass({
 
 var Form = React.createClass({
   getInitialState: function(){
-      console.log ('Form InitialState : ' + JSON.stringify(this.props.urlparam));
-      return { recorddata: {}, changeddata: {}, edit: this.props.urlparam.e && true || false};
+    return { value: []};
   },
   componentDidMount: function() {
     if (this.props.urlparam.id) {
-      MetaStore.dataReq ({opt: 'dform', form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}, finished: this._gotServerData});
-    } else {
-      this.setState({ recorddata: {}, edit: true});
+      MetaStore.query ({opt: 'dform', form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}, finished: this._gotServerData});
     }
   },
   _gotServerData: function(req) {
     console.log ('Form _gotServerData');
     if (this.isMounted()) {
-      if (req.opt === 'dform') {
-        this.setState({ recorddata: req.data[0]});
-        console.log ('Form _gotServerData : '+ JSON.stringify(this.state.recorddata));
+      if (req.opt === 'dform' && req.data.length>0) {
+        //console.log ('Form _gotServerData : '+ JSON.stringify(req.data[0]));
+        this.setState({ value: req.data[0]});
       }
+    }
+  },
+  render: function() {
+    var self = this,
+        metaview = MetaStore.getForm (this.props.urlparam.view),
+        childformfields = metaview.fields.filter(m => m.type === 'childform'),
+        edit = this.props.urlparam.e || (!this.props.urlparam.id);
+
+    console.log ('Form render ' + metaview.name + ', state : ' + JSON.stringify(this.state));
+    return (
+        <div className="row">
+          <div className="col-xs-12">
+            <FormMain value={this.state.value} view={this.props.urlparam.view} parent={this.props.urlparam.parent} edit={(this.props.urlparam.e)} navTo={this.props.navTo}/>
+          </div>
+          {!edit  && childformfields.map(function(field, i) { return (
+            <RecordList parent={metaview._id+":"+self.state.value._id+":"+field._id} view={field.child_form} value={self.state.value[field.name]}/>
+          );})}
+        </div>
+      );
+    }
+  });
+
+var FormMain = React.createClass({
+  getInitialState: function(){
+      console.log ('Form InitialState : ' + JSON.stringify(this.props));
+      return { value: this.props.value || {}, changeddata: {}, errors: null};
+  },
+  componentWillReceiveProps (nextProps) {
+    if (nextProps.value) {
+      this.setState ({value: nextProps.value});
     }
   },
   _fieldChange: function(d) {
     console.log ('Form _fieldChange : '+ JSON.stringify(d));
     this.setState(
-      { recorddata: Object.assign(this.state.recorddata, d),
+      { value: Object.assign(this.state.value, d),
          changeddata: Object.assign(this.state.changeddata, d)});
   },
   _save: function() {
     var self = this,
-        savechanges = this.state.recorddata._id && Object.assign({_id: this.state.recorddata._id}, this.state.changeddata) || this.state.changeddata;
+        saveopt = {
+          form: this.props.view,
+          body: this.state.value._id && Object.assign({_id: this.state.value._id}, this.state.changeddata) || this.state.changeddata,
+          finished: function(d) {
+            console.log ('Form _save, response from server : ' + JSON.stringify(d));
+            if (d.data._id) {
+              console.log ('successful save');
+              if (d.parent) {
+                self.props.navTo('save', d);
+              } else {
+                var navto = "Form?gid=" + d.form+":"+d.data._id;
+                self.props.navTo(navto);
+              }
+            } else {
+              console.log ('save error: ' + JSON.stringify(d.data));
+              self.setState({errors: JSON.stringify(d.data)});
+            }
+          }
+        };
 
-    console.log ('Form _save : '+ JSON.stringify(savechanges));
-    MetaStore.save ({opt: 'dform', form: this.props.urlparam.view, body: savechanges, finished: function(d) {
-      console.log ('Form _save, response from server : ' + JSON.stringify(d));
-      self.props.navTo('Form?gid='+self.props.urlparam.view+':'+d.data._id);
-      }});
+    // if its a childform - add parent details to the save for mongo & nav back to parent
+    if (this.props.parent) {
+      var [viewid, recordid, fieldid] = this.props.parent.split(":");
+      saveopt.parent = {
+        parentid: recordid,
+        parentfieldid: fieldid
+      };
+    }
+    console.log ('Form _save : '+ JSON.stringify(saveopt));
+    MetaStore.save (saveopt);
+  },
+  _cancel: function(e) {
+    e.preventDefault();
+    if (this.props.parent) {
+      this.props.navTo('cancel');
+    } else {
+      this.props.navTo("Form?gid="+this.props.view+":"+this.props.value._id);
+    }
   },
   _delete: function() {
-    var self = this;
-    MetaStore.delete ({opt: 'dform', form: this.props.urlparam.view, id: this.state.recorddata._id, finished: function(d) {
-      console.log ('Form _delete, response from server : ' + JSON.stringify(d));
-      self.props.navTo('RecordList?gid='+self.props.urlparam.view);
-      }});
+    var self = this,
+        saveopt = {
+          form: this.props.view,
+          id: this.state.value._id,
+          finished: function(d) {
+            console.log ('Form _delete, response from server : ' + JSON.stringify(d));
+            if (d.parent) {
+              self.props.navTo('delete', d);
+            } else {
+              self.props.navTo('RecordList?gid='+self.props.view);
+            }
+          }
+        };
+
+    if (this.props.parent) {
+      var [viewid, recordid, fieldid] = this.props.parent.split(":");
+      saveopt.parent = {
+        parentid: recordid,
+        parentfieldid: fieldid
+      };
+    }
+    console.log ('Form _delete : '+ JSON.stringify(saveopt));
+    MetaStore.delete (saveopt);
   },
   render: function() {
-    console.log ('Form render ' + JSON.stringify(this.props.urlparam));
+
     var self = this,
-        metaview = MetaStore.getForm (this.props.urlparam.view),
+        metaview = MetaStore.getForm (this.props.view),
         nonchildformfields = metaview.fields.filter(m => m.type !== 'childform'),
-        childformfields = metaview.fields.filter(m => m.type === 'childform');
+        edit = this.props.edit || (!this.state.value._id)
     var cx = React.addons.classSet;
 
+    console.log ('Form render ' + metaview.name + ', state : ' + JSON.stringify(this.state));
     return (
-        <div className="row">
-          <div className="col-xs-12">
             <div className="box">
               <div className="box-header">
                 <h3 className="box-title">{metaview.name}</h3>
                 <div className="box-tools">
-                  {!this.state.edit &&
+                  {!edit &&
                     <div className="margin">
                       <div className="input-group">
-                        <a className="btn btn-primary pull-right" href={"#Form?gid="+metaview._id+":"+self.state.recorddata._id+"&e=true"}>edit</a>
+                        <a className="btn btn-primary pull-right" href={"#Form?gid="+metaview._id+":"+self.state.value._id+"&e=true"}>edit</a>
                         <button onClick={this._delete} className="btn btn-primary">Delete</button>
                       </div>
                     </div>
                   ||
                     <div className="margin">
                       <button onClick={this._save} className="btn btn-primary pull-right">Save</button>
-                      <a href={"#Form?gid="+metaview._id+":"+self.state.recorddata._id} onClick={this.props.navTo} className="btn btn-primary pull-right">Cancel</a>
+                      <a href="#" onClick={this._cancel} className="btn btn-primary pull-right">Cancel</a>
                     </div>
                   }
                 </div>
@@ -402,25 +481,17 @@ var Form = React.createClass({
                     <div className="col-xs-6 col-md-6">
                       <div className="form-group">
                         <label>{field.title}</label>
-                        <div className={cx({"rofield": !self.props.urlparam.e && field.type !== 'image'})}>
-                          <Field fielddef={field} value={self.state.recorddata[field.name]} edit={self.state.edit} onChange={self._fieldChange}/>
+                        <div className={cx({"rofield": !edit && field.type !== 'image'})}>
+                          <Field fielddef={field} value={self.state.value[field.name]} edit={edit} onChange={self._fieldChange}/>
                         </div>
                       </div>
                     </div>
                   );})}
                 </div>
               </div>
-
-                <div className="box-footer">
-                </div>
-
+              <div className="box-footer">
+              </div>
             </div>
-          </div>
-          {this.state.edit  || childformfields.map(function(field, i) { return (
-            <RecordList view={field.child_form} value={self.state.recorddata[field.name]}/>
-          );})}
-        </div>
-
         );
   }
 });
@@ -429,24 +500,53 @@ var Form = React.createClass({
 var RecordList = React.createClass({
   getInitialState: function(){
       console.log ('RecordList InitialState : ' + JSON.stringify(this.props.value));
-      return { value: this.props.value || [] };
+      return { value: this.props.value || [], editrow: false };
   },
   componentDidMount: function() {
-    if (this.props.urlparam && this.props.urlparam.view) {
+    if (!this.props.value && this.props.urlparam && this.props.urlparam.view) {
       console.log ('RecordList componentDidMount, got url para so running query : ' + JSON.stringify(this.props.urlparam.view));
-      MetaStore.dataReq ({opt: 'dform', form: this.props.urlparam.view, finished: this._onChange});
+      MetaStore.query ({form: this.props.urlparam.view, finished: this._gotData});
     }
   },
-  _onChange: function(req) {
+  _gotData: function(req) {
     if (this.isMounted()) {
-      if (req.opt === 'dform') {
         console.log ('RecordList _onChange : got data from query');
         this.setState({ value: req.data});
-      }
     }
   },
   _delete: function (e) {
 
+  },
+  _edit: function (id, edit) {
+    if (this.props.parent) {
+      console.log ('RecordList : want to edit a imbedded doc : ' + id);
+      this.setState({editrow: {id: id, edit: edit}});
+    } else if (this.props.navTo && this.props.urlparam) {
+      this.props.navTo("Form?gid=" + this.props.urlparam.view + (id && ":" + id || "") + (edit && "&e=true" || ""));
+    }
+  },
+  _formDoneNavTo: function (operation, res) {
+    console.log ('RecordList _formDone() ' + JSON.stringify(res));
+    if (res) {
+      console.log ('RecordList _formDone() update of row ' + JSON.stringify(this.state.editrow));
+      if (operation === 'save') {
+        let newobj = Object.assign({}, res.data, res.body );
+        if (this.state.editrow.id) {
+          var newVals = seq(this.state.value,
+            map(x => x._id === this.state.editrow.id && newobj || x));
+        } else {
+          this.state.value.push(newobj);
+          var newVals = this.state.value;
+        }
+
+      } else if (operation === 'delete') {
+        var newVals = this.state.value.filter (r => r._id !== this.state.editrow.id);
+      }
+      this.setState ({value: newVals, editrow: false});
+    } else {
+      console.log ('RecordList _formDone() no data, must be cancel');
+      this.setState ({editrow: false});
+    }
   },
   componentWillReceiveProps(nextProps) {
     if (nextProps.value) {
@@ -455,9 +555,10 @@ var RecordList = React.createClass({
     }
   },
   render: function() {
+    console.log ('RecordList rendering ' + JSON.stringify(this.state.editrow));
     var self = this,
         metaview = MetaStore.getForm (this.props.urlparam && this.props.urlparam.view || this.props.view),
-        nonchildformfields = metaview.fields.filter(m => m.type !== 'childform');
+        nonchildformfields = metaview.fields && metaview.fields.filter(m => m.type !== 'childform') || [];
 
     return (
           <div className="col-xs-12">
@@ -465,8 +566,7 @@ var RecordList = React.createClass({
                 <div className="box-header">
                   <h3 className="box-title">{metaview.name}</h3>
                   <div className="box-tools">
-
-                    <a href={"#Form?gid="+metaview._id} onClick={this.props.navTo} className="btn btn-primary pull-right">New</a>
+                    <a className="btn btn-primary pull-right" onClick={self._edit.bind(this, null, true)}>new </a>
 
                     <div className="input-group">
                       <input type="text" name="table_search" className="form-control input-sm pull-right" style={{width: '150px'}} placeholder="Search"/>
@@ -474,30 +574,37 @@ var RecordList = React.createClass({
                         <button className="btn btn-sm btn-default"><i className="fa fa-search"></i></button>
                       </div>
                     </div>
+
                   </div>
                 </div>
                 <div className="box-body table-responsive no-padding">
-                  <table className="table table-hover">
-                    <tbody><tr>
-                      <th>actions</th>
-                      {nonchildformfields.map(function(field, i) { return (
-                      <th>{field.name}</th>
-                      );})}
-
-                    </tr>
-                    {self.state.value.map(function(row, i) { return (
-                      <tr>
-                          <td>
-                            <a href={"#Form?gid="+metaview._id+":"+row._id+"&e=true"} onClick={self.props.navTo}>edit</a>
-                            <a href={"#Form?gid="+metaview._id+":"+row._id} onClick={self.props.navTo}>view</a>
-                          </td>
-                          {nonchildformfields.map(function(field, i) { return (
-                            <td><Field fielddef={field} value={row[field.name]}/></td>
-                          );})}
+                  { this.state.editrow &&
+                    <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || null} view={metaview._id} edit={this.state.editrow.edit} parent={this.props.parent} navTo={this._formDoneNavTo}/>
+                  ||
+                    <table className="table table-hover">
+                      <tbody><tr>
+                        <th>actions</th>
+                        {nonchildformfields.map(function(field, i) { return (
+                        <th>{field.name}</th>
+                        );})}
 
                       </tr>
-                    );})}
-                  </tbody></table>
+
+
+                      { self.state.value.map(function(row, i) { return (
+                        <tr>
+                            <td>
+                              <a onClick={self._edit.bind(this, row._id, true)}>edit </a>
+                              <a onClick={self._edit.bind(this, row._id, false)}>view </a>
+                            </td>
+                            {nonchildformfields.map(function(field, i) { return (
+                              <td><Field fielddef={field} value={row[field.name]}/></td>
+                            );})}
+
+                        </tr>
+                      );})}
+                    </tbody></table>
+                }
                 </div>
               </div>
             </div>
@@ -533,7 +640,7 @@ var Tile = React.createClass({
                         <i className={iclass}></i>
                     </div>
                     <div  className="small-box-footer">
-                        Search {tdata.name} <i className="fa fa-arrow-circle-right"></i>
+                        List  <i className="fa fa-arrow-circle-right"></i>
                     </div>
                 </a>
             </div>
@@ -586,9 +693,9 @@ var TileList= React.createClass({
         this.setState(new_state);
     },
     render: function () {
-        var meta = this.props.meta;
+        var metaview = MetaStore.getForm ();
         //let cflt = this.state.filter; // this.getParams().flt;
-        console.log ('TileList render : ' + meta.length);
+        console.log ('TileList render : ' + metaview.length);
 
         return (
             <section className="content">
@@ -600,12 +707,12 @@ var TileList= React.createClass({
                         );})}
                     </ol>
                 </div>
-                { meta[0] && (
+                { metaview[0] && (
                 <div className="row">
                   <div className="col-lg-12">
                     <div className="info-box">
                       <div className="box-body">
-                        <a onClick={this.props.navTo} href={"#DNew?id="+meta[0]._id} className="btn btn-app">
+                        <a onClick={this.props.navTo} href={"#DNew?id="+metaview[0]._id} className="btn btn-app">
                           <i className="fa fa-edit"></i> New
                         </a>
                       </div>
@@ -613,13 +720,10 @@ var TileList= React.createClass({
                   </div>
                 </div>
               )}
-
                 <div className="row">
-
-                    {meta.map(function(row, i) { return (
+                    {metaview.map(function(row, i) { return (
                         <Tile meta={row}/>
                     );})}
-
                 </div>
             </section>
         )
