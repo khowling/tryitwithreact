@@ -120,7 +120,8 @@ var App  = React.createClass({
         if (compfact[this.state.renderThis]) {
           console.log ('App render() - returning new Component ' + this.state.renderThis);
           return compfact[this.state.renderThis](
-            {navTo: this.navTo,
+            {key: JSON.stringify(this.state.urlparam),
+             navTo: this.navTo,
              urlparam: this.state.urlparam});
         } else return (
             <div>404</div>

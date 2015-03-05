@@ -156,7 +156,7 @@ var ChildForm = React.createClass({
                 {self.props.value && self.props.value.map(function(record, i) { return (
                   <li>
                     {self.props.form.fields.map(function(fld, i) { return (
-                      <Field fielddef={fld} value={record[fld.name]} />
+                      <Field key={fld._id} fielddef={fld} value={record[fld.name]} />
                     );})}
                   </li>
                 );})}
@@ -176,16 +176,13 @@ var Field = React.createClass({
   //mixins: [React.addons.LinkedStateMixin],
   getInitialState: function() {
     // ES6 Computed Propery names
-    return {[this.props.fielddef.name]: this.props.value || this.props.fielddef.default_value, picupload:0 };
+    //let initState = {[this.props.fielddef.name]: this.props.value || this.props.fielddef.default_value, picupload:0};
+    console.log ('Field getInitialState: ');
+    return { picupload:0 };
   },
   componentWillReceiveProps(nextProps) {
     //console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
-    if (nextProps.value) this.setState ({[this.props.fielddef.name]: nextProps.value});
-  },
-  handleChange: function(newValue) {
-    let newState = {[this.props.fielddef.name]: newValue};
-  //  this.setState(newState); // not needed as the change handler is at the form level, that will update props on this child!
-    if (this.props.onChange) this.props.onChange (newState);
+    //if (nextProps.value) this.setState ({[this.props.fielddef.name]: nextProps.value});
   },
   _clickFile: function(e) {
     //console.log ('Field _clickFile');
@@ -239,6 +236,54 @@ var Field = React.createClass({
      self.setState({picupload : 5});
      return false;
   },
+  handleChange: function(newValue) {
+    console.log ('Field handleChange newValue : ' + JSON.stringify(newValue));
+    let newState = {[this.props.fielddef.name]: newValue};
+    if (this.props.onChange)
+      this.props.onChange (newState);
+    else
+      // not really needed as the change handler is at the form level, that will update props on this child!
+      this.setState(newState);
+  },
+    componentDidMount: function() {
+      if (this.props.fielddef.type === 'lookup') {
+
+        let loopupinput = this.getDOMNode().getElementsByTagName('input')[0];
+
+        var countries = new Bloodhound({
+          datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
+          queryTokenizer: Bloodhound.tokenizers.whitespace,
+          local: [{name:'keith'},{name:'bob smith'} ]
+        });
+        /*
+          limit: 10,
+          prefetch: {
+            // url points to a json file that contains an array of country names, see
+            // https://github.com/twitter/typeahead.js/blob/gh-pages/data/countries.json
+            url: '../data/countries.json',
+            // the json file contains an array of strings, but the Bloodhound
+            // suggestion engine expects JavaScript objects so this converts all of
+            // those strings
+            filter: function(list) {
+              return $.map(list, function(country) { return { name: country }; });
+            }
+          }
+        });
+        */
+        // kicks off the loading/processing of `local` and `prefetch`
+        countries.initialize();
+
+        $(loopupinput).typeahead(null, {
+          name: 'countries',
+          displayKey: 'name',
+          highlight: true,
+          // `ttAdapter` wraps the suggestion engine in an adapter that
+          // is compatible with the typeahead jQuery plugin
+          source: countries.ttAdapter()
+        });
+
+      }
+  },
   render: function() {
     console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> : ' + JSON.stringify(this.props.value));
 
@@ -250,9 +295,10 @@ var Field = React.createClass({
           field = <span>{this.props.value}</span>
           break;
         case 'dropdown':
-          let option = this.props.fielddef.dropdown_options.filter(f => f.value === this.props.value)[0];
+          let option = this.props.value &&
+                this.props.fielddef.dropdown_options.filter(f => f.value === this.props.value)[0] || {name : ''};
 
-          field = <span>{option && option.name || 'Unknown option <' + this.props.value +'>'}</span>
+          field = <span>{option.name || 'Unknown option <' + this.props.value +'>'}</span>
           break;
         case 'lookup':
           if (this.props.value) {
@@ -276,9 +322,12 @@ var Field = React.createClass({
     } else {
 
       var valueLink = {
-        value: this.state[this.props.fielddef.name],
+        //value: this.state[this.props.fielddef.name],
+        value: this.props.value,
         requestChange: this.handleChange
       };
+      console.log ('Field render valueLink: ' + JSON.stringify(valueLink));
+
 
       switch (this.props.fielddef.type) {
         case 'text':
@@ -290,6 +339,7 @@ var Field = React.createClass({
             break;
         case 'dropdown':
           field = <select className="form-control" valueLink={valueLink}>
+                        <option value="">-- select --</option>
                         {this.props.fielddef.dropdown_options.map (function(opt, i) { return (
                         <option value={opt.value}>{opt.name}</option>
                         );})}
@@ -354,7 +404,7 @@ var Form = React.createClass({
     return (
         <div className="row">
           <div className="col-xs-12">
-            <FormMain value={this.state.value} view={this.props.urlparam.view} parent={this.props.urlparam.parent} edit={(this.props.urlparam.e)} navTo={this.props.navTo}/>
+            <FormMain key={this.props.urlparam.view} value={this.state.value} view={this.props.urlparam.view} parent={this.props.urlparam.parent} edit={(this.props.urlparam.e)} navTo={this.props.navTo}/>
           </div>
           {!edit  && childformfields.map(function(field, i) { return (
             <RecordList parent={metaview._id+":"+self.state.value._id+":"+field._id} view={field.child_form} value={self.state.value[field.name]}/>
@@ -366,7 +416,7 @@ var Form = React.createClass({
 
 var FormMain = React.createClass({
   getInitialState: function(){
-      console.log ('Form InitialState : ' + JSON.stringify(this.props));
+      console.log ('FormMain InitialState : ' + JSON.stringify(this.props));
       return { value: this.props.value || {}, changeddata: {}, errors: null};
   },
   componentWillReceiveProps (nextProps) {
@@ -375,10 +425,12 @@ var FormMain = React.createClass({
     }
   },
   _fieldChange: function(d) {
-    console.log ('Form _fieldChange : '+ JSON.stringify(d));
-    this.setState(
-      { value: Object.assign(this.state.value, d),
-         changeddata: Object.assign(this.state.changeddata, d)});
+
+    let newState = {
+        value: Object.assign(this.state.value, d),
+        changeddata: Object.assign(this.state.changeddata, d)};
+    console.log ('FormMain _fieldChange setState : '+ JSON.stringify(newState));
+    this.setState(newState);
   },
   _save: function() {
     var self = this,
@@ -386,7 +438,7 @@ var FormMain = React.createClass({
           form: this.props.view,
           body: this.state.value._id && Object.assign({_id: this.state.value._id}, this.state.changeddata) || this.state.changeddata,
           finished: function(d) {
-            console.log ('Form _save, response from server : ' + JSON.stringify(d));
+            console.log ('FormMain _save, response from server : ' + JSON.stringify(d));
             if (d.data._id) {
               console.log ('successful save');
               if (d.parent) {
@@ -410,7 +462,7 @@ var FormMain = React.createClass({
         parentfieldid: fieldid
       };
     }
-    console.log ('Form _save : '+ JSON.stringify(saveopt));
+    console.log ('FormMain _save : '+ JSON.stringify(saveopt));
     MetaStore.save (saveopt);
   },
   _cancel: function(e) {
@@ -427,7 +479,7 @@ var FormMain = React.createClass({
           form: this.props.view,
           id: this.state.value._id,
           finished: function(d) {
-            console.log ('Form _delete, response from server : ' + JSON.stringify(d));
+            console.log ('FormMain _delete, response from server : ' + JSON.stringify(d));
             if (d.parent) {
               self.props.navTo('delete', d);
             } else {
@@ -443,7 +495,7 @@ var FormMain = React.createClass({
         parentfieldid: fieldid
       };
     }
-    console.log ('Form _delete : '+ JSON.stringify(saveopt));
+    console.log ('FormMain _delete : '+ JSON.stringify(saveopt));
     MetaStore.delete (saveopt);
   },
   render: function() {
@@ -454,7 +506,7 @@ var FormMain = React.createClass({
         edit = this.props.edit || (!this.state.value._id)
     var cx = React.addons.classSet;
 
-    console.log ('Form render ' + metaview.name + ', state : ' + JSON.stringify(this.state));
+    console.log ('FormMain render ' + metaview.name + ', state : ' + JSON.stringify(this.state));
     return (
             <div className="box">
               <div className="box-header">
@@ -482,7 +534,7 @@ var FormMain = React.createClass({
                       <div className="form-group">
                         <label>{field.title}</label>
                         <div className={cx({"rofield": !edit && field.type !== 'image'})}>
-                          <Field fielddef={field} value={self.state.value[field.name]} edit={edit} onChange={self._fieldChange}/>
+                          <Field key={field._id} fielddef={field} value={self.state.value[field.name]} edit={edit} onChange={self._fieldChange}/>
                         </div>
                       </div>
                     </div>
@@ -594,11 +646,11 @@ var RecordList = React.createClass({
                       { self.state.value.map(function(row, i) { return (
                         <tr>
                             <td>
-                              <a onClick={self._edit.bind(this, row._id, true)}>edit </a>
-                              <a onClick={self._edit.bind(this, row._id, false)}>view </a>
+                              <a className="pointer" onClick={self._edit.bind(this, row._id, true)}>edit </a>
+                              | <a className="pointer" onClick={self._edit.bind(this, row._id, false)}>view </a>
                             </td>
                             {nonchildformfields.map(function(field, i) { return (
-                              <td><Field fielddef={field} value={row[field.name]}/></td>
+                              <td><Field key={field._id} fielddef={field} value={row[field.name]}/></td>
                             );})}
 
                         </tr>
@@ -722,7 +774,7 @@ var TileList= React.createClass({
               )}
                 <div className="row">
                     {metaview.map(function(row, i) { return (
-                        <Tile meta={row}/>
+                        <Tile key={row._id} meta={row}/>
                     );})}
                 </div>
             </section>
@@ -730,17 +782,7 @@ var TileList= React.createClass({
     }
 });
 
-var Test= React.createClass({
-  getInitialState: function(){
-      console.log ('Test InitialState : ' + this.props.meta);
-      return {};
-  },
-  render: function () {
-    return (
-      <a onClick={this.props.navTo} href="#TileList">TileList</a>
-    )
-  }
-});
 
 
-module.exports = { TileList, Tile, Report, Test, RecordList, Form};
+
+module.exports = { TileList, Tile, Report, RecordList, Form};
