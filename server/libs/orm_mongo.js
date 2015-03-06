@@ -60,27 +60,65 @@ module.exports = function(options) {
         };
 
         /* Harvest lookup ids from primary document for foriegn key lookup */
-        var collectforignids = function (docs) {
+        /* if subq is specified, update the docs with the lookup values */
+        var processlookupids = function (docs, subq) {
             var lookupkeys = {};
             for (var didx in docs) {
+                // for each data row
                 var doc = docs[didx];
                 for (var saidx in subqarray) {
+                    // for each 'lookup' field
                     var subq_obj = subqarray[saidx];
-                    if (! lookupkeys[subq_obj.collection])  lookupkeys[subq_obj.collection] = [];
+                    // if in harvest mode, initialise lookupkeys array
+                    if (!subq && !lookupkeys[subq_obj.collection])  lookupkeys[subq_obj.collection] = [];
+
                     if (subq_obj.subdocfield) {
+                        // if field is in an embedded-document,
                         for (var edidx in doc[subq_obj.subdocfield]) {
-                            console.log ('find() collectforignids ' + JSON.stringify(doc[subq_obj.subdocfield]) + ' : ' + edidx + ' : ' + subq_obj.field);
-                            if (doc[subq_obj.subdocfield][edidx][subq_obj.field])
-                                lookupkeys[subq_obj.collection].push(new ObjectID(doc[subq_obj.subdocfield][edidx][subq_obj.field]));
+                          // loop round records and pull out id of lookup fields into lookupkeys
+                          var lookupfieldval = doc[subq_obj.subdocfield][edidx][subq_obj.field];
+                          //console.log ("find() processlookupids " + subq_obj.field + ":" + subq_obj.collection + " = " + JSON.stringify(lookupfieldval));
+                          if (lookupfieldval) {
+                            if (!subq) {
+                              // harvest mode
+                              try {
+                                lookupkeys[subq_obj.collection].push(new ObjectID(lookupfieldval));
+                              } catch (e) {
+                                console.log ('Warning : lookup value not in format of ObjectId: ' + doc._id + ', field : ' + subq_obj.field + ', val: ' + JSON.stringify(lookupfieldval));
+                              }
+                            } else {
+                              // update mode
+                              doc[subq_obj.subdocfield][edidx][subq_obj.field] = {
+                                _id: lookupfieldval,
+                                primary: subq[lookupfieldval]};
+                            }
+                          }
                         }
                     } else {
-                        if (doc[subq_obj.field])
+                      // if field is NOT in an embedded-document, just add id to lookupkeys
+                      if (doc[subq_obj.field])
+                        if (!subq) {
+                          // harvest mode
+                          try {
                             lookupkeys[subq_obj.collection].push(new ObjectID(doc[subq_obj.field]));
+                          } catch (e) {
+                            console.log ('Warning : lookup value not in format of ObjectId: ' + doc._id + ', field : ' + subq_obj.field + ', val: ' + JSON.stringify(doc[subq_obj.field]));
+                          }
+                        } else {
+                          // update mode
+                          doc[subq_obj.field] = {
+                            _id: doc[subq_obj.field],
+                            primary: subq[doc[subq_obj.field]]};
+                        }
                     }
                 }
             }
             // Map<collection, List<ids>.
-            return lookupkeys;
+            if (!subq) {
+              return lookupkeys;
+            } else {
+              return docs;
+            }
         }
 
         /* run subquery */
@@ -120,7 +158,11 @@ module.exports = function(options) {
                     runsubquery (scoll, lookupkeys [scoll], function(){
                         completed++;
                         if(completed ===  Object.keys(lookupkeys).length) {
-                            alldonefn(docs);
+
+
+
+
+                            alldonefn(processlookupids(docs, subq_res));
                         }
                     });
                 }
@@ -152,13 +194,13 @@ module.exports = function(options) {
                           console.log('find() got document ' + JSON.stringify(doc));
 
                           if (ignoreLookups) {
-                              success({ documents: [doc]});
+                              success([doc]);
                           } else {
-                              var lookupkeys = collectforignids([doc]);
+                              var lookupkeys = processlookupids([doc]);
                               console.log('find() got query for foriegn key lookup ' + JSON.stringify(lookupkeys));
 
                               runallsubqueries(lookupkeys, [doc], function (docs) {
-                                  success({ documents: docs, subq: subq_res});
+                                  success(docs);
                               });
                           }
                       }
@@ -175,13 +217,13 @@ module.exports = function(options) {
                           console.log('find() documents ' + JSON.stringify(docs));
 
                           if (ignoreLookups) {
-                              success({ documents: docs});
+                              success(docs);
                           } else {
-                              var lookupkeys = collectforignids(docs);
+                              var lookupkeys = processlookupids(docs);
                               console.log('find() query for foriegn key lookup ' + JSON.stringify(lookupkeys));
 
                               runallsubqueries(lookupkeys, docs, function (docs) {
-                                  success({ documents: docs, subq: subq_res});
+                                  success(docs);
                               });
                           }
                       }
@@ -303,14 +345,19 @@ module.exports = function(options) {
                 var validateSetFields = function (formFields, dataval, embedField, allowchildform) {
                     var setval = {};
                     for (var f in formFields) {
-                        var fname = formFields[f].name;
-                        if (formFields[f].type !== 'childform' || allowchildform) {
+                        var fname = formFields[f].name,
+                            ftype = formFields[f].type;
+
+                        if (ftype !== 'childform' || allowchildform) {
+                            var verified_val = dataval[fname];
+                            if (ftype === 'lookup' && verified_val)  verified_val = verified_val._id;
+
                             if (embedField) {
-                                setval[embedfield+'.$.'+fname] = dataval[fname];
+                                setval[embedfield+'.$.'+fname] = verified_val;
                             } else {
                               if (dataval.hasOwnProperty(fname)) {
-                                setval[fname] = dataval[fname];
-                              } else if (isInsert && formFields[f].type === 'childform') {
+                                setval[fname] = verified_val;
+                              } else if (isInsert && ftype === 'childform') {
                                 setval[fname] = [];
                               }
                             }
@@ -371,11 +418,12 @@ module.exports = function(options) {
                             savedEmbedDoc = { _id: new ObjectID(userdoc._id) };
                           } catch (e) {
                             error ("save() _id not acceptable format : " + userdoc._id);
-                          }  
-                          query[embedfield] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
+                          }
+                          //query[embedfield] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
+                          query[embedfield+"._id"] = savedEmbedDoc._id;
                           update = { '$set': validateSetFields(form.fields, userdoc, embedfield) };
                         }
-                        console.log('find() '+coll+' query :' + JSON.stringify(query) +' update :' + JSON.stringify(update));
+                        console.log('save() update: query :' + JSON.stringify(query) +' update :' + JSON.stringify(update));
                         db.collection(coll).update(query, update, callback);
                     }
                 }

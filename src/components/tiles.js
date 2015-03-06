@@ -177,7 +177,7 @@ var Field = React.createClass({
   getInitialState: function() {
     // ES6 Computed Propery names
     //let initState = {[this.props.fielddef.name]: this.props.value || this.props.fielddef.default_value, picupload:0};
-    console.log ('Field getInitialState: ');
+    console.log ('Field getInitialState: ' + this.props.fielddef.name);
     return { picupload:0 };
   },
   componentWillReceiveProps(nextProps) {
@@ -246,41 +246,46 @@ var Field = React.createClass({
       this.setState(newState);
   },
     componentDidMount: function() {
-      if (this.props.fielddef.type === 'lookup') {
+      console.log ("Field componentDidMount  : " + this.props.fielddef.type  + ", e:" + this.props.edit);
 
-        let loopupinput = this.getDOMNode().getElementsByTagName('input')[0];
+      var self = this;
+      if (this.props.fielddef.type === 'lookup' && this.props.edit) {
 
-        var countries = new Bloodhound({
+        var lookuptypeahead = new Bloodhound({
           datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
           queryTokenizer: Bloodhound.tokenizers.whitespace,
-          local: [{name:'keith'},{name:'bob smith'} ]
-        });
-        /*
-          limit: 10,
-          prefetch: {
+          remote: '/dform/db/' + this.props.fielddef.search_form
+  //        limit: 10,
+  //        prefetch: {
             // url points to a json file that contains an array of country names, see
             // https://github.com/twitter/typeahead.js/blob/gh-pages/data/countries.json
-            url: '../data/countries.json',
+  //          url: '/dform/db/' + this.props.fielddef.search_form,
             // the json file contains an array of strings, but the Bloodhound
             // suggestion engine expects JavaScript objects so this converts all of
             // those strings
-            filter: function(list) {
-              return $.map(list, function(country) { return { name: country }; });
-            }
-          }
+        //    filter: function(list) {
+        //      return $.map(list, function(country) { return { name: country }; });
+        //    }
+  //        }
         });
-        */
         // kicks off the loading/processing of `local` and `prefetch`
-        countries.initialize();
+        lookuptypeahead.initialize();
 
+        let loopupinput = this.getDOMNode().getElementsByTagName('input')[0];
         $(loopupinput).typeahead(null, {
-          name: 'countries',
+          name: this.props.fielddef.search_form,
           displayKey: 'name',
           highlight: true,
           // `ttAdapter` wraps the suggestion engine in an adapter that
           // is compatible with the typeahead jQuery plugin
-          source: countries.ttAdapter()
+          source: lookuptypeahead.ttAdapter()
+        }).on('typeahead:selected',function(evt,data){
+            console.log('data==>' + JSON.stringify(data)); //selected datum object
+            self.handleChange({_id: data._id, primary: data.name});
         });
+        if (this.props.value) {
+          $(loopupinput).typeahead('val', this.props.value.primary);
+        }
 
       }
   },
@@ -295,14 +300,12 @@ var Field = React.createClass({
           field = <span>{this.props.value}</span>
           break;
         case 'dropdown':
-          let option = this.props.value &&
-                this.props.fielddef.dropdown_options.filter(f => f.value === this.props.value)[0] || {name : ''};
-
-          field = <span>{option.name || 'Unknown option <' + this.props.value +'>'}</span>
+          let ddopt = this.props.value &&  this.props.fielddef.dropdown_options.filter(f => f.value === this.props.value)[0];
+          field = <span>{ddopt && ddopt.name || (this.props.value && 'Unknown option <' + this.props.value +'>' || '')}</span>
           break;
         case 'lookup':
           if (this.props.value) {
-            field = <a  href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value.id}>{this.props.value.primary}</a>;
+            field = <a  href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value._id}>{this.props.value.primary}</a>;
           } else  {
             field = <div></div>
           }
@@ -326,7 +329,7 @@ var Field = React.createClass({
         value: this.props.value,
         requestChange: this.handleChange
       };
-      console.log ('Field render valueLink: ' + JSON.stringify(valueLink));
+      //console.log ('Field render valueLink: ' + JSON.stringify(valueLink));
 
 
       switch (this.props.fielddef.type) {
@@ -346,8 +349,9 @@ var Field = React.createClass({
                       </select>;
             break;
         case 'lookup':
+            var initval = this.props.value || {_id: null, primary: ""};
             field = <div className="input-group">
-                        <input type="text" className="form-control"/>
+                        <input type="text" className="form-control" />
                         <span className="input-group-addon"><i className="fa fa-search"></i></span>
                       </div>;
             break;
@@ -436,7 +440,8 @@ var FormMain = React.createClass({
     var self = this,
         saveopt = {
           form: this.props.view,
-          body: this.state.value._id && Object.assign({_id: this.state.value._id}, this.state.changeddata) || this.state.changeddata,
+          //body: this.state.value._id && Object.assign({_id: this.state.value._id}, this.state.changeddata) || this.state.changeddata,
+          body: this.state.value._id && Object.assign(this.state.value, this.state.changeddata) || this.state.changeddata,
           finished: function(d) {
             console.log ('FormMain _save, response from server : ' + JSON.stringify(d));
             if (d.data._id) {
@@ -650,7 +655,7 @@ var RecordList = React.createClass({
                               | <a className="pointer" onClick={self._edit.bind(this, row._id, false)}>view </a>
                             </td>
                             {nonchildformfields.map(function(field, i) { return (
-                              <td><Field key={field._id} fielddef={field} value={row[field.name]}/></td>
+                              <td><Field key={metaview._id+"RL"+field._id} fielddef={field} value={row[field.name]}/></td>
                             );})}
 
                         </tr>

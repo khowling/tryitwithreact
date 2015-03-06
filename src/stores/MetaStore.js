@@ -59,11 +59,16 @@ var MetaStore =  {
       return _formdata.filter(f => f._id === fid)[0];
   },
   query: function(req) {
+
+    /*
+     * Moved this to the server
+
     // to join 'subq' with 'data' at data.__primary
     var old_finished = req.finished;
     var new_finished = function joinsubj(ret) {
       let joineddata = ret.data.documents,
           formdef = MetaStore.getForm (req.form);
+
 
       let addPrimaryToLookup = function (formdef, val) {
         for (let recs of val) {
@@ -78,10 +83,12 @@ var MetaStore =  {
         }
       }
       addPrimaryToLookup (formdef, joineddata);
+
       old_finished (Object.assign(ret, {data: joineddata}));
     };
 
     req.finished = new_finished;
+*/ 
     _runxhr (req, '/dform/db/' + req.form + (req.q && ("?q=" + JSON.stringify(req.q)) || '') );
   },
   save: function(req) {
