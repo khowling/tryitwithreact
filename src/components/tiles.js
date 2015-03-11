@@ -177,12 +177,37 @@ var Field = React.createClass({
   getInitialState: function() {
     // ES6 Computed Propery names
     //let initState = {[this.props.fielddef.name]: this.props.value || this.props.fielddef.default_value, picupload:0};
-    console.log ('Field getInitialState: ' + this.props.fielddef.name);
-    return { picupload:0 };
+    //console.log ('Field getInitialState: ' + this.props.fielddef.name);
+    return { picupload:0, lookupcreate: false};
   },
   componentWillReceiveProps(nextProps) {
-    //console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
+    console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
     //if (nextProps.value) this.setState ({[this.props.fielddef.name]: nextProps.value});
+    if (this.props.fielddef.type === 'lookup' && this.props.edit) {
+      if (nextProps.value) {
+        let loopupinput = this.getDOMNode().querySelector('input.tt-input');
+        console.log ('Field componentWillReceiveProps update typeahead value: ' + nextProps.value.primary);
+        $(loopupinput).typeahead('val', nextProps.value.primary);
+      }
+    }
+  },
+  shouldComponentUpdate(nextProps, nextState) {
+    console.log ('Field shouldComponentupdate props: ' + JSON.stringify(nextProps));
+    console.log ('Field shouldComponentupdate state: ' + JSON.stringify(nextState));
+    if (nextState) {
+      return true;
+    } else {
+      if (this.props.fielddef.type === 'lookup') {
+        if (nextProps.value && this.props.edit) {
+          console.log ('Field shouldComponentupdate : NO');
+          return false;
+        }
+      } else if (nextProps.value && nextProps.value === this.props.value) {
+        console.log ('Field shouldComponentupdate : NO');
+        return false;
+      }
+    }
+    return true;
   },
   _clickFile: function(e) {
     //console.log ('Field _clickFile');
@@ -246,7 +271,7 @@ var Field = React.createClass({
       this.setState(newState);
   },
     componentDidMount: function() {
-      console.log ("Field componentDidMount  : " + this.props.fielddef.type  + ", e:" + this.props.edit);
+      //console.log ("Field componentDidMount  : " + this.props.fielddef.type  + ", e:" + this.props.edit);
 
       var self = this;
       if (this.props.fielddef.type === 'lookup' && this.props.edit) {
@@ -271,7 +296,8 @@ var Field = React.createClass({
         // kicks off the loading/processing of `local` and `prefetch`
         lookuptypeahead.initialize();
 
-        let loopupinput = this.getDOMNode().getElementsByTagName('input')[0];
+        //let loopupinput = this.getDOMNode().getElementsByTagName('input')[0];
+        let loopupinput = this.getDOMNode().querySelector('input.typeahead-input');
         $(loopupinput).typeahead(null, {
           name: this.props.fielddef.search_form,
           displayKey: 'name',
@@ -283,11 +309,16 @@ var Field = React.createClass({
             console.log('data==>' + JSON.stringify(data)); //selected datum object
             self.handleChange({_id: data._id, primary: data.name});
         });
-        if (this.props.value) {
-          $(loopupinput).typeahead('val', this.props.value.primary);
-        }
+        console.log ("Field componentDidMount  : initialise typeahead and set default val from prop: " + JSON.stringify(this.props.value));
+    //    if (this.props.value) {
+    //      $(loopupinput).typeahead('val', this.props.value.primary);
+    //    }
 
       }
+  },
+  _openCreate: function() {
+    $(this.getDOMNode().querySelector('.myModal')).modal({show:true});
+    this.setState ({lookupcreate: true});
   },
   render: function() {
     console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> : ' + JSON.stringify(this.props.value));
@@ -349,11 +380,31 @@ var Field = React.createClass({
                       </select>;
             break;
         case 'lookup':
-            var initval = this.props.value || {_id: null, primary: ""};
-            field = <div className="input-group">
-                        <input type="text" className="form-control" />
-                        <span className="input-group-addon"><i className="fa fa-search"></i></span>
-                      </div>;
+            field = <span>
+                      <div className="input-group">
+                        <input type="text" className="form-control typeahead-input" defaultValue={this.props.value && this.props.value.primary}/>
+                        <span className="input-group-addon"><a onClick={this._openCreate}><i className="fa fa-search"></i></a></span>
+                      </div>
+                      <div className="modal myModal">
+                        <div className="modal-dialog">
+                            <div className="modal-content">
+                              <div className="modal-header">
+                                <button type="button" className="close" data-dismiss="modal" aria-hidden="true">×</button>
+                                <h4 className="modal-title">Create New {this.props.fielddef.title}</h4>
+                              </div>
+                              <div className="modal-body">
+                                { this.state.lookupcreate &&
+                                  <FormMain view={this.props.fielddef.createnew_form}/>
+                                }
+                              </div>
+                              <div className="modal-footer">
+                                <a href="#" data-dismiss="modal" className="btn">Close</a>
+                                <a href="#" class="btn btn-primary">Save changes</a>
+                              </div>
+                            </div>
+                          </div>
+                      </div>
+                    </span>;
             break;
         case 'childform':
             field = <div></div>;
@@ -539,7 +590,7 @@ var FormMain = React.createClass({
                       <div className="form-group">
                         <label>{field.title}</label>
                         <div className={cx({"rofield": !edit && field.type !== 'image'})}>
-                          <Field key={field._id} fielddef={field} value={self.state.value[field.name]} edit={edit} onChange={self._fieldChange}/>
+                          <Field key={metaview._id+field._id+edit} fielddef={field} value={self.state.value[field.name]} edit={edit} onChange={self._fieldChange}/>
                         </div>
                       </div>
                     </div>
