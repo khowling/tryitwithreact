@@ -3,18 +3,20 @@ var Router = require('react-router');
 var Link = Router.Link;
 var RouteHandler = Router.RouteHandler;
 
-function CreateFactories(obj) {
+function CreateFactories(...comps) {
   var res = {};
-  for (var k in obj) {
-    var el = obj[k];
-    if (typeof el === "function" && el.isReactLegacyFactory) {
-      res[k] = React.createFactory(obj[k]);
+  for (let mods of comps) {
+    for (let k in mods) {
+      let el = mods[k];
+      if (typeof el === "function" && el.isReactLegacyFactory) {
+        res[k] = React.createFactory(el);
+      }
     }
   }
   return res;
 }
 
-var compfact = CreateFactories(require('./tiles'));
+var compfact = CreateFactories(require('./tiles'), require('./auth'));
 
 var MetaStore = require('../stores/MetaStore');
 
@@ -124,7 +126,7 @@ var App  = React.createClass({
              navTo: this.navTo,
              urlparam: this.state.urlparam});
         } else return (
-            <div>404</div>
+            <div>404 {this.state.renderThis}</div>
         )
       } else return (
         <div>loading meta</div>

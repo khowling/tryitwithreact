@@ -841,4 +841,4 @@ var TileList= React.createClass({
 
 
 
-module.exports = { TileList, Tile, Report, RecordList, Form};
+module.exports = { TileList, Tile, Report, RecordList, Form, FormMain};
