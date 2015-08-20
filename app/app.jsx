@@ -7,7 +7,7 @@ import React, {Component} from 'react';
 import ReactDOM from 'react-dom';
 
 import Router from './components/router.jsx'
-import {TileList, RecordList}  from './components/tiles.jsx'
+import {TileList, RecordList, Form}  from './components/tiles.jsx'
 
 import DynamicForm from './services/dynamicForm.es6';
 class App extends Component {
@@ -15,7 +15,7 @@ class App extends Component {
    constructor (props) {
      super(props);
      console.log ('call createFact ' );
-     this.appComponents = App.createFactories (TileList, RecordList);
+     this.appComponents = App.createFactories (TileList, RecordList, Form);
      this.dynamicForm = new DynamicForm(props.buildprops.server_url);
      this.state = { formdata: [], booted: false, bootmsg: "not booted"};
    }

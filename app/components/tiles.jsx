@@ -452,24 +452,18 @@ export class Form extends Component {
   }
 
   componentDidMount() {
+    let df = DynamicForm.instance;
     if (this.props.urlparam.id) {
-      MetaStore.query ({opt: 'dform', form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}, finished: this._gotServerData});
-    }
-  }
-
-  _gotServerData(req) {
-    console.log ('Form _gotServerData');
-    if (this.isMounted()) {
-      if (req.opt === 'dform' && req.data.length>0) {
-        //console.log ('Form _gotServerData : '+ JSON.stringify(req.data[0]));
-        this.setState({ value: req.data[0]});
-      }
+      df.query ({form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}}).then(succVal => {
+          this.setState({ value: succVal.data[0]});
+      });
     }
   }
 
   render() {
     var self = this,
-        metaview = MetaStore.getForm (this.props.urlparam.view),
+        df = DynamicForm.instance,
+        metaview = df.getForm (this.props.urlparam.view),
         childformfields = metaview.fields.filter(m => m.type === 'childform'),
         edit = this.props.urlparam.e || (!this.props.urlparam.id);
 
@@ -576,7 +570,8 @@ export class FormMain extends Component {
   render() {
 
     var self = this,
-        metaview = MetaStore.getForm (this.props.view),
+        df = DynamicForm.instance,
+        metaview = df.getForm (this.props.view),
         nonchildformfields = metaview.fields.filter(m => m.type !== 'childform'),
         edit = this.props.edit || (!this.state.value._id)
     var cx = React.addons.classSet;
@@ -631,26 +626,26 @@ export class RecordList extends Component {
     this.state = { value: this.props.value || [], editrow: false };
   }
   componentDidMount() {
+    let df = DynamicForm.instance;
     if (!this.props.value && this.props.urlparam && this.props.urlparam.view) {
       console.log ('RecordList componentDidMount, got url para so running query : ' + JSON.stringify(this.props.urlparam.view));
-      MetaStore.query ({form: this.props.urlparam.view, finished: this._gotData});
+      df.query ({form: this.props.urlparam.view}).then(succRes => this.setState({ value: succRes}));
     }
   }
-  _gotData(req) {
-    if (this.isMounted()) {
-        console.log ('RecordList _onChange : got data from query');
-        this.setState({ value: req.data});
-    }
-  }
+
   _delete (e) {
 
   }
   _edit (id, edit) {
+
     if (this.props.parent) {
       console.log ('RecordList : want to edit a imbedded doc : ' + id);
       this.setState({editrow: {id: id, edit: edit}});
-    } else if (this.props.navTo && this.props.urlparam) {
-      this.props.navTo("Form?gid=" + this.props.urlparam.view + (id && ":" + id || "") + (edit && "&e=true" || ""));
+    } else if (this.props.urlparam) {
+      //this.props.navTo(
+      let nurl = "#Form?gid=" + this.props.urlparam.view + (id && ":" + id || "") + (edit && "&e=true" || "");
+      console.log ("RecordList : _edit: " + nurl);
+      window.location.href = nurl;
     }
   }
   _formDoneNavTo (operation, res) {
@@ -686,7 +681,8 @@ export class RecordList extends Component {
   render() {
     console.log ('RecordList rendering ' + JSON.stringify(this.state.editrow));
     var self = this,
-        metaview = MetaStore.getForm (this.props.urlparam && this.props.urlparam.view || this.props.view),
+        df = DynamicForm.instance,
+        metaview = df.getForm (this.props.urlparam && this.props.urlparam.view || this.props.view),
         nonchildformfields = metaview.fields && metaview.fields.filter(m => m.type !== 'childform') || [];
 
     return (
@@ -844,7 +840,7 @@ export class TileList extends Component {
                   <div className="col-lg-12">
                     <div className="info-box">
                       <div className="box-body">
-                        <a onClick={this.props.navTo} href={"#DNew?id="+metaview[0]._id} className="btn btn-app">
+                        <a  href={"#DNew?id="+metaview[0]._id} className="btn btn-app">
                           <i className="fa fa-edit"></i> New
                         </a>
                       </div>
