@@ -12,7 +12,7 @@ $mongod = {& "c:\Program Files\MongoDB 2.6 Standard\bin\mongod" $args}
 Start-Job -scriptblock $mongod -argumentlist  "--dbpath", "c:\Users\keith\mongo_data"
 
 $server = {& "nodemon" $args}
-Start-Job -scriptblock $server -argumentlist  "c:\Users\keith\tryitwithreact\server\main.js"
+# Start-Job -scriptblock $server -argumentlist  "c:\Users\keith\tryitwithreact\server\main.js"
 
 #  To see output
 # 'Get-Job'

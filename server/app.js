@@ -15,7 +15,7 @@ var ObjectID = require('mongodb').ObjectID;
 
 var app = express();
 
-MongoClient.connect(process.env.MONGO_DB, function(err, db) {
+MongoClient.connect(process.env.MONGO_DB || "mongodb://localhost:27017/mydb01", function(err, db) {
     if (err) throw err;
 
     // view engine setup
@@ -24,9 +24,10 @@ MongoClient.connect(process.env.MONGO_DB, function(err, db) {
 
     //app.use(favicon());
     //app.use(logger('dev'));
-    console.log ('serving :'  + path.join(__dirname, '../static'));
-    app.use(express.static(path.join(__dirname, '../static')));
-    app.use('/bower_components', express.static(path.join(__dirname, '../bower_components')));
+    var bowerurl = path.join(__dirname, '../bower_components');
+    console.log ('serving static :'  + bowerurl);
+    //app.use(express.static(path.join(__dirname, '../static')));
+    app.use('/bower_components', express.static(bowerurl));
 
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({extended: true}));
@@ -60,6 +61,13 @@ MongoClient.connect(process.env.MONGO_DB, function(err, db) {
         });
     });
 
+    app.all('/*', function(req, res, next) {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Headers", "X-Requested-With");
+      res.header("Access-Control-Allow-Headers", "Authorization");
+      next();
+    });
+
     // routes are the last thing to be initialised!
     app.use('/auth', require('./routes/auth')(passport, {  db: db }));
     app.use('/dform', require('./routes/dform')({  db: db }));
@@ -78,21 +86,22 @@ MongoClient.connect(process.env.MONGO_DB, function(err, db) {
     if (app.get('env') === 'development') {
         app.use(function (err, req, res, next) {
             res.status(err.status || 500).json({
-                message: err.message,
+                message: 'dev : ' + err.message,
                 error: err
             });
         });
-    }
+    } else {
 
-    // production error handler
-    // no stacktraces leaked to user
-    app.use(function (err, req, res, next) {
-        res.status(err.status || 500);
-        res.render('error', {
-            message: err.message,
-            error: {}
-        });
-    });
+      // production error handler
+      // no stacktraces leaked to user
+      app.use(function (err, req, res, next) {
+          res.status(err.status || 500);
+          res.render('error', {
+              message: err.message,
+              error: {}
+          });
+      });
+    }
 });
 
 module.exports = app;

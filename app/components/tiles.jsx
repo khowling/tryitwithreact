@@ -1,20 +1,23 @@
-const React = require('react/addons');
-const { Element, Elements } = require('../lib/util');
-const { displayDate } = require("../lib/date");
-const csp = require('../lib/csp');
-const { go, chan, take, put, ops } = csp;
-const t = require('transducers.js');
-const { range, seq, compose, map, filter } = t;
-const { Link, State } = require("react-router");
-const xhr = require('../lib/xhr');
-const MetaStore = require('../stores/MetaStore');
+'use strict;'
 
-var Report = React.createClass({
-    getInitialState: function(){
-        console.log ('TileList InitialState : ');
-        return { open: false, quickview: []};
-    },
-    handleCollapse: function (event) {
+import React, {Component} from 'react';
+
+import { displayDate } from "../lib/date.es6";
+import t from 'transducers.js';
+const { range, seq, compose, map, filter } = t;
+
+import DynamicForm from '../services/dynamicForm.es6';
+
+/*
+class Report extends Component {
+
+    constructor(props) {
+      super(props);
+        console.log ('Report InitialState : ');
+        this.state =  { open: false, quickview: []};
+    }
+
+    handleCollapse (event) {
         console.log ('handleCollapse event');
         //Find the box parent
         var box = $(event.currentTarget).parents(".box").first();
@@ -49,17 +52,20 @@ var Report = React.createClass({
                 self.setState({quickview:  i.records});
             });
         }
-    },
+    }
+
     componentWillUpdate( nextProps,  nextState) {
         console.log ('Report componentWillUpdate : ');
         //Use this as an opportunity to perform preparation before an update occurs
         // You cannot use this.setState() in this method
 
-    },
-    componentDidMount: function(){
+    }
+
+    componentDidMount(){
         console.log ('Report componentDidMount: ');
-    },
-    navToReport: function(id) {
+    }
+
+    navToReport(id) {
         console.log ('navToReport event : ' + id);
         try {
             console.log ('navToReport got sforce');
@@ -67,8 +73,9 @@ var Report = React.createClass({
         }  catch (e) {
             window.location =  '/apex/OVReport?id=' + id;
         }
-    },
-    render: function() {
+    }
+
+    render() {
         console.log ('Report render : ');
         var rdata = this.props.data.Report__r;
 
@@ -139,10 +146,10 @@ var Report = React.createClass({
             </div>
         );
     }
-});
-
-var ChildForm = React.createClass({
-  render: function() {
+}
+*/
+export class ChildForm extends Component {
+  render() {
     console.log ('ChildForm render fields: ' +
         JSON.stringify(seq(this.props.form.fields, map(x => x.name))) +
         '. records: ' + JSON.stringify(this.props.value));
@@ -169,17 +176,19 @@ var ChildForm = React.createClass({
           </div>
         );
   }
-});
+}
 
 
-var Field = React.createClass({
+export class Field extends Component {
   //mixins: [React.addons.LinkedStateMixin],
-  getInitialState: function() {
+  constructor(props) {
+    super(props);
     // ES6 Computed Propery names
     //let initState = {[this.props.fielddef.name]: this.props.value || this.props.fielddef.default_value, picupload:0};
     //console.log ('Field getInitialState: ' + this.props.fielddef.name);
-    return { picupload:0, lookupcreate: false};
-  },
+    this.state = { picupload:0, lookupcreate: false};
+  }
+
   componentWillReceiveProps(nextProps) {
     console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
     //if (nextProps.value) this.setState ({[this.props.fielddef.name]: nextProps.value});
@@ -190,7 +199,8 @@ var Field = React.createClass({
         $(loopupinput).typeahead('val', nextProps.value.primary);
       }
     }
-  },
+  }
+
   shouldComponentUpdate(nextProps, nextState) {
     console.log ('Field shouldComponentupdate props: ' + JSON.stringify(nextProps));
     console.log ('Field shouldComponentupdate state: ' + JSON.stringify(nextState));
@@ -208,12 +218,14 @@ var Field = React.createClass({
       }
     }
     return true;
-  },
-  _clickFile: function(e) {
+  }
+
+  _clickFile(e) {
     //console.log ('Field _clickFile');
     $(e.currentTarget).siblings("input:file").click();
-  },
-  _fileuploadhtml5: function(e) {
+  }
+
+  _fileuploadhtml5(e) {
 
     var self = this,
         file = e.currentTarget.files[0];
@@ -260,8 +272,9 @@ var Field = React.createClass({
      xhr.send(file);
      self.setState({picupload : 5});
      return false;
-  },
-  handleChange: function(newValue) {
+  }
+
+  handleChange(newValue) {
     console.log ('Field handleChange newValue : ' + JSON.stringify(newValue));
     let newState = {[this.props.fielddef.name]: newValue};
     if (this.props.onChange)
@@ -269,8 +282,8 @@ var Field = React.createClass({
     else
       // not really needed as the change handler is at the form level, that will update props on this child!
       this.setState(newState);
-  },
-    componentDidMount: function() {
+  }
+  componentDidMount() {
       //console.log ("Field componentDidMount  : " + this.props.fielddef.type  + ", e:" + this.props.edit);
 
       var self = this;
@@ -315,12 +328,13 @@ var Field = React.createClass({
     //    }
 
       }
-  },
-  _openCreate: function() {
+  }
+  _openCreate() {
     $(this.getDOMNode().querySelector('.myModal')).modal({show:true});
     this.setState ({lookupcreate: true});
-  },
-  render: function() {
+  }
+
+  render() {
     console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> : ' + JSON.stringify(this.props.value));
 
     let field;
@@ -429,18 +443,21 @@ var Field = React.createClass({
 
     return field;
   }
-});
+}
 
-var Form = React.createClass({
-  getInitialState: function(){
-    return { value: []};
-  },
-  componentDidMount: function() {
+export class Form extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { value: []};
+  }
+
+  componentDidMount() {
     if (this.props.urlparam.id) {
       MetaStore.query ({opt: 'dform', form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}, finished: this._gotServerData});
     }
-  },
-  _gotServerData: function(req) {
+  }
+
+  _gotServerData(req) {
     console.log ('Form _gotServerData');
     if (this.isMounted()) {
       if (req.opt === 'dform' && req.data.length>0) {
@@ -448,8 +465,9 @@ var Form = React.createClass({
         this.setState({ value: req.data[0]});
       }
     }
-  },
-  render: function() {
+  }
+
+  render() {
     var self = this,
         metaview = MetaStore.getForm (this.props.urlparam.view),
         childformfields = metaview.fields.filter(m => m.type === 'childform'),
@@ -467,27 +485,27 @@ var Form = React.createClass({
         </div>
       );
     }
-  });
+}
 
-var FormMain = React.createClass({
-  getInitialState: function(){
-      console.log ('FormMain InitialState : ' + JSON.stringify(this.props));
-      return { value: this.props.value || {}, changeddata: {}, errors: null};
-  },
+export class FormMain extends Component {
+  constructor(props) {
+    super(props);
+    console.log ('FormMain InitialState : ' + JSON.stringify(this.props));
+    this.state =  { value: this.props.value || {}, changeddata: {}, errors: null};
+  }
   componentWillReceiveProps (nextProps) {
     if (nextProps.value) {
       this.setState ({value: nextProps.value});
     }
-  },
-  _fieldChange: function(d) {
-
+  }
+  _fieldChange(d) {
     let newState = {
         value: Object.assign(this.state.value, d),
         changeddata: Object.assign(this.state.changeddata, d)};
     console.log ('FormMain _fieldChange setState : '+ JSON.stringify(newState));
     this.setState(newState);
-  },
-  _save: function() {
+  }
+  _save() {
     var self = this,
         saveopt = {
           form: this.props.view,
@@ -520,16 +538,16 @@ var FormMain = React.createClass({
     }
     console.log ('FormMain _save : '+ JSON.stringify(saveopt));
     MetaStore.save (saveopt);
-  },
-  _cancel: function(e) {
+  }
+  _cancel(e) {
     e.preventDefault();
     if (this.props.parent) {
       this.props.navTo('cancel');
     } else {
       this.props.navTo("Form?gid="+this.props.view+":"+this.props.value._id);
     }
-  },
-  _delete: function() {
+  }
+  _delete() {
     var self = this,
         saveopt = {
           form: this.props.view,
@@ -553,8 +571,9 @@ var FormMain = React.createClass({
     }
     console.log ('FormMain _delete : '+ JSON.stringify(saveopt));
     MetaStore.delete (saveopt);
-  },
-  render: function() {
+  }
+
+  render() {
 
     var self = this,
         metaview = MetaStore.getForm (this.props.view),
@@ -602,38 +621,39 @@ var FormMain = React.createClass({
             </div>
         );
   }
-});
+}
 
 
-var RecordList = React.createClass({
-  getInitialState: function(){
-      console.log ('RecordList InitialState : ' + JSON.stringify(this.props.value));
-      return { value: this.props.value || [], editrow: false };
-  },
-  componentDidMount: function() {
+export class RecordList extends Component {
+  constructor(props) {
+    super(props);
+    console.log ('RecordList InitialState : ' + JSON.stringify(this.props.value));
+    this.state = { value: this.props.value || [], editrow: false };
+  }
+  componentDidMount() {
     if (!this.props.value && this.props.urlparam && this.props.urlparam.view) {
       console.log ('RecordList componentDidMount, got url para so running query : ' + JSON.stringify(this.props.urlparam.view));
       MetaStore.query ({form: this.props.urlparam.view, finished: this._gotData});
     }
-  },
-  _gotData: function(req) {
+  }
+  _gotData(req) {
     if (this.isMounted()) {
         console.log ('RecordList _onChange : got data from query');
         this.setState({ value: req.data});
     }
-  },
-  _delete: function (e) {
+  }
+  _delete (e) {
 
-  },
-  _edit: function (id, edit) {
+  }
+  _edit (id, edit) {
     if (this.props.parent) {
       console.log ('RecordList : want to edit a imbedded doc : ' + id);
       this.setState({editrow: {id: id, edit: edit}});
     } else if (this.props.navTo && this.props.urlparam) {
       this.props.navTo("Form?gid=" + this.props.urlparam.view + (id && ":" + id || "") + (edit && "&e=true" || ""));
     }
-  },
-  _formDoneNavTo: function (operation, res) {
+  }
+  _formDoneNavTo (operation, res) {
     console.log ('RecordList _formDone() ' + JSON.stringify(res));
     if (res) {
       console.log ('RecordList _formDone() update of row ' + JSON.stringify(this.state.editrow));
@@ -655,14 +675,15 @@ var RecordList = React.createClass({
       console.log ('RecordList _formDone() no data, must be cancel');
       this.setState ({editrow: false});
     }
-  },
+  }
   componentWillReceiveProps(nextProps) {
     if (nextProps.value) {
       console.log ('RecordList componentWillReceiveProps : got data from parent prop: ' + JSON.stringify(nextProps.value));
       this.setState ({value: nextProps.value});
     }
-  },
-  render: function() {
+  }
+
+  render() {
     console.log ('RecordList rendering ' + JSON.stringify(this.state.editrow));
     var self = this,
         metaview = MetaStore.getForm (this.props.urlparam && this.props.urlparam.view || this.props.view),
@@ -718,21 +739,19 @@ var RecordList = React.createClass({
             </div>
     )
   }
-})
+}
 
-
-var Tile = React.createClass({
+export class Tile extends Component {
 
     // This component doesn't hold any state - it simply transforms
     // whatever was passed as attributes into HTML that represents a picture.
-    setFilter: function(id){
-
+    setFilter(id){
         // When the component is clicked, trigger the onClick handler that
         // was passed as an attribute when it was constructed:
         this.props.onTileClick(id);
-    },
+    }
 
-    render: function(){
+    render(){
         var tdata = this.props.meta,
             boxclass = "small-box " + 'bg-aqua',
             iclass = "ion " + 'ion-stats-bars';
@@ -754,25 +773,28 @@ var Tile = React.createClass({
             </div>
         );
     }
-});
+}
 
-var TileList= React.createClass({
-    displayName: 'TileList',
-    getInitialState: function(){
-        console.log ('TileList InitialState : ' + this.props.meta);
-        return { breadcrumbs: []};
-    },
-    componentWillReceiveProps: function (nextProps) {
+export class TileList extends Component {
+
+    constructor(){
+      super();
+      console.log ('TileList InitialState : ');
+      this.state = { breadcrumbs: []};
+    }
+    componentWillReceiveProps (nextProps) {
         let cbc = this.state.breadcrumbst;
         console.log ('TileList componentWillReceiveProps : ' + nextProps.meta);
 
-    },
+    }
+
     // The statics object allows you to define static methods that can be called on the component class
-    componentDidMount: function(){
+    componentDidMount(){
         console.log ('TileList componentDidMount : ');
         //self.setState({  loading: false, tiles: i.records});
-    },
-    handleNavClick: function (cflt) {
+    }
+
+    handleNavClick (cflt) {
         let cbc = this.state.breadcrumbs,
             new_state = {filter: cflt};
 
@@ -799,9 +821,11 @@ var TileList= React.createClass({
         }
         console.log ('TileList handleNavClick, setState : ' + new_state);
         this.setState(new_state);
-    },
-    render: function () {
-        var metaview = MetaStore.getForm ();
+    }
+
+    render () {
+        let df = DynamicForm.instance,
+        metaview = df.getForm ();
         //let cflt = this.state.filter; // this.getParams().flt;
         console.log ('TileList render : ' + metaview.length);
 
@@ -836,9 +860,4 @@ var TileList= React.createClass({
             </section>
         )
     }
-});
-
-
-
-
-module.exports = { TileList, Tile, Report, RecordList, Form, FormMain};
+}

@@ -1,14 +1,12 @@
 /**
  * Created by keith on 08/02/15.
  */
-const moment = require("moment");
+import moment from "moment";
 
-function displayDate(intDate) {
+export  function displayDate(intDate) {
     return moment(intDate, 'YYYYMMDD').format('MMMM DD YYYY');
 }
 
-function currentDate() {
+export  function currentDate () {
     return parseInt(moment().format('YYYYMMDD'));
 }
-
-module.exports = { displayDate, currentDate };

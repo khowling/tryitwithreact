@@ -1,17 +1,38 @@
 var webpack = require('webpack');
+var path = require('path');
+var util = require('util');
+
+var pkg = require('./package.json');
+var port = pkg.config.devPort,
+    host = pkg.config.devHost,
+    https = pkg.config.devHttps,
+    target = pkg.config.buildDir;
+
+var jsBundle = path.join('js', util.format('[name].%s.js', pkg.version));
+var fileLoader = 'file-loader?name=[path][name].[ext]';
+var htmlLoader = fileLoader + '!' +
+   'template-html-loader?' + [
+     'raw=true',
+     'engine=lodash',
+     'VERSION=' + pkg.version,
+     'TITLE=' + pkg.name,
+     util.format('SERVER_URL=%s:%d',  'http://localhost', 3000)
+   ].join('&')
+
+console.log ('htmlLoader' + htmlLoader);
 
 module.exports = {
-    inline: true,
-    contentBase: "./static",
+    context: path.join(__dirname, 'app'),
     entry:  [
-        'webpack-dev-server/client?http://0.0.0.0:9090', // WebpackDevServer host and port
+         util.format('webpack-dev-server/client?http%s://%s:%d', https && 's' || '', host, port),
         'webpack/hot/only-dev-server',
-        './static/js/main.js'
+        './app.jsx'
     ],
+    target: "web",
     output: {
-        path: __dirname + '/output',
-        filename: 'bundle.js',
-        publicPath: "http://localhost:9090/output/"
+        path: path.resolve(target),
+        filename: jsBundle,
+        publicPath: "/"
 
     },
     plugins: [
@@ -20,13 +41,15 @@ module.exports = {
     ],
     module: {
         loaders: [
-            {test: /\.js$/,
-                exclude: [/static[\\\/]js[\\\/]lib[\\\/].*\.js$/, /src[\\\/]lib[\\\/]csp[\\\/].*/, /node_modules[\\\/].*/],
-                loaders:  ['react-hot', 'babel-loader']}
-        //        ,
-        //    {test: /\.js$/,
-        //        exclude: [/static\/js\/lib\/.*\.js$/, /src\/lib\/.*/, /node_modules\/.*/],
-        //        loaders: ['react-hot', 'jsx?harmony']},
+            {
+              test: /\.jsx$|\.es6$/,
+              exclude: /node_modules/,
+              loaders:  ['babel-loader?optional=runtime']
+            },
+            {
+              test: /\.html$/,
+              loader: htmlLoader
+            }
         ]
     }
 };
