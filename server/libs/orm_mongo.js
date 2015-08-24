@@ -300,7 +300,7 @@ module.exports = function(options) {
                 error ("save() not Found : " + formparam);
             } else {
 
-                console.log ('save() ' + formparam + ' : got form : ' + form.name);
+                console.log ('save() formparam:' + formparam + ' : got form lookup: ' + form.name);
                 var coll = form.collection;
                 var embedfield;
 
@@ -323,7 +323,7 @@ module.exports = function(options) {
 
                 var savedEmbedDoc; // set later, used by callback
 
-                console.log('save() '+coll+' userdoc: ' + JSON.stringify(userdoc));
+                console.log('save() collection: '+coll+' userdoc: ' + JSON.stringify(userdoc));
 
                 //callback gets two parameters - an error object (if an error occured) and the record if it was inserted or 1 if the record was updated.
                 var callback = function (err, recs) {
@@ -335,8 +335,6 @@ module.exports = function(options) {
                         } else {
                             success ({_id: userdoc._id}); // updated top level
                         }
-                    } else {
-                        success ( recs[0]); // inserted (has to be top level)
                     }
                 };
 
@@ -376,15 +374,31 @@ module.exports = function(options) {
                         } catch (e) {
                           error ("save() _id not acceptable format : " + userdoc._id);
                         }
-                        var update = { '$set': validateSetFields(form.fields, userdoc, null) };
+                        var update = validateSetFields(form.fields, userdoc, null);
+                        var update_set = { '$set': update };
 
-                        //console.log('/db/'+coll+'  update verified data : ' + JSON.stringify (update));
-                        db.collection(coll).update (query, update, callback);
+                        console.log('save() '+coll+' update verified data : ' + JSON.stringify (update_set));
+                        db.collection(coll).update (query, update_set,  function (err, out) {
+                          console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+                          if (err) {
+                             error (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+                          } else {
+                            success ({_id: query._id});
+                          }
+                        });
                     } else {
                         //console.log('/db/'+coll+'  insert toplevel document, use individual fields');
                         var insert = validateSetFields(form.fields, userdoc, null, true);
-                        console.log('save() '+coll+'  insert verified data : ' + JSON.stringify (insert));
-                        db.collection(coll).insert (insert, callback);
+                        insert._id = new ObjectID();
+                        console.log('save() '+coll+' insert verified data : ' + JSON.stringify (insert));
+                        db.collection(coll).insert (insert, function (err, out) {
+                          console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+                          if (err) {
+                             error (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+                          } else {
+                            success ({_id: insert._id});
+                          }
+                        });
                     }
 
                 } else {  // its modifing a embedded document

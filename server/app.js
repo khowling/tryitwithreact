@@ -63,8 +63,10 @@ MongoClient.connect(process.env.MONGO_DB || "mongodb://localhost:27017/mydb01", 
 
     app.all('/*', function(req, res, next) {
       res.header("Access-Control-Allow-Origin", "*");
-      res.header("Access-Control-Allow-Headers", "X-Requested-With");
-      res.header("Access-Control-Allow-Headers", "Authorization");
+      res.header("Access-Control-Allow-Headers", "X-Requested-With,Authorization,Content-Type");
+      res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE");
+      //res.header("Access-Control-Allow-Headers", "Authorization");
+      //res.header("Access-Control-Allow-Headers", "application/json;charset=UTF-8");
       next();
     });
 

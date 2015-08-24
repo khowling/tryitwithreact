@@ -7,7 +7,8 @@ import React, {Component} from 'react';
 import ReactDOM from 'react-dom';
 
 import Router from './components/router.jsx'
-import {TileList, RecordList, Form}  from './components/tiles.jsx'
+import {TileList}  from './components/tiles.jsx'
+import {RecordList, Form} from './components/dform.jsx'
 
 import DynamicForm from './services/dynamicForm.es6';
 class App extends Component {

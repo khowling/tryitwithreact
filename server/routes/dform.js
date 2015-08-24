@@ -54,9 +54,10 @@ module.exports = function(options) {
     		//userdoc = JSON.parse(JSON.stringify(req.body).replace(/<DOLLAR>/g,'$'));
     	    userdoc = req.body;
       orm.save (formparam, parentfieldid,parentid, userdoc, function success(j) {
-          res.json(j);
+        console.log ('save() : responding : ' + JSON.stringify(j));
+        res.json(j);
       }, function error(e) {
-          res.status(400).send(e);
+        res.status(400).send(e);
       });
     });
 

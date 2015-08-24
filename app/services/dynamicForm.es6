@@ -19,13 +19,19 @@ export default class DynamicForm {
     return instance;
   }
 
-  _callServer(path, mode = 'GET') {
-    var promise = new Promise( (resolve, reject) => {
+  _callServer(path, mode = 'GET', body) {
+    return new Promise( (resolve, reject) => {
        // Instantiates the XMLHttpRequest
        var client = new XMLHttpRequest();
        client.open(mode, this._host + '/dform/' + path);
        client.setRequestHeader ("Authorization", "OAuth " + "Junk");
-       client.send();
+       if (mode === 'POST') {
+         console.log ('_callServer: POSTING : ' + JSON.stringify(body));
+         client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+         client.send(JSON.stringify(body));
+       } else {
+         client.send();
+       }
        client.onload = function () {
          if (this.status == 200) {
            // Performs the function "resolve" when this.status is equal to 200
@@ -40,7 +46,6 @@ export default class DynamicForm {
          reject("Network Error: " + this.statusText);
        };
      });
-     return promise;
   }
 
   loadMeta() {
@@ -55,13 +60,33 @@ export default class DynamicForm {
   }
 
   query(req) {
-    return this._callServer('db/' + req.form + (req.q && ("?q=" + JSON.stringify(req.q)) || '') );
+    return this._callServer('db/' + req.form + (req.q && ("?q=" + JSON.stringify(req.q)) || ''));
   }
   save(req) {
-    return _callServer('db/' + req.form + (req.parent && "?"+$.param(req.parent) || ''), 'POST');
+    return this._callServer('db/' + req.form + (req.parent && "?"+$.param(req.parent) || ''), 'POST', req.body);
   }
   delete(req) {
     return this._callServer('db/' + req.form + '/' + req.id + (req.parent && "?"+$.param(req.parent) || ''), 'DELETE');
   }
 
+  uploadFile (filename, evtFn) {
+    return new Promise( (resolve, reject) => {
+      var xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener("progress",  evtFn, false);
+      xhr.addEventListener("load", function (evt) {
+        resolve(evt);
+       }, false);
+     xhr.addEventListener("error", function (evt) {
+       reject (evt);
+     }, false);
+     xhr.addEventListener("abort", function (evt) {
+       reject(evt);
+     }, false);
+     xhr.addEventListener("loadstart", function (evt) {
+       console.log ('got loadstart:');
+     });
+     xhr.open("PUT", this._host + '/dform/file/' + filename, true);
+     xhr.send(filename);
+   });
+ }
 }
