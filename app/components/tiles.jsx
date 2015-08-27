@@ -99,14 +99,6 @@ export class TileList extends Component {
 
         return (
             <section className="content">
-                <div className="page-header">
-                    <ol className="breadcrumb" >
-                        <li><a href="#" onClick={this.handleNavClick.bind(this, null)}><i className="fa fa-dashboard"></i> Home</a></li>
-                        {this.state.breadcrumbs.map(function(rt, i) { return (
-                            <li className="active"><a href="#" onClick={self.handleNavClick.bind(self, rt.id)}>{rt.name}</a></li>
-                        );})}
-                    </ol>
-                </div>
                 { metaview[0] && (
                 <div className="row">
                   <div className="col-lg-12">

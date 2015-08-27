@@ -14,6 +14,10 @@ export default class DynamicForm {
     instance = this;
   }
 
+  get host() {
+    return this._host;
+  }
+
   static get instance() {
     if (!instance) throw "DynamicForm() need to construct first";
     return instance;
@@ -69,7 +73,7 @@ export default class DynamicForm {
     return this._callServer('db/' + req.form + '/' + req.id + (req.parent && "?"+$.param(req.parent) || ''), 'DELETE');
   }
 
-  uploadFile (filename, evtFn) {
+  uploadFile (file, evtFn) {
     return new Promise( (resolve, reject) => {
       var xhr = new XMLHttpRequest();
       xhr.upload.addEventListener("progress",  evtFn, false);
@@ -82,11 +86,12 @@ export default class DynamicForm {
      xhr.addEventListener("abort", function (evt) {
        reject(evt);
      }, false);
-     xhr.addEventListener("loadstart", function (evt) {
-       console.log ('got loadstart:');
-     });
-     xhr.open("PUT", this._host + '/dform/file/' + filename, true);
-     xhr.send(filename);
+     xhr.addEventListener("loadstart", evtFn);
+
+     xhr.open("PUT", this._host + '/dform/file/' + file.name, true);
+     xhr.setRequestHeader("Content-Type", file.type);
+     console.log ('uploadFile() sending : ' + file.name + ', ' + file.type);
+     xhr.send(file);
    });
  }
 }

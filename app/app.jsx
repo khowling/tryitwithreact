@@ -6,6 +6,7 @@ import 'babel-core/polyfill';
 import React, {Component} from 'react';
 import ReactDOM from 'react-dom';
 
+import {LTEHeader, LTESidebar} from './components/headersidebar.jsx'
 import Router from './components/router.jsx'
 import {TileList}  from './components/tiles.jsx'
 import {RecordList, Form} from './components/dform.jsx'
@@ -57,8 +58,18 @@ class App extends Component {
      console.log ('APP rendering: ' + this.state.bootmsg);
      if (this.state.booted) {
        return (
-         <div>
-             <Router componentFactories={this.appComponents.factories} updateRoute={this.routeUpdated}/>
+         <div className="wrapper">
+           <LTEHeader/>
+           <LTESidebar/>
+           <div className="content-wrapper">
+             <section className="content-header">
+              <h1>
+                Dashboard
+                <small>Version 2.0</small>
+              </h1>
+            </section>
+            <Router componentFactories={this.appComponents.factories} updateRoute={this.routeUpdated}/>
+           </div>
          </div>
        )
      } else return (

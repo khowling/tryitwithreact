@@ -145,7 +145,6 @@ module.exports = function(options) {
                 };
                 resultCursor.nextObject(fnProcessItem);
             });
-
         };
 
         /* flow control - run sub queries in parrallel & call alldonefn(docs) when done! */
@@ -158,10 +157,6 @@ module.exports = function(options) {
                     runsubquery (scoll, lookupkeys [scoll], function(){
                         completed++;
                         if(completed ===  Object.keys(lookupkeys).length) {
-
-
-
-
                             alldonefn(processlookupids(docs, subq_res));
                         }
                     });
@@ -279,7 +274,14 @@ module.exports = function(options) {
                   update["$pull"][embedfield] = { _id: new ObjectID(recid) };
 
                   console.log('delete()  ' + coll + ' query :' + JSON.stringify(query) + ' update :' + JSON.stringify(update));
-                  db.collection(coll).update(query, update, callback);
+                  db.collection(coll).update(query, update, function (err, out) {
+                    console.log ('delete() res : ' + JSON.stringify(out) + ', err : ' + err);
+                    if (err) {
+                       error (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+                    } else {
+                      success ({_id: query._id});
+                    }
+                  });
                 } else {
                   db.collection(coll).remove({_id: new ObjectID(recid)}, callback);
                 }
@@ -419,11 +421,12 @@ module.exports = function(options) {
                             query = {_id: new ObjectID(parentid)};
                         }
                          */
+                        var validatedUpdates = validateSetFields(form.fields, userdoc, null);
                         if (isInsert) { // its $push'ing a new entry
                             savedEmbedDoc = { _id: new ObjectID() };
 
                             var pushjson = {};
-                            pushjson[embedfield] =  validateSetFields(form.fields, userdoc, null);
+                            pushjson[embedfield] =  validatedUpdates;
                             pushjson[embedfield]._id  = savedEmbedDoc._id;
                             // mongodb doesnt automatically provide a _Id for embedded docs!
                             update = {'$push': pushjson} ;
@@ -438,7 +441,17 @@ module.exports = function(options) {
                           update = { '$set': validateSetFields(form.fields, userdoc, embedfield) };
                         }
                         console.log('save() update: query :' + JSON.stringify(query) +' update :' + JSON.stringify(update));
-                        db.collection(coll).update(query, update, callback);
+                        db.collection(coll).update(query, update, function (err, out) {
+                          console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+                          if (err) {
+                             error (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+                          } else {
+
+                            // return full update sent to database (the client uses this for child forms)
+                            validatedUpdates._id = savedEmbedDoc._id;
+                            success (validatedUpdates);
+                          }
+                        });
                     }
                 }
             }
@@ -460,18 +473,20 @@ module.exports = function(options) {
     exps.getfile = function (filename, res) {
         console.log ('getfile() filename : ' + filename);
         var gs = new GridStore(db, filename, 'r');
+        console.log ('getfile() new GridStore');
         gs.open(function(err, gs){
             if (err) {
               console.log ('getfile() cannot open GridStore: ' + JSON.stringify(err));
               res.end();
             } else {
 
-              gs.on('close',function(){
-                console.log ('getfile() finished');
-              });
+              // Strange - commented out code crashes
+              //gs.on('close',function(){
+              //  console.log ('getfile() finished');
+              //});
 
               console.log ('getfile() open GridStore pipe to response');
-              gs.stream([autoclose=false]).pipe(res);
+              gs.stream([autoclose=true]).pipe(res);
             }
         });
 

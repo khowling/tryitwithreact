@@ -1,6 +1,7 @@
 'use strict;'
 
 import React, {Component} from 'react';
+import ReactDOM from 'react-dom';
 
 import { displayDate } from "../lib/date.es6";
 import t from 'transducers.js';
@@ -98,7 +99,7 @@ export class Field extends Component {
     //var formData = new FormData();   formData.append('file', file);
 
     this.setState({picupload : 5});
-    df.uploadFile(file.name, progressEvt => {
+    df.uploadFile(file, progressEvt => {
       console.log ('progress ' + progressEvt.loaded);
       if (progressEvt.lengthComputable) {
         this.setState({picupload: Math.round(progressEvt.loaded * 100 / progressEvt.total)});
@@ -120,7 +121,7 @@ export class Field extends Component {
   }
 
   handleChange(newValue) {
-    console.log ('Field handleChange newValue : ' + JSON.stringify(newValue));
+    console.log ('Field handleChange ['+this.props.fielddef.name+'] = ' + JSON.stringify(newValue));
     let newState = {[this.props.fielddef.name]: newValue};
     if (this.props.onChange)
       this.props.onChange (newState);
@@ -131,13 +132,14 @@ export class Field extends Component {
   componentDidMount() {
       //console.log ("Field componentDidMount  : " + this.props.fielddef.type  + ", e:" + this.props.edit);
 
-      var self = this;
+      var self = this,
+        df = DynamicForm.instance;
       if (this.props.fielddef.type === 'lookup' && this.props.edit) {
 
         var lookuptypeahead = new Bloodhound({
           datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
           queryTokenizer: Bloodhound.tokenizers.whitespace,
-          remote: '/dform/db/' + this.props.fielddef.search_form
+          remote: df.host + '/dform/db/' + this.props.fielddef.search_form
   //        limit: 10,
   //        prefetch: {
             // url points to a json file that contains an array of country names, see
@@ -155,7 +157,7 @@ export class Field extends Component {
         lookuptypeahead.initialize();
 
         //let loopupinput = this.getDOMNode().getElementsByTagName('input')[0];
-        let loopupinput = this.getDOMNode().querySelector('input.typeahead-input');
+        let loopupinput = ReactDOM.findDOMNode(this.refs.typeaheadInput);
         $(loopupinput).typeahead(null, {
           name: this.props.fielddef.search_form,
           displayKey: 'name',
@@ -175,14 +177,22 @@ export class Field extends Component {
       }
   }
   _openCreate() {
-    $(this.getDOMNode().querySelector('.myModal')).modal({show:true});
+    $(ReactDOM.findDOMNode(this.refs.typeaheadModal)).modal({show:true});
     this.setState ({lookupcreate: true});
   }
 
   render() {
+
     console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> : ' + JSON.stringify(this.props.value));
 
-    let field;
+    let field, img_src;
+
+    if (this.props.fielddef.type === 'image') {
+      let df = DynamicForm.instance;
+      img_src = this.props.value && df.host+"/dform/file/"+this.props.value || "http://placehold.it/120x120";
+      console.log ('Field img_src: ' + img_src);
+    }
+
     if (!this.props.edit) switch (this.props.fielddef.type) {
         case 'text':
         case 'email':
@@ -206,7 +216,7 @@ export class Field extends Component {
           break;
         case 'image':
           field = <div className="pictureAndText">
-                    <img height="120"  src={this.props.value && "/dform/file/"+this.props.value || "http://placehold.it/120x120"} alt="message user image"/>
+                    <img height="120"  src={img_src} alt="message user image"/>
                   </div>
           break;
         default:
@@ -220,6 +230,7 @@ export class Field extends Component {
         requestChange: this.handleChange.bind(this)
       };
       //console.log ('Field render valueLink: ' + JSON.stringify(valueLink));
+
 
 
       switch (this.props.fielddef.type) {
@@ -241,10 +252,10 @@ export class Field extends Component {
         case 'lookup':
             field = <span>
                       <div className="input-group">
-                        <input type="text" className="form-control typeahead-input" defaultValue={this.props.value && this.props.value.primary}/>
-                        <span className="input-group-addon"><a onClick={this._openCreate}><i className="fa fa-search"></i></a></span>
+                        <input ref="typeaheadInput" type="text" className="form-control typeahead-input" defaultValue={this.props.value && this.props.value.primary}/>
+                        <span className="input-group-addon"><a onClick={this._openCreate.bind(this)}><i className="fa fa-search"></i></a></span>
                       </div>
-                      <div className="modal myModal">
+                      <div ref="typeaheadModal" className="modal">
                         <div className="modal-dialog">
                             <div className="modal-content">
                               <div className="modal-header">
@@ -258,7 +269,7 @@ export class Field extends Component {
                               </div>
                               <div className="modal-footer">
                                 <a href="#" data-dismiss="modal" className="btn">Close</a>
-                                <a href="#" class="btn btn-primary">Save changes</a>
+                                <a href="#" className="btn btn-primary">Save changes</a>
                               </div>
                             </div>
                           </div>
@@ -271,7 +282,7 @@ export class Field extends Component {
         case 'image':
             field =  <div className="pictureAndText">
                         <input type="file"  name="file" style={{display: "none"}} accept="image/*" onChange={this._fileuploadhtml5.bind(this)} />
-                        <img height="120" src={this.props.value && "/dform/file/"+this.props.value || "http://placehold.it/120x120"} alt="message user image"/>
+                        <img height="120" src={img_src} alt="message user image"/>
                         {this.state.picupload == 0 &&
                         <a className="imglable" onClick={this._clickFile}>Upload Picture <i className="fa fa-arrow-circle-right"></i></a>
                         ||
@@ -367,7 +378,8 @@ export class FormMain extends Component {
       if (succVal._id) {
         console.log ('successful save');
         if (saveopt.parent) {
-          self.props.navTo('save', succVal);
+          // inform Parent RecordList to update record and close edit window.
+          this.props.navTo('save', succVal);
         } else {
           var navto = "#Form?gid=" + saveopt.form+":"+succVal._id;
           window.location.href = navto;
@@ -384,11 +396,18 @@ export class FormMain extends Component {
     if (this.props.parent) {
       this.props.navTo('cancel');
     } else {
-      this.props.navTo("Form?gid="+this.props.view+":"+this.props.value._id);
+      if (this.props.value._id) {
+        // edit an existing record
+        window.location.href = "#Form?gid="+this.props.view+":"+this.props.value._id;
+      } else {
+        // creating a new record
+        window.location.href = "#RecordList?gid="+this.props.view;
+      }
     }
   }
   _delete() {
     var self = this,
+        df = DynamicForm.instance,
         saveopt = {
           form: this.props.view,
           id: this.state.value._id,
@@ -409,8 +428,15 @@ export class FormMain extends Component {
         parentfieldid: fieldid
       };
     }
+
     console.log ('FormMain _delete : '+ JSON.stringify(saveopt));
-    MetaStore.delete (saveopt);
+    df.delete (saveopt).then(succVal => {
+      if (this.props.parent) {
+        window.location.href = "#Form?gid="+this.props.view+":"+this.props.value._id;
+      } else {
+        window.location.href = "#RecordList?gid="+this.props.view;
+      }
+    });
   }
 
   render() {
@@ -423,24 +449,26 @@ export class FormMain extends Component {
 
     console.log ('FormMain render ' + metaview.name + ', state : ' + JSON.stringify(this.state));
     return (
-            <div className="box">
-              <div className="box-header">
+      <section className="content">
+        <div className="row">
+          <div className="col-md-12">
+            <div className="box box-warning">
+              <div className="box-header with-border">
                 <h3 className="box-title">{metaview.name}</h3>
+                {!edit &&
                 <div className="box-tools">
-                  {!edit &&
-                    <div className="margin">
-                      <div className="input-group">
-                        <a className="btn btn-primary pull-right" href={"#Form?gid="+metaview._id+":"+self.state.value._id+"&e=true"}>edit</a>
-                        <button onClick={this._delete} className="btn btn-primary">Delete</button>
-                      </div>
-                    </div>
-                  ||
-                    <div className="margin">
-                      <button onClick={this._save.bind(this)} className="btn btn-primary pull-right">Save</button>
-                      <a href="#" onClick={this._cancel.bind(this)} className="btn btn-primary pull-right">Cancel</a>
-                    </div>
-                  }
+                  <button onClick={this._delete.bind(this)} className="btn btn-sm btn-default  pull-right" style={{marginLeft: '5px'}}>delete</button>
+                  <a href={"#Form?gid="+metaview._id+":"+self.state.value._id+"&e=true"} className="btn btn-sm btn-default  pull-right" >
+                    edit
+                  </a>
                 </div>
+                }
+                {edit &&
+                <div className="box-tools">
+                  <button onClick={this._save.bind(this)} className="btn btn-sm btn-default pull-right" style={{marginLeft: '5px'}}>save</button>
+                  <a href="#" onClick={this._cancel.bind(this)} className="btn btn-sm btn-default pull-right">cancel</a>
+                </div>
+                }
               </div>
               <div className="box-body">
                 <div className="row">
@@ -459,7 +487,10 @@ export class FormMain extends Component {
               <div className="box-footer">
               </div>
             </div>
-        );
+          </div>
+        </div>
+      </section>
+    );
   }
 }
 
@@ -497,12 +528,12 @@ export class RecordList extends Component {
     if (res) {
       console.log ('RecordList _formDone() update of row ' + JSON.stringify(this.state.editrow));
       if (operation === 'save') {
-        let newobj = Object.assign({}, res.data, res.body );
+
         if (this.state.editrow.id) {
           var newVals = seq(this.state.value,
-            map(x => x._id === this.state.editrow.id && newobj || x));
+            map(x => x._id === this.state.editrow.id && res || x));
         } else {
-          this.state.value.push(newobj);
+          this.state.value.push(res);
           var newVals = this.state.value;
         }
 
@@ -530,17 +561,24 @@ export class RecordList extends Component {
         nonchildformfields = metaview.fields && metaview.fields.filter(m => m.type !== 'childform') || [];
 
     return (
+      <section className="content">
+        <div className="row">
           <div className="col-xs-12">
               <div className="box">
                 <div className="box-header">
                   <h3 className="box-title">{metaview.name}</h3>
                   <div className="box-tools">
-                    <a className="btn btn-primary pull-right" onClick={self._edit.bind(this, null, true)}>new </a>
 
-                    <div className="input-group">
-                      <input type="text" name="table_search" className="form-control input-sm pull-right" style={{width: '150px'}} placeholder="Search"/>
+                    <button onClick={self._edit.bind(this, null, true)} className="btn btn-sm btn-default btn-primary pull-right" style={{marginLeft: '10px'}}>
+                      new
+                    </button>
+
+                    <div className="input-group" style={{width: '150px'}}>
+                      <input type="text" name="table_search" className="form-control input-sm pull-right" placeholder="Search"/>
                       <div className="input-group-btn">
-                        <button className="btn btn-sm btn-default"><i className="fa fa-search"></i></button>
+                        <button className="btn btn-sm btn-default">
+                          <i className="fa fa-search"></i>
+                        </button>
                       </div>
                     </div>
 
@@ -548,7 +586,7 @@ export class RecordList extends Component {
                 </div>
                 <div className="box-body table-responsive no-padding">
                   { this.state.editrow &&
-                    <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || null} view={metaview._id} edit={this.state.editrow.edit} parent={this.props.parent} navTo={this._formDoneNavTo}/>
+                    <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || null} view={metaview._id} edit={this.state.editrow.edit} parent={this.props.parent} navTo={this._formDoneNavTo.bind(this)}/>
                   ||
                     <table className="table table-hover">
                       <tbody><tr>
@@ -556,10 +594,7 @@ export class RecordList extends Component {
                         {nonchildformfields.map(function(field, i) { return (
                         <th>{field.name}</th>
                         );})}
-
                       </tr>
-
-
                       { self.state.value.map(function(row, i) { return (
                         <tr>
                             <td>
@@ -577,6 +612,8 @@ export class RecordList extends Component {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
     )
   }
 }
