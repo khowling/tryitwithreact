@@ -4,7 +4,6 @@ const MongoStore = require('connect-mongo')(session);
 const passport = require ('passport');
 const path = require('path');
 //var favicon = require('static-favicon');
-const handlebars = require('handlebars');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 
@@ -24,10 +23,22 @@ MongoClient.connect(process.env.MONGO_DB || "mongodb://localhost:27017/mydb01", 
 
     //app.use(favicon());
     //app.use(logger('dev'));
-    var bowerurl = path.join(__dirname, '../bower_components');
+
+    app.all('/*', function(req, res, next) {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Headers", "X-Requested-With,Authorization,Content-Type");
+      res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE");
+      //res.header("Access-Control-Allow-Headers", "Authorization");
+      //res.header("Access-Control-Allow-Headers", "application/json;charset=UTF-8");
+      next();
+    });
+
+    var bowerurl = path.join(__dirname, '../bower_components'),
+        sldsurl = path.join(__dirname, '../slds080/assets');
     console.log ('serving static :'  + bowerurl);
     //app.use(express.static(path.join(__dirname, '../static')));
-    app.use('/bower_components', express.static(bowerurl));
+    //app.use('/bower_components', express.static(bowerurl));
+    app.use('/assets', express.static(sldsurl));
 
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({extended: true}));
@@ -59,15 +70,6 @@ MongoClient.connect(process.env.MONGO_DB || "mongodb://localhost:27017/mydb01", 
             console.log('passport.deserializeUser : ' + JSON.stringify(user));
             done(null, user);
         });
-    });
-
-    app.all('/*', function(req, res, next) {
-      res.header("Access-Control-Allow-Origin", "*");
-      res.header("Access-Control-Allow-Headers", "X-Requested-With,Authorization,Content-Type");
-      res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE");
-      //res.header("Access-Control-Allow-Headers", "Authorization");
-      //res.header("Access-Control-Allow-Headers", "application/json;charset=UTF-8");
-      next();
     });
 
     // routes are the last thing to be initialised!

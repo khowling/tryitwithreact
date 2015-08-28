@@ -1,8 +1,8 @@
 'use strict;'
 
 import React, {Component} from 'react';
+import { SvgIcon } from './utils.jsx';
 
-import { displayDate } from "../lib/date.es6";
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
 
@@ -25,20 +25,20 @@ export class Tile extends Component {
             iclass = "ion " + 'ion-stats-bars';
 
         return (
-            <div className="col-xs-12 col-sm-4 col-md-3 col-lg-2">
-                <a className={boxclass} href={"#RecordList?gid="+tdata._id} onClick={this.props.navTo}>
-                    <div className="inner">
-                        <h4>{tdata.name}</h4>
-                        <p>{tdata.type}</p>
-                    </div>
-                    <div className="icon">
-                        <i className={iclass}></i>
-                    </div>
-                    <div  className="small-box-footer">
-                        List  <i className="fa fa-arrow-circle-right"></i>
-                    </div>
-                </a>
+
+          <li className="slds-col--padded slds-size--1-of-2 slds-large-size--1-of-4">
+            <div className="grid-card">
+
+              <div className="slds-grid slds-grid--align-spread">
+                <h3 className="site-text-heading--label-weak-large slds-align-middle" id="downloads-header">{tdata.name}</h3>
+                <SvgIcon spriteType="utility" spriteName="add"/>
+              </div>
+
+              <hr className="hr hr--pink"/>
+              <p>descript this object, it could be anything but need to explain a little</p>
+              <a className="slds-button slds-button--neutral slds-m-top--large" href={"#RecordList?gid="+tdata._id} onClick={this.props.navTo}>Open</a>
             </div>
+          </li>
         );
     }
 }
@@ -98,26 +98,13 @@ export class TileList extends Component {
         console.log ('TileList render : ' + metaview.length);
 
         return (
-            <section className="content">
-                { metaview[0] && (
-                <div className="row">
-                  <div className="col-lg-12">
-                    <div className="info-box">
-                      <div className="box-body">
-                        <a  href={"#DNew?id="+metaview[0]._id} className="btn btn-app">
-                          <i className="fa fa-edit"></i> New
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-                <div className="row">
-                    {metaview.map(function(row, i) { return (
-                        <Tile key={row._id} meta={row}/>
-                    );})}
-                </div>
-            </section>
+            <ul className="slds-grid slds-wrap slds-grid--align-spread slds-grid--pull-padded-large">
+
+                  {metaview.map(function(row, i) { return (
+                      <Tile key={row._id} meta={row}/>
+                  );})}
+
+            </ul>
         )
     }
 }

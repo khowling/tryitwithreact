@@ -25,7 +25,7 @@ module.exports = {
     context: path.join(__dirname, 'app'),
     entry:  [
          util.format('webpack-dev-server/client?http%s://%s:%d', https && 's' || '', host, port),
-        'webpack/hot/only-dev-server',
+        'webpack/hot/dev-server',
         './app.jsx'
     ],
     target: "web",

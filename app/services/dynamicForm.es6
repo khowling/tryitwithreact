@@ -63,14 +63,21 @@ export default class DynamicForm {
       return this._formMeta.find(f => f._id === fid);
   }
 
+  _queryParams(source) {
+    var array = [];
+    for(var key in source) {
+       array.push(encodeURIComponent(key) + "=" + encodeURIComponent(source[key]));
+    }
+    return array.join("&");
+  }
   query(req) {
     return this._callServer('db/' + req.form + (req.q && ("?q=" + JSON.stringify(req.q)) || ''));
   }
   save(req) {
-    return this._callServer('db/' + req.form + (req.parent && "?"+$.param(req.parent) || ''), 'POST', req.body);
+    return this._callServer('db/' + req.form + (req.parent && "?"+this._queryParams(req.parent) || ''), 'POST', req.body);
   }
   delete(req) {
-    return this._callServer('db/' + req.form + '/' + req.id + (req.parent && "?"+$.param(req.parent) || ''), 'DELETE');
+    return this._callServer('db/' + req.form + '/' + req.id + (req.parent && "?"+this._queryParams(req.parent) || ''), 'DELETE');
   }
 
   uploadFile (file, evtFn) {

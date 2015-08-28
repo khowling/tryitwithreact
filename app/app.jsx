@@ -6,7 +6,6 @@ import 'babel-core/polyfill';
 import React, {Component} from 'react';
 import ReactDOM from 'react-dom';
 
-import {LTEHeader, LTESidebar} from './components/headersidebar.jsx'
 import Router from './components/router.jsx'
 import {TileList}  from './components/tiles.jsx'
 import {RecordList, Form} from './components/dform.jsx'
@@ -58,13 +57,11 @@ class App extends Component {
      console.log ('APP rendering: ' + this.state.bootmsg);
      if (this.state.booted) {
        return (
-         <div className="wrapper">
-           <LTEHeader/>
-           <LTESidebar/>
-           <div className="content-wrapper">
+         <div className="slds">
+           <div className="slds-container--center slds-container--medium">
              <section className="content-header">
               <h1>
-                Dashboard
+                <a href='#'>Home</a>
                 <small>Version 2.0</small>
               </h1>
             </section>
@@ -77,12 +74,10 @@ class App extends Component {
      );
    }
  }
-
  /*
  <MenuNav menuItems={this.appComponents.navMeta}/>
  { this.state.showSync &&
  <SyncProgress sfd={this.dynamicForm}/>
  }
  */
-
  ReactDOM.render(React.createElement(App, {buildprops: buildprops}), document.getElementById('app'));

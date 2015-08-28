@@ -3,7 +3,8 @@
 import React, {Component} from 'react';
 import ReactDOM from 'react-dom';
 
-import { displayDate } from "../lib/date.es6";
+import { SvgIcon } from './utils.jsx';
+
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
 
@@ -135,7 +136,9 @@ export class Field extends Component {
       var self = this,
         df = DynamicForm.instance;
       if (this.props.fielddef.type === 'lookup' && this.props.edit) {
+        //ReactDOM.findDOMNode(this.refs.lookupinput).addEventListener("keypress", this._handleLookupKeypress.bind(this), false);
 
+/*
         var lookuptypeahead = new Bloodhound({
           datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
           queryTokenizer: Bloodhound.tokenizers.whitespace,
@@ -173,12 +176,15 @@ export class Field extends Component {
     //    if (this.props.value) {
     //      $(loopupinput).typeahead('val', this.props.value.primary);
     //    }
-
+*/
       }
   }
+  _handleLookupKeypress() {
+    ReactDOM.findDOMNode(self.refs.listbox).style.visibility = 'visible';
+  }
   _openCreate() {
-    $(ReactDOM.findDOMNode(this.refs.typeaheadModal)).modal({show:true});
-    this.setState ({lookupcreate: true});
+    //$(ReactDOM.findDOMNode(this.refs.typeaheadModal)).modal({show:true});
+    //this.setState ({lookupcreate: true});
   }
 
   render() {
@@ -197,17 +203,19 @@ export class Field extends Component {
         case 'text':
         case 'email':
         case 'textarea':
-          field = <span>{this.props.value}</span>
+          field = (<span className="slds-form-element__static">{this.props.value}</span>);
           break;
         case 'dropdown':
           let ddopt = this.props.value &&  this.props.fielddef.dropdown_options.filter(f => f.value === this.props.value)[0];
-          field = <span>{ddopt && ddopt.name || (this.props.value && 'Unknown option <' + this.props.value +'>' || '')}</span>
+          field = (<span className="slds-form-element__static">{ddopt && ddopt.name || (this.props.value && 'Unknown option <' + this.props.value +'>' || '')}</span>);
           break;
         case 'lookup':
           if (this.props.value) {
-            field = <a  href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value._id}>{this.props.value.primary}</a>;
+            field = (<span className="slds-form-element__static">
+                      <a  href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value._id}>{this.props.value.primary}</a>
+                    </span>);
           } else  {
-            field = <div></div>
+            field = (<span className="slds-form-element__static">></span>);
           }
           break;
         case 'childform':
@@ -215,9 +223,9 @@ export class Field extends Component {
           field = <ChildForm form={cform} value={this.props.value}/>;
           break;
         case 'image':
-          field = <div className="pictureAndText">
+          field = (<div className="pictureAndText">
                     <img height="120"  src={img_src} alt="message user image"/>
-                  </div>
+                  </div>);
           break;
         default:
           field = <span>Unknown fieldtype {this.props.fielddef.type}</span>;
@@ -236,13 +244,13 @@ export class Field extends Component {
       switch (this.props.fielddef.type) {
         case 'text':
         case 'email':
-          field =  <input type="text" className="form-control" placeholder={this.props.fielddef.placeholder} valueLink={valueLink}/>;
+          field =  <input type="text" className="slds-input" placeholder={this.props.fielddef.placeholder} valueLink={valueLink}/>;
           break;
         case 'textarea':
-          field = <textarea className="form-control" rows="3" placeholder={this.props.fielddef.placeholder} valueLink={valueLink}></textarea>;
+          field = <textarea className="slds-input" rows="3" placeholder={this.props.fielddef.placeholder} valueLink={valueLink}></textarea>;
             break;
         case 'dropdown':
-          field = <select className="form-control" valueLink={valueLink}>
+          field = <select className="slds-input" valueLink={valueLink}>
                         <option value="">-- select --</option>
                         {this.props.fielddef.dropdown_options.map (function(opt, i) { return (
                         <option value={opt.value}>{opt.name}</option>
@@ -251,28 +259,39 @@ export class Field extends Component {
             break;
         case 'lookup':
             field = <span>
-                      <div className="input-group">
-                        <input ref="typeaheadInput" type="text" className="form-control typeahead-input" defaultValue={this.props.value && this.props.value.primary}/>
-                        <span className="input-group-addon"><a onClick={this._openCreate.bind(this)}><i className="fa fa-search"></i></a></span>
+                      <div className="slds-lookup__control slds-input-has-icon slds-input-has-icon--right">
+                        <a onClick={this._openCreate.bind(this)}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
+
+                        <span className="slds-pill">
+                          <a href="#" className="slds-pill__label">
+                            <SvgIcon spriteType="standard" spriteName="account" small={true} classOverride=" "/>
+                            <span>Pied Piper</span>
+                          </a>
+                          <button className="slds-button slds-button--icon-bare">
+                            <SvgIcon spriteType="utility" spriteName="close" small={true} classOverride="slds-button__icon"/>
+                            <span className="slds-assistive-text">Remove</span>
+                          </button>
+                        </span>
+
+                        <input id="lookup" className="slds-input--bare" type="text" ref="lookupinput" />
                       </div>
-                      <div ref="typeaheadModal" className="modal">
-                        <div className="modal-dialog">
-                            <div className="modal-content">
-                              <div className="modal-header">
-                                <button type="button" className="close" data-dismiss="modal" aria-hidden="true">×</button>
-                                <h4 className="modal-title">Create New {this.props.fielddef.title}</h4>
-                              </div>
-                              <div className="modal-body">
-                                { this.state.lookupcreate &&
-                                  <FormMain view={this.props.fielddef.createnew_form}/>
-                                }
-                              </div>
-                              <div className="modal-footer">
-                                <a href="#" data-dismiss="modal" className="btn">Close</a>
-                                <a href="#" className="btn btn-primary">Save changes</a>
-                              </div>
-                            </div>
-                          </div>
+
+                      <div className="slds-lookup__menu" ref="listbox" hidden>
+                        { this.state.lookupcreate &&
+                          <FormMain view={this.props.fielddef.createnew_form}/>
+                        }
+                        { !this.state.lookupcreate &&
+                        <ul className="slds-lookup__list" role="presentation">
+                          <li className="slds-lookup__item" role="presentation">
+                            <a href="#" role="option">
+                              <SvgIcon spriteType="standard" spriteName="account" small={true} classOverride=" "/>Paddy&#x27;s Pub</a>
+                          </li>
+                          <li className="slds-lookup__item" role="presentation">
+                             <a href="#" role="option">
+                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride=" "/>Add Account</a>
+                           </li>
+                        </ul>
+                        }
                       </div>
                     </span>;
             break;
@@ -301,6 +320,7 @@ export class Field extends Component {
   }
 }
 
+// Top level Form, with FormMan & Related Lists.
 export class Form extends Component {
   constructor(props) {
     super(props);
@@ -410,15 +430,7 @@ export class FormMain extends Component {
         df = DynamicForm.instance,
         saveopt = {
           form: this.props.view,
-          id: this.state.value._id,
-          finished: function(d) {
-            console.log ('FormMain _delete, response from server : ' + JSON.stringify(d));
-            if (d.parent) {
-              self.props.navTo('delete', d);
-            } else {
-              self.props.navTo('RecordList?gid='+self.props.view);
-            }
-          }
+          id: this.state.value._id
         };
 
     if (this.props.parent) {
@@ -432,7 +444,7 @@ export class FormMain extends Component {
     console.log ('FormMain _delete : '+ JSON.stringify(saveopt));
     df.delete (saveopt).then(succVal => {
       if (this.props.parent) {
-        window.location.href = "#Form?gid="+this.props.view+":"+this.props.value._id;
+        self.props.navTo('delete', succVal);
       } else {
         window.location.href = "#RecordList?gid="+this.props.view;
       }
@@ -447,53 +459,38 @@ export class FormMain extends Component {
         nonchildformfields = metaview.fields.filter(m => m.type !== 'childform'),
         edit = this.props.edit || (!this.state.value._id);
 
+    let header = React.createElement (ListHeader, Object.assign ({key: +metaview._id+":"+self.state.value._id, formName: metaview.name},edit && {
+      saveButton: this._save.bind(this),
+      cancelButton: this._cancel.bind(this)
+    } || {
+      deleteButton: this._delete.bind(this),
+      editButton: () => { window.location.href = "#Form?gid="+metaview._id+":"+self.state.value._id+"&e=true"; }
+    }));
+
     console.log ('FormMain render ' + metaview.name + ', state : ' + JSON.stringify(this.state));
     return (
-      <section className="content">
-        <div className="row">
-          <div className="col-md-12">
-            <div className="box box-warning">
-              <div className="box-header with-border">
-                <h3 className="box-title">{metaview.name}</h3>
-                {!edit &&
-                <div className="box-tools">
-                  <button onClick={this._delete.bind(this)} className="btn btn-sm btn-default  pull-right" style={{marginLeft: '5px'}}>delete</button>
-                  <a href={"#Form?gid="+metaview._id+":"+self.state.value._id+"&e=true"} className="btn btn-sm btn-default  pull-right" >
-                    edit
-                  </a>
+    <section>
+      { header}
+      <div className="slds-form--stacked slds-grid slds-wrap slds-m-top--large">
+        <div className="slds-col--padded slds-size--1-of-1 slds-medium-size--1-of-2">
+          {nonchildformfields.map(function(field, i) { return (
+            <div key={metaview._id+":"+field.name} className="slds-form-element">
+
+                <label className="slds-form-element__label">{field.title}</label>
+                <div className="slds-form-element__control"  style={{marginLeft: edit && '0' || "15px"}}>
+                  <Field fielddef={field} value={self.state.value[field.name]} edit={edit} onChange={self._fieldChange.bind(self)}/>
                 </div>
-                }
-                {edit &&
-                <div className="box-tools">
-                  <button onClick={this._save.bind(this)} className="btn btn-sm btn-default pull-right" style={{marginLeft: '5px'}}>save</button>
-                  <a href="#" onClick={this._cancel.bind(this)} className="btn btn-sm btn-default pull-right">cancel</a>
-                </div>
-                }
-              </div>
-              <div className="box-body">
-                <div className="row">
-                  {nonchildformfields.map(function(field, i) { return (
-                    <div className="col-xs-6 col-md-6">
-                      <div className="form-group">
-                        <label>{field.title}</label>
-                        <div className={ (!edit && field.type !== 'image') && "rofield" || ''}>
-                          <Field key={metaview._id+field._id+edit} fielddef={field} value={self.state.value[field.name]} edit={edit} onChange={self._fieldChange.bind(self)}/>
-                        </div>
-                      </div>
-                    </div>
-                  );})}
-                </div>
-              </div>
-              <div className="box-footer">
-              </div>
+
             </div>
-          </div>
+          );})}
         </div>
-      </section>
+      </div>
+    </section>
     );
   }
 }
 
+// RecordList - list of records, supports inline editing of embedded docs.
 export class RecordList extends Component {
   constructor(props) {
     super(props);
@@ -561,59 +558,106 @@ export class RecordList extends Component {
         nonchildformfields = metaview.fields && metaview.fields.filter(m => m.type !== 'childform') || [];
 
     return (
-      <section className="content">
-        <div className="row">
-          <div className="col-xs-12">
-              <div className="box">
-                <div className="box-header">
-                  <h3 className="box-title">{metaview.name}</h3>
-                  <div className="box-tools">
+      <section>
+        { !this.state.editrow &&
+      <ListHeader key={metaview._id} formName={metaview.name} newButton={self._edit.bind(this, null, true)}/>
+        }
+      <div className="box-body table-responsive no-padding">
+        { this.state.editrow &&
+        <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || null} view={metaview._id} edit={this.state.editrow.edit} parent={this.props.parent} navTo={this._formDoneNavTo.bind(this)}/>
+        ||
+        <div className="slds-scrollable--x">
+        <table className="slds-table slds-table--bordered">
+          <thead>
+            <tr className="slds-text-heading--label">
+              <th className="slds-row-select" scope="col">
+                <span className="slds-truncate">Actions</span>
+              </th>
+              {nonchildformfields.map(function(field, i) { return (
+                <th scope="col">
+                  <span className="slds-truncate">{field.name}</span>
+                </th>
+              );})}
+            </tr>
+          </thead>
+          <tbody>
+            { self.state.value.map(function(row, i) { return (
+              <tr className="slds-hint-parent">
+                  <td className="slds-row-select">
+                    <a className="pointer" onClick={self._edit.bind(self, row._id, true)}>edit </a>
+                    | <a className="pointer" onClick={self._edit.bind(self, row._id, false)}>view </a>
+                  </td>
+                  {nonchildformfields.map(function(field, i) { return (
+                    <td><Field key={metaview._id+"RL"+field._id} fielddef={field} value={row[field.name]}/></td>
+                  );})}
 
-                    <button onClick={self._edit.bind(this, null, true)} className="btn btn-sm btn-default btn-primary pull-right" style={{marginLeft: '10px'}}>
-                      new
-                    </button>
+              </tr>
+            );})}
+          </tbody>
+        </table>
+      </div>
+      }
+      </div>
+    </section>
+    )
+  }
+}
 
-                    <div className="input-group" style={{width: '150px'}}>
-                      <input type="text" name="table_search" className="form-control input-sm pull-right" placeholder="Search"/>
-                      <div className="input-group-btn">
-                        <button className="btn btn-sm btn-default">
-                          <i className="fa fa-search"></i>
-                        </button>
-                      </div>
-                    </div>
+export class ListHeader extends Component {
+  render() {
+    return (
+      <div className="slds-page-header">
+        <div className="slds-grid">
+          <div className="slds-col slds-has-flexi-truncate">
 
-                  </div>
-                </div>
-                <div className="box-body table-responsive no-padding">
-                  { this.state.editrow &&
-                    <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || null} view={metaview._id} edit={this.state.editrow.edit} parent={this.props.parent} navTo={this._formDoneNavTo.bind(this)}/>
-                  ||
-                    <table className="table table-hover">
-                      <tbody><tr>
-                        <th>actions</th>
-                        {nonchildformfields.map(function(field, i) { return (
-                        <th>{field.name}</th>
-                        );})}
-                      </tr>
-                      { self.state.value.map(function(row, i) { return (
-                        <tr>
-                            <td>
-                              <a className="pointer" onClick={self._edit.bind(self, row._id, true)}>edit </a>
-                              | <a className="pointer" onClick={self._edit.bind(self, row._id, false)}>view </a>
-                            </td>
-                            {nonchildformfields.map(function(field, i) { return (
-                              <td><Field key={metaview._id+"RL"+field._id} fielddef={field} value={row[field.name]}/></td>
-                            );})}
-
-                        </tr>
-                      );})}
-                    </tbody></table>
-                }
+            <div className="slds-media">
+              <div className="slds-media__figure">
+                <SvgIcon spriteType="utility" spriteName="add"/>
+              </div>
+              <div className="slds-media__body">
+                <p className="slds-text-heading--label">Record Type</p>
+                <div className="slds-grid">
+                  <h1 className="slds-text-heading--medium slds-m-right--small slds-truncate slds-align-middle">{this.props.formName}</h1>
                 </div>
               </div>
             </div>
           </div>
-        </section>
-    )
+          <div className="slds-col slds-no-flex slds-align-bottom">
+            <div className="slds-grid">
+
+              <div className="slds-button-group">
+                { typeof this.props.newButton !== "undefined" &&
+                <button onClick={this.props.newButton}  className="slds-button slds-button--neutral" >
+                  new
+                </button>
+                }
+                { typeof this.props.editButton !== "undefined" &&
+                <button onClick={this.props.editButton}  className="slds-button slds-button--neutral" >
+                  edit
+                </button>
+                }
+                { typeof this.props.deleteButton !== "undefined" &&
+                <button onClick={this.props.deleteButton}  className="slds-button slds-button--neutral" >
+                  delete
+                </button>
+                }
+                { typeof this.props.cancelButton !== "undefined" &&
+                <button onClick={this.props.cancelButton}  className="slds-button slds-button--neutral" >
+                  cancel
+                </button>
+                }
+                { typeof this.props.saveButton !== "undefined" &&
+                <button onClick={this.props.saveButton}  className="slds-button slds-button--neutral" >
+                  save
+                </button>
+                }
+              </div>
+
+            </div>
+          </div>
+        </div>
+        <p className="slds-text-body--small slds-m-top--x-small">10 items, sorted by name</p>
+      </div>
+    );
   }
 }

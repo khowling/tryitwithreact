@@ -3,7 +3,6 @@
  */
 var   express = require('express')
     , router = express.Router()
-    , formidable = require('formidable')     // handle multipart post stream (already in express)
     , Grid = require('gridfs-stream')  // write to mongo grid filesystem
 //  , fs = require('fs') // TESTING ONLY
     , mongo = require('mongodb')

@@ -1,13 +1,10 @@
 const React = require('react/addons');
 const { Element, Elements } = require('../lib/util');
-const { displayDate } = require("../lib/date");
-const csp = require('../lib/csp');
-const { go, chan, take, put, ops } = csp;
+
+
 const t = require('transducers.js');
 const { range, seq, compose, map, filter } = t;
-const { Link, State } = require("react-router");
-const xhr = require('../lib/xhr');
-const MetaStore = require('../stores/MetaStore');
+
 
 const { FormMain } = require('../components/tiles.js');
 
