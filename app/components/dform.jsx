@@ -1,7 +1,7 @@
 'use strict;'
 
 import React, {Component} from 'react';
-import ReactDOM from 'react-dom';
+//import ReactDOM from 'react-dom';
 
 import { SvgIcon } from './utils.jsx';
 
@@ -50,12 +50,13 @@ export class Field extends Component {
     // ES6 Computed Propery names
     //let initState = {[this.props.fielddef.name]: this.props.value || this.props.fielddef.default_value, picupload:0};
     //console.log ('Field getInitialState: ' + this.props.fielddef.name);
-    this.state = { picupload:0, lookupcreate: false};
+    this.state = { picupload:0, lookup: { visible: false, values: [], create: false, offercreate: false}};
   }
 
   componentWillReceiveProps(nextProps) {
     console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
     //if (nextProps.value) this.setState ({[this.props.fielddef.name]: nextProps.value});
+    /*
     if (this.props.fielddef.type === 'lookup' && this.props.edit) {
       if (nextProps.value) {
         let loopupinput = this.getDOMNode().querySelector('input.tt-input');
@@ -63,6 +64,7 @@ export class Field extends Component {
         $(loopupinput).typeahead('val', nextProps.value.primary);
       }
     }
+    */
   }
 
   shouldComponentUpdate(nextProps, nextState) {
@@ -136,7 +138,7 @@ export class Field extends Component {
       var self = this,
         df = DynamicForm.instance;
       if (this.props.fielddef.type === 'lookup' && this.props.edit) {
-        //ReactDOM.findDOMNode(this.refs.lookupinput).addEventListener("keypress", this._handleLookupKeypress.bind(this), false);
+        React.findDOMNode(this.refs.lookupinput).addEventListener("keypress", this._handleLookupKeypress.bind(this), false);
 
 /*
         var lookuptypeahead = new Bloodhound({
@@ -180,8 +182,20 @@ export class Field extends Component {
       }
   }
   _handleLookupKeypress() {
-    ReactDOM.findDOMNode(self.refs.listbox).style.visibility = 'visible';
+    let df = DynamicForm.instance;
+    console.log ('_handleLookupKeypress: ' + this.refs.listbox);
+    this.setState({lookup: {visible: true, values:[], create: false}}, () => {
+      df.query({form: this.props.fielddef.search_form}).then(succVal => {
+        this.setState({lookup: {visible: true, values: succVal, offercreate: true}});
+      })
+    });
   }
+  _handleLookupSelectOption (data) {
+    React.findDOMNode(this.refs.lookupinput).value = "";
+    this.setState({lookup: {visible: false, values: [] }});
+    this.handleChange(data && {_id: data._id, primary: data.name} || data);
+  }
+
   _openCreate() {
     //$(ReactDOM.findDOMNode(this.refs.typeaheadModal)).modal({show:true});
     //this.setState ({lookupcreate: true});
@@ -189,12 +203,13 @@ export class Field extends Component {
 
   render() {
 
-    console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> : ' + JSON.stringify(this.props.value));
+    console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> props.value : ' + JSON.stringify(this.props.value));
 
-    let field, img_src;
+    let field, img_src,
+        self = this,
+        df = DynamicForm.instance;
 
     if (this.props.fielddef.type === 'image') {
-      let df = DynamicForm.instance;
       img_src = this.props.value && df.host+"/dform/file/"+this.props.value || "http://placehold.it/120x120";
       console.log ('Field img_src: ' + img_src);
     }
@@ -262,34 +277,43 @@ export class Field extends Component {
                       <div className="slds-lookup__control slds-input-has-icon slds-input-has-icon--right">
                         <a onClick={this._openCreate.bind(this)}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
 
+                        { this.props.value &&
                         <span className="slds-pill">
                           <a href="#" className="slds-pill__label">
                             <SvgIcon spriteType="standard" spriteName="account" small={true} classOverride=" "/>
-                            <span>Pied Piper</span>
+                            <span>{this.props.value.primary}</span>
                           </a>
-                          <button className="slds-button slds-button--icon-bare">
+                          <button onClick={self._handleLookupSelectOption.bind (self, null)} className="slds-button slds-button--icon-bare">
                             <SvgIcon spriteType="utility" spriteName="close" small={true} classOverride="slds-button__icon"/>
                             <span className="slds-assistive-text">Remove</span>
                           </button>
                         </span>
-
-                        <input id="lookup" className="slds-input--bare" type="text" ref="lookupinput" />
+                        }
+                        <input id="lookup" className="slds-input--bare" type="text" ref="lookupinput" disabled={this.props.value && "disabled" || ""}/>
                       </div>
 
-                      <div className="slds-lookup__menu" ref="listbox" hidden>
-                        { this.state.lookupcreate &&
+                      <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible && 'visible' || 'hidden'}}>
+                        { this.state.lookup.create &&
                           <FormMain view={this.props.fielddef.createnew_form}/>
                         }
-                        { !this.state.lookupcreate &&
+                        { !this.state.lookup.create &&
                         <ul className="slds-lookup__list" role="presentation">
+
+                          {this.state.lookup.values.map(function(row, i) { return (
                           <li className="slds-lookup__item" role="presentation">
-                            <a href="#" role="option">
-                              <SvgIcon spriteType="standard" spriteName="account" small={true} classOverride=" "/>Paddy&#x27;s Pub</a>
+                            <a onClick={self._handleLookupSelectOption.bind (self, row)} role="option">
+                              <SvgIcon spriteType="standard" spriteName="account" small={true} classOverride=" "/>
+                              {row.name}
+                            </a>
                           </li>
+                          );})}
+
+                          { this.state.lookup.offercreate && this.props.fielddef.createnew_form &&
                           <li className="slds-lookup__item" role="presentation">
                              <a href="#" role="option">
-                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride=" "/>Add Account</a>
+                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride=" "/>Create {df.getForm(this.props.fielddef.createnew_form).name + '"' + this.props.value + '"'}</a>
                            </li>
+                          }
                         </ul>
                         }
                       </div>

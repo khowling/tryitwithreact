@@ -4,7 +4,7 @@ import './index.html';
 import 'babel-core/polyfill';
 
 import React, {Component} from 'react';
-import ReactDOM from 'react-dom';
+//import ReactDOM from 'react-dom';
 
 import Router from './components/router.jsx'
 import {TileList}  from './components/tiles.jsx'
@@ -80,4 +80,4 @@ class App extends Component {
  <SyncProgress sfd={this.dynamicForm}/>
  }
  */
- ReactDOM.render(React.createElement(App, {buildprops: buildprops}), document.getElementById('app'));
+ React.render(React.createElement(App, {buildprops: buildprops}), document.getElementById('app'));
