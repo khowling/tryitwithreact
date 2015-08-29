@@ -66,7 +66,7 @@ module.exports = function(options) {
                 },
                 {
                     name: "collection",
-                    show_when: "data.documents['type'] == 'top'",
+                    show_when: "record['type'] == 'top'",
                     title: "Mongo Collection name",
                     type: "text",
                     placeholder: "No Spaces please!",
@@ -131,13 +131,13 @@ module.exports = function(options) {
                 {
                     name: "placeholder",
                     title: "Placeholder Value",
-                    show_when: "mode !== 'list'",
+                    show_when: "record['type'] == 'list'",
                     type: "text",
                     required: false
                 },
                 {
                     name: "show_when",
-                    title: "Show When (expression)",
+                    title: "Show When ( ie: record['type'] == 'list')",
                     show_when: "true",
                     type: "text",
                     default_value: "true",
@@ -186,7 +186,7 @@ module.exports = function(options) {
                     title: "Lookup Create form",
                     type: "lookup",
                     placeholder: "only for lookup fields",
-                    show_when: "data.documents['type'] == 'lookup'",
+                    show_when: "record['type'] == 'lookup'",
                     createnew_form: exps.forms.formMetadata,
                     createnew_defaults: '{"primary": "name", "others": {}}',
                     search_form: new ObjectID('000000000400'),
@@ -197,7 +197,7 @@ module.exports = function(options) {
                     name: "createnew_defaults",
                     title: "Lookup Create New Defaults",
                     type: "text",
-                    show_when: "data.documents['type'] == 'lookup'",
+                    show_when: "record['type'] == 'lookup'",
                     placeholder: "{primary: 'name', others: {fieldname: 'val', fieldname: 'val'}}",
                     required: false
                 },
@@ -206,7 +206,7 @@ module.exports = function(options) {
                     title: "Lookup Search Form",
                     type: "lookup",
                     placeholder: "only for lookup fields",
-                    show_when: "data.documents['type'] == 'lookup'",
+                    show_when: "record['type'] == 'lookup'",
                     createnew_form: exps.forms.formMetadata,
                     createnew_defaults: '{"primary": "name", "others": {}}',
                     search_form: new ObjectID('000000000400'),
@@ -217,7 +217,7 @@ module.exports = function(options) {
                     name: "child_form",
                     title: "Child Form",
                     type: "lookup",
-                    show_when: "data.documents['type'] == 'childform'",
+                    show_when: "record['type'] == 'childform'",
                     createnew_form: exps.forms.formMetadata,
                     createnew_defaults: '{"primary": "name", "others": { "type": "childform"}}',
                     search_form: new ObjectID('000000000400'),
@@ -228,7 +228,7 @@ module.exports = function(options) {
                     name: "layout",
                     title: "Childform Layout",
                     type: "dropdown",
-                    show_when: "data.documents['type'] == 'childform'",
+                    show_when: "record['type'] == 'childform'",
                     required: false,
                     default_value: "1col",
                     dropdown_options: [
@@ -262,7 +262,7 @@ module.exports = function(options) {
                 {
                     name: "dropdown_options",
                     title: "Dropdown Options",
-                    show_when: "data.documents['type'] == 'dropdown'",
+                    show_when: "record['type'] == 'dropdown'",
                     type: "dropdown_options"
                 }
             ]

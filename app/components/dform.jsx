@@ -86,22 +86,16 @@ export class Field extends Component {
     return true;
   }
 
-  _clickFile(e) {
-    //console.log ('Field _clickFile');
-    $(e.currentTarget).siblings("input:file").click();
+  _clickFile() {
+    React.findDOMNode(this.refs.imageinput).click();
   }
 
   _fileuploadhtml5(e) {
-
     var self = this,
         df = DynamicForm.instance,
         file = e.currentTarget.files[0];
 
-
     console.log('Field _fileuploadhtml5 : ' + file.name);
-    //var formData = new FormData();   formData.append('file', file);
-
-    this.setState({picupload : 5});
     df.uploadFile(file, progressEvt => {
       console.log ('progress ' + progressEvt.loaded);
       if (progressEvt.lengthComputable) {
@@ -118,9 +112,7 @@ export class Field extends Component {
      console.log ("There was an error attempting to upload the file:" + JSON.stringify(errEvt));
      this.setState({servererr: 'Upload failed'});
    });
-
-
-     return false;
+   return false;
   }
 
   handleChange(newValue) {
@@ -133,52 +125,10 @@ export class Field extends Component {
       this.setState(newState);
   }
   componentDidMount() {
-      //console.log ("Field componentDidMount  : " + this.props.fielddef.type  + ", e:" + this.props.edit);
-
       var self = this,
         df = DynamicForm.instance;
       if (this.props.fielddef.type === 'lookup' && this.props.edit) {
         React.findDOMNode(this.refs.lookupinput).addEventListener("keypress", this._handleLookupKeypress.bind(this), false);
-
-/*
-        var lookuptypeahead = new Bloodhound({
-          datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
-          queryTokenizer: Bloodhound.tokenizers.whitespace,
-          remote: df.host + '/dform/db/' + this.props.fielddef.search_form
-  //        limit: 10,
-  //        prefetch: {
-            // url points to a json file that contains an array of country names, see
-            // https://github.com/twitter/typeahead.js/blob/gh-pages/data/countries.json
-  //          url: '/dform/db/' + this.props.fielddef.search_form,
-            // the json file contains an array of strings, but the Bloodhound
-            // suggestion engine expects JavaScript objects so this converts all of
-            // those strings
-        //    filter: function(list) {
-        //      return $.map(list, function(country) { return { name: country }; });
-        //    }
-  //        }
-        });
-        // kicks off the loading/processing of `local` and `prefetch`
-        lookuptypeahead.initialize();
-
-        //let loopupinput = this.getDOMNode().getElementsByTagName('input')[0];
-        let loopupinput = ReactDOM.findDOMNode(this.refs.typeaheadInput);
-        $(loopupinput).typeahead(null, {
-          name: this.props.fielddef.search_form,
-          displayKey: 'name',
-          highlight: true,
-          // `ttAdapter` wraps the suggestion engine in an adapter that
-          // is compatible with the typeahead jQuery plugin
-          source: lookuptypeahead.ttAdapter()
-        }).on('typeahead:selected',function(evt,data){
-            console.log('data==>' + JSON.stringify(data)); //selected datum object
-            self.handleChange({_id: data._id, primary: data.name});
-        });
-        console.log ("Field componentDidMount  : initialise typeahead and set default val from prop: " + JSON.stringify(this.props.value));
-    //    if (this.props.value) {
-    //      $(loopupinput).typeahead('val', this.props.value.primary);
-    //    }
-*/
       }
   }
   _handleLookupKeypress() {
@@ -199,6 +149,7 @@ export class Field extends Component {
   _openCreate() {
     //$(ReactDOM.findDOMNode(this.refs.typeaheadModal)).modal({show:true});
     //this.setState ({lookupcreate: true});
+    this.setState({lookup: {create: true, visible: true}})
   }
 
   render() {
@@ -227,10 +178,12 @@ export class Field extends Component {
         case 'lookup':
           if (this.props.value) {
             field = (<span className="slds-form-element__static">
-                      <a  href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value._id}>{this.props.value.primary}</a>
+                      <a href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value._id}>
+                        {this.props.value.primary}
+                      </a>
                     </span>);
           } else  {
-            field = (<span className="slds-form-element__static">></span>);
+            field = (<span className="slds-form-element__static"/>);
           }
           break;
         case 'childform':
@@ -294,7 +247,7 @@ export class Field extends Component {
 
                       <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible && 'visible' || 'hidden'}}>
                         { this.state.lookup.create &&
-                          <FormMain view={this.props.fielddef.createnew_form}/>
+                          <FormMain view={this.props.fielddef.createnew_form} crud="c"/>
                         }
                         { !this.state.lookup.create &&
                         <ul className="slds-lookup__list" role="presentation">
@@ -310,8 +263,8 @@ export class Field extends Component {
 
                           { this.state.lookup.offercreate && this.props.fielddef.createnew_form &&
                           <li className="slds-lookup__item" role="presentation">
-                             <a href="#" role="option">
-                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride=" "/>Create {df.getForm(this.props.fielddef.createnew_form).name + '"' + this.props.value + '"'}</a>
+                             <a onClick={this._openCreate.bind(this)} role="option">
+                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride=" "/>Create {df.getForm(this.props.fielddef.createnew_form).name + '"' + React.findDOMNode(this.refs.lookupinput).value + '"'}</a>
                            </li>
                           }
                         </ul>
@@ -324,10 +277,10 @@ export class Field extends Component {
             break;
         case 'image':
             field =  <div className="pictureAndText">
-                        <input type="file"  name="file" style={{display: "none"}} accept="image/*" onChange={this._fileuploadhtml5.bind(this)} />
+                        <input type="file" ref="imageinput" name="file" style={{display: "none"}} accept="image/*" onChange={this._fileuploadhtml5.bind(this)} />
                         <img height="120" src={img_src} alt="message user image"/>
                         {this.state.picupload == 0 &&
-                        <a className="imglable" onClick={this._clickFile}>Upload Picture <i className="fa fa-arrow-circle-right"></i></a>
+                        <a className="imglable" onClick={this._clickFile.bind(this)}>Upload Picture <i className="fa fa-arrow-circle-right"></i></a>
                         ||
                         <div className="imglable progress"><div className="progress-bar" style={{"width": this.state.picupload+"%"}}></div></div>
                         }
@@ -346,14 +299,23 @@ export class Field extends Component {
 
 // Top level Form, with FormMan & Related Lists.
 export class Form extends Component {
+
   constructor(props) {
     super(props);
-    this.state = { value: []};
+
+    let df = DynamicForm.instance,
+          metaview = df.getForm (props.urlparam.view);
+
+    this.state = {
+      crud: !props.urlparam.id && "c" || props.urlparam.e && "u" || "r",
+      metaview: metaview,
+      childformfields: metaview.fields.filter(m => m.type === 'childform')
+    };
   }
 
   componentDidMount() {
     let df = DynamicForm.instance;
-    if (this.props.urlparam.id) {
+    if (this.state.crud == 'u' || this.state.crud == 'r') {
       df.query ({form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}}).then(succVal => {
           this.setState({ value: succVal[0]});
       });
@@ -361,38 +323,43 @@ export class Form extends Component {
   }
 
   render() {
-    var self = this,
-        df = DynamicForm.instance,
-        metaview = df.getForm (this.props.urlparam.view),
-        childformfields = metaview.fields.filter(m => m.type === 'childform'),
-        edit = this.props.urlparam.e || (!this.props.urlparam.id);
-
-    console.log ('Form render ' + metaview.name + ', state : ' + JSON.stringify(this.state));
+    var self = this;
+    console.log ('Form: render state : ' + JSON.stringify(this.state));
     return (
-        <div className="row">
-          <div className="col-xs-12">
-            <FormMain key={this.props.urlparam.view} value={this.state.value} view={this.props.urlparam.view} parent={this.props.urlparam.parent} edit={(this.props.urlparam.e)} navTo={this.props.navTo}/>
+        <div className="slds-grid">
+          <div className="slds-col--padded slds-size--1-of-1 slds-large-size--1-of-2">
+            <div className="grid-card" style={{padding: "0px"}}>
+              <FormMain key={this.state.metaview._id} value={this.state.value} view={this.state.metaview._id} parent={this.props.urlparam.parent} crud={this.state.crud}/>
+            </div>
           </div>
-          {!edit  && childformfields.map(function(field, i) { return (
-            <RecordList parent={metaview._id+":"+self.state.value._id+":"+field._id} view={field.child_form} value={self.state.value[field.name]}/>
-          );})}
+          <div className="slds-col--padded slds-size--1-of-1 slds-large-size--1-of-2">
+            {this.state.crud === "r"  && this.state.childformfields.map(function(field, i) { return (
+              <RecordList parent={self.state.metaview._id+":"+(self.state.value && self.state.value._id || "new")+":"+field._id} view={field.child_form} value={self.state.value && self.state.value[field.name]}/>
+            );})}
+          </div>
         </div>
       );
     }
 }
 
+// Called from Form Route (top), or within List (embedded), for lookup (create new)
 export class FormMain extends Component {
   constructor(props) {
     super(props);
-    console.log ('FormMain InitialState : ' + JSON.stringify(this.props));
-    this.state =  { value: this.props.value || {}, changeddata: {}, errors: null};
+    console.log ('FormMain constructor : ' + JSON.stringify(this.props));
+    this.state =  {
+      value: props.value,
+      changeddata: {},
+      edit: props.crud === "c" || props.crud === "u", // edit mode if props.edit or value has no _id (new record)
+      errors: null};
+    console.log ('FormMain constructor setState : ' + JSON.stringify(this.state));
   }
   componentWillReceiveProps (nextProps) {
     if (nextProps.value) {
       this.setState ({value: nextProps.value});
     }
   }
-  _fieldChange(d) {
+  _fieldChange(d) { // Called form the Field
     let newState = {
         value: Object.assign(this.state.value, d),
         changeddata: Object.assign(this.state.changeddata, d)};
@@ -435,20 +402,6 @@ export class FormMain extends Component {
     });
   }
 
-  _cancel(e) {
-    e.preventDefault();
-    if (this.props.parent) {
-      this.props.navTo('cancel');
-    } else {
-      if (this.props.value._id) {
-        // edit an existing record
-        window.location.href = "#Form?gid="+this.props.view+":"+this.props.value._id;
-      } else {
-        // creating a new record
-        window.location.href = "#RecordList?gid="+this.props.view;
-      }
-    }
-  }
   _delete() {
     var self = this,
         df = DynamicForm.instance,
@@ -480,29 +433,46 @@ export class FormMain extends Component {
     var self = this,
         df = DynamicForm.instance,
         metaview = df.getForm (this.props.view),
-        nonchildformfields = metaview.fields.filter(m => m.type !== 'childform'),
-        edit = this.props.edit || (!this.state.value._id);
+        nonchildformfields = metaview.fields.filter(m => m.type !== 'childform');
 
-    let header = React.createElement (ListHeader, Object.assign ({key: +metaview._id+":"+self.state.value._id, formName: metaview.name},edit && {
+    let header = React.createElement (ListHeader, Object.assign ({key: +metaview._id+":"+(self.state.value && self.state.value._id || "new"), formName: metaview.name}, this.state.edit && {
       saveButton: this._save.bind(this),
-      cancelButton: this._cancel.bind(this)
-    } || {
+      cancelButton: () => {
+        if (this.props.parent) {
+          this.props.navTo('cancel');
+        } else {
+          if (this.state.value._id) {
+            // edit an existing record, go to view using url (keep history)
+            window.location.href = "#Form?gid="+this.props.view+":"+this.props.value._id;
+          } else {
+            // creating a new record, goto list
+            window.location.href = "#RecordList?gid="+this.props.view;
+          }
+      }
+    }} || {
       deleteButton: this._delete.bind(this),
-      editButton: () => { window.location.href = "#Form?gid="+metaview._id+":"+self.state.value._id+"&e=true"; }
+      editButton: () =>  {
+        if (this.props.parent)
+          this.setState ({edit: true});
+        else
+          window.location.href = "#Form?gid="+this.props.view+":"+this.props.value._id+"&e=1";
+      }
     }));
 
     console.log ('FormMain render ' + metaview.name + ', state : ' + JSON.stringify(this.state));
     return (
     <section>
       { header}
-      <div className="slds-form--stacked slds-grid slds-wrap slds-m-top--large">
-        <div className="slds-col--padded slds-size--1-of-1 slds-medium-size--1-of-2">
-          {nonchildformfields.map(function(field, i) { return (
-            <div key={metaview._id+":"+field.name} className="slds-form-element">
+      <div className="slds-form--stacked slds-grid slds-wrap" style={{padding: "1em"}}>
+        <div className="slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2">
+          {nonchildformfields.map(function(field, i) {
+            let record = self.state.value;
+            if (!field.show_when || eval(field.show_when)) return (
+            <div className={"slds-form-element" + (field.required && " slds-is-required" || "") + ((field.required && !self.state.value[field.name]) && " slds-has-error" || "")}>
 
                 <label className="slds-form-element__label">{field.title}</label>
-                <div className="slds-form-element__control"  style={{marginLeft: edit && '0' || "15px"}}>
-                  <Field fielddef={field} value={self.state.value[field.name]} edit={edit} onChange={self._fieldChange.bind(self)}/>
+                <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
+                  <Field fielddef={field} value={self.state.value[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
                 </div>
 
             </div>
@@ -513,6 +483,8 @@ export class FormMain extends Component {
     );
   }
 }
+FormMain.propTypes = {  crud: React.PropTypes.string, value: React.PropTypes.object  };
+FormMain.defaultProps = { crud: "r", value: {} };
 
 // RecordList - list of records, supports inline editing of embedded docs.
 export class RecordList extends Component {
@@ -536,7 +508,7 @@ export class RecordList extends Component {
 
     if (this.props.parent) {
       console.log ('RecordList : want to edit a imbedded doc : ' + id);
-      this.setState({editrow: {id: id, edit: edit}});
+      this.setState({editrow: {id: id, crud: !id && "c" || edit && "u" || "r"}});
     } else if (this.props.urlparam) {
       //this.props.navTo(
       let nurl = "#Form?gid=" + this.props.urlparam.view + (id && ":" + id || "") + (edit && "&e=true" || "");
@@ -582,13 +554,15 @@ export class RecordList extends Component {
         nonchildformfields = metaview.fields && metaview.fields.filter(m => m.type !== 'childform') || [];
 
     return (
-      <section>
+      <div className="slds-grid">
+        <div className="slds-col--padded slds-size--1-of-2 slds-large-size--1-of-4">
+        <div className="grid-card" style={{padding: "0px"}}>
         { !this.state.editrow &&
       <ListHeader key={metaview._id} formName={metaview.name} newButton={self._edit.bind(this, null, true)}/>
         }
       <div className="box-body table-responsive no-padding">
         { this.state.editrow &&
-        <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || null} view={metaview._id} edit={this.state.editrow.edit} parent={this.props.parent} navTo={this._formDoneNavTo.bind(this)}/>
+        <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || {}} view={metaview._id} crud={this.state.editrow.crud} parent={this.props.parent} navTo={this._formDoneNavTo.bind(this)}/>
         ||
         <div className="slds-scrollable--x">
         <table className="slds-table slds-table--bordered">
@@ -608,13 +582,14 @@ export class RecordList extends Component {
             { self.state.value.map(function(row, i) { return (
               <tr className="slds-hint-parent">
                   <td className="slds-row-select">
-                    <a className="pointer" onClick={self._edit.bind(self, row._id, true)}>edit </a>
-                    | <a className="pointer" onClick={self._edit.bind(self, row._id, false)}>view </a>
+                    <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, row._id, true)}>edit </a>
+                    { !self.props.parent &&
+                    <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, row._id, false)}>view </a>
+                    }
                   </td>
                   {nonchildformfields.map(function(field, i) { return (
                     <td><Field key={metaview._id+"RL"+field._id} fielddef={field} value={row[field.name]}/></td>
                   );})}
-
               </tr>
             );})}
           </tbody>
@@ -622,7 +597,9 @@ export class RecordList extends Component {
       </div>
       }
       </div>
-    </section>
+    </div>
+  </div>
+</div>
     )
   }
 }
@@ -651,27 +628,27 @@ export class ListHeader extends Component {
 
               <div className="slds-button-group">
                 { typeof this.props.newButton !== "undefined" &&
-                <button onClick={this.props.newButton}  className="slds-button slds-button--neutral" >
+                <button onClick={this.props.newButton}  className="slds-button slds-button--brand" >
                   new
                 </button>
                 }
                 { typeof this.props.editButton !== "undefined" &&
-                <button onClick={this.props.editButton}  className="slds-button slds-button--neutral" >
+                <button onClick={this.props.editButton}  className="slds-button slds-button--brand" >
                   edit
                 </button>
                 }
                 { typeof this.props.deleteButton !== "undefined" &&
-                <button onClick={this.props.deleteButton}  className="slds-button slds-button--neutral" >
+                <button onClick={this.props.deleteButton}  className="slds-button slds-button--brand" >
                   delete
                 </button>
                 }
                 { typeof this.props.cancelButton !== "undefined" &&
-                <button onClick={this.props.cancelButton}  className="slds-button slds-button--neutral" >
+                <button onClick={this.props.cancelButton}  className="slds-button slds-button--brand" >
                   cancel
                 </button>
                 }
                 { typeof this.props.saveButton !== "undefined" &&
-                <button onClick={this.props.saveButton}  className="slds-button slds-button--neutral" >
+                <button onClick={this.props.saveButton}  className="slds-button slds-button--brand" >
                   save
                 </button>
                 }

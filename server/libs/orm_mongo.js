@@ -274,7 +274,7 @@ module.exports = function(options) {
 
                   console.log('delete()  ' + coll + ' query :' + JSON.stringify(query) + ' update :' + JSON.stringify(update));
                   db.collection(coll).update(query, update, function (err, out) {
-                    console.log ('delete() res : ' + JSON.stringify(out) + ', err : ' + err);
+                    console.log ('delete() update res : ' + JSON.stringify(out) + ', err : ' + err);
                     if (err) {
                        error (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
                     } else {
@@ -282,7 +282,14 @@ module.exports = function(options) {
                     }
                   });
                 } else {
-                  db.collection(coll).remove({_id: new ObjectID(recid)}, callback);
+                  db.collection(coll).remove({_id: new ObjectID(recid)}, function (err, out) {
+                    console.log ('delete() res : ' + JSON.stringify(out) + ', err : ' + err);
+                    if (err) {
+                       error (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+                    } else {
+                      success ({_id: recid});
+                    }
+                  });
                 }
             }
         }, function (err) {
