@@ -478,6 +478,38 @@ module.exports = function(options) {
 
     exps.getfile = function (filename, res) {
         console.log ('getfile() filename : ' + filename);
+
+        try {
+          var gfs = Grid(db, mongo),
+              findopts = {_id: new ObjectID(filename)};
+
+          gfs.exist(findopts, function (err, found) {
+            if (err) return res.status(400).send(err);
+            if (!found) res.status(400).send({error: "no file found" + filename});
+
+            console.log('File exists'  + filename);
+
+            var readstream = gfs.createReadStream(findopts);
+
+            readstream.on('finish', function (file) {
+                console.log ('getfile pipe finished ');
+            });
+
+            readstream.on('error', function (e) {
+                console.log ('getfile pipe error : ' + JSON.stringify(e));
+                res.status(400).send({error: JSON.stringify(e)});
+            });
+
+            console.log ('getfile pipe  ' + filename);
+            readstream.pipe(res);
+
+          });
+        } catch (e) {
+          console.log ('getfile try error : ' + JSON.stringify(e));
+          res.status(400).send({error: JSON.stringify(e)});
+        }
+
+        /*
         var gs = new GridStore(db, filename, 'r');
         console.log ('getfile() new GridStore');
         gs.open(function(err, gs){
@@ -495,18 +527,42 @@ module.exports = function(options) {
               gs.stream([autoclose=true]).pipe(res);
             }
         });
-
+        */
     };
 
-    exps.putfile = function (req, res) {
-      var filename = 'profile-pic'+new ObjectID (),
-          gfs = Grid(db, mongo);
+    exps.putfile = function (req, res, origname) {
+      var filename = new ObjectID (),
+          gfs = Grid(db, mongo),
+          writestream = gfs.createWriteStream({
+              _id: filename,
+              filename: origname,
+              metadata: {
+                ownerId: 'authTBC',
+                uploadIP: '??'
+              }
+          });
 
-      req.pipe(gfs.createWriteStream({
-          filename: filename
-      }));
-      res.send(filename);
+      writestream.on('finish', function (file) {
+        console.log ('putfile pipe finished ' + JSON.stringify(file));
+        res.send({_id: filename});
+      });
+
+      writestream.on('error',function(e) {
+        console.log ('putfile pipe error ');
+        res.status(400).send({error: JSON.stringify(e)});
+      });
+
+      console.log ('putfile pipe  ' + filename);
+      req.pipe(writestream);
     };
+
+    exps.listfiles = function( success, error) {
+      var gfs = Grid(db, mongo);
+      gfs.files.find({}).toArray(function (err, files) {
+        if (err) error(err);
+        success(files);
+      })
+    }
 
     exps.getmeta = function (success, error) {
         //	var formid = req.params["id"];

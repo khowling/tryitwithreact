@@ -12,7 +12,8 @@ module.exports = function(options) {
             "formMetadata" : new ObjectID('000000000100'),
             "FormFieldMetadata": new ObjectID('000000000200'),
             "Users": new ObjectID('000000000600'),
-            "AuthProviders": new ObjectID('000000000700')
+            "AuthProviders": new ObjectID('000000000700'),
+            "FileMeta": new ObjectID('000000000800')
         }
     };
 
@@ -389,6 +390,38 @@ module.exports = function(options) {
                     type: "text",
                     placeholder: "password",
                     required: true
+                }
+            ]
+        },
+        {
+            _id: exps.forms.FileMeta,
+            name: "FileMeta",
+            type: "fileform",
+            fields: [
+
+                {
+                    name: "filename",
+                    title: "Unique Filename",
+                    show_when: "true",
+                    type: "text"
+                },
+                {
+                    name: "length",
+                    title: "size (bytes)",
+                    show_when: "true",
+                    type: "text"
+                },
+                {
+                    name: "uploadDate",
+                    title: "Upload Date",
+                    show_when: "true",
+                    type: "text"
+                },
+                {
+                    name: "ownerId",
+                    title: "Owner",
+                    show_when: "true",
+                    type: "text"
                 }
             ]
         }

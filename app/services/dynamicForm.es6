@@ -62,7 +62,13 @@ export default class DynamicForm {
     else
       return this._formMeta.find(f => f._id === fid);
   }
-
+  getFormByName (fid) {
+    this._formMeta.length > 0 ||   console.log( "DynamicForm.getForm : FormData Not Loaded");
+    if (!fid)
+      return this._formMeta;
+    else
+      return this._formMeta.find(f => f.name === fid);
+  }
   _queryParams(source) {
     var array = [];
     for(var key in source) {
@@ -79,13 +85,15 @@ export default class DynamicForm {
   delete(req) {
     return this._callServer('db/' + req.form + '/' + req.id + (req.parent && "?"+this._queryParams(req.parent) || ''), 'DELETE');
   }
-
+  listFiles() {
+    return this._callServer('filelist');
+  }
   uploadFile (file, evtFn) {
     return new Promise( (resolve, reject) => {
       var xhr = new XMLHttpRequest();
       xhr.upload.addEventListener("progress",  evtFn, false);
       xhr.addEventListener("load", function (evt) {
-        resolve(evt);
+        resolve(JSON.parse(evt.target.response));
        }, false);
      xhr.addEventListener("error", function (evt) {
        reject (evt);

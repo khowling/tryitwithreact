@@ -47,6 +47,7 @@
     "opn":"",
     "react": "*",
     "react-dom": "*",
-    "source-map-support": "*"
+    "source-map-support": "*",
+    "progressbar.js": "*"
   }
 }

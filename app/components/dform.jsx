@@ -3,14 +3,11 @@
 import React, {Component} from 'react';
 //import ReactDOM from 'react-dom';
 
+import ProgressBar from 'progressbar.js'
 import { SvgIcon } from './utils.jsx';
-
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
-
 import DynamicForm from '../services/dynamicForm.es6';
-
-
 
 export class ChildForm extends Component {
   render() {
@@ -50,7 +47,8 @@ export class Field extends Component {
     // ES6 Computed Propery names
     //let initState = {[this.props.fielddef.name]: this.props.value || this.props.fielddef.default_value, picupload:0};
     //console.log ('Field getInitialState: ' + this.props.fielddef.name);
-    this.state = { picupload:0, lookup: { visible: false, values: [], create: false, offercreate: false}};
+    this.state = { picupload:0, picselectexisting:false, picFileList: false,  lookup: { visible: false, values: [], create: false, offercreate: false}};
+    this._selectedFile = this._selectedFile.bind(this);
   }
 
   componentWillReceiveProps(nextProps) {
@@ -99,14 +97,17 @@ export class Field extends Component {
     df.uploadFile(file, progressEvt => {
       console.log ('progress ' + progressEvt.loaded);
       if (progressEvt.lengthComputable) {
-        this.setState({picupload: Math.round(progressEvt.loaded * 100 / progressEvt.total)});
+        //this.setState({picupload: Math.round(progressEvt.loaded * 100 / progressEvt.total)});
+        this.line.animate(Math.round(progressEvt.loaded / progressEvt.total));
       } else {
-        this.setState({picupload: 50});
+        //this.setState({picupload: 50});
+        this.line.animate(0.5);
       }
-    }).then (loadEvt => {
-      this.setState({picupload : 0});
-      console.log ('got :' + JSON.stringify (loadEvt.target));
-      this.handleChange (loadEvt.target.responseText);
+    }).then (succVal => {
+      //this.setState({picupload : 0});
+      this.line.animate(1, () => this.line.set(0));
+      console.log ('got :' + JSON.stringify (succVal));
+      this.handleChange (succVal._id);
      //data.documents[field.name] = evt.target.responseText;
    }, errEvt => {
      console.log ("There was an error attempting to upload the file:" + JSON.stringify(errEvt));
@@ -130,6 +131,14 @@ export class Field extends Component {
       if (this.props.fielddef.type === 'lookup' && this.props.edit) {
         React.findDOMNode(this.refs.lookupinput).addEventListener("keypress", this._handleLookupKeypress.bind(this), false);
       }
+
+      if (this.props.fielddef.type === 'image' && this.props.edit) {
+        this.line = new ProgressBar.Line(React.findDOMNode(this.refs.progressline), {color: '#FCB03C'})
+      }
+  }
+
+  componentWillUnmount () {
+      if (this.line) this.line.destroy();
   }
   _handleLookupKeypress() {
     let df = DynamicForm.instance;
@@ -147,9 +156,23 @@ export class Field extends Component {
   }
 
   _openCreate() {
-    //$(ReactDOM.findDOMNode(this.refs.typeaheadModal)).modal({show:true});
-    //this.setState ({lookupcreate: true});
     this.setState({lookup: {create: true, visible: true}})
+  }
+  _selectExisting() {
+    let df = DynamicForm.instance;
+    this.setState({picselectexisting: true}, () => {
+      df.listFiles().then(succVal => {
+        this.setState({picFileList: succVal});
+      });
+    });
+  }
+  _selectedFile(filename) {
+    console.log ('called _selectedFile with:' + JSON.stringify(filename));
+    this.setState({picselectexisting: false}, () => {
+      if (filename) {
+        this.handleChange(filename);
+      }
+    });
   }
 
   render() {
@@ -192,7 +215,7 @@ export class Field extends Component {
           break;
         case 'image':
           field = (<div className="pictureAndText">
-                    <img height="120"  src={img_src} alt="message user image"/>
+                    <img style={{height: "200px"}}  src={img_src} alt="message user image"/>
                   </div>);
           break;
         default:
@@ -205,9 +228,6 @@ export class Field extends Component {
         value: this.props.value,
         requestChange: this.handleChange.bind(this)
       };
-      //console.log ('Field render valueLink: ' + JSON.stringify(valueLink));
-
-
 
       switch (this.props.fielddef.type) {
         case 'text':
@@ -276,16 +296,35 @@ export class Field extends Component {
             field = <div></div>;
             break;
         case 'image':
-            field =  <div className="pictureAndText">
-                        <input type="file" ref="imageinput" name="file" style={{display: "none"}} accept="image/*" onChange={this._fileuploadhtml5.bind(this)} />
-                        <img height="120" src={img_src} alt="message user image"/>
-                        {this.state.picupload == 0 &&
-                        <a className="imglable" onClick={this._clickFile.bind(this)}>Upload Picture <i className="fa fa-arrow-circle-right"></i></a>
-                        ||
-                        <div className="imglable progress"><div className="progress-bar" style={{"width": this.state.picupload+"%"}}></div></div>
-                        }
+            let picview = df.getFormByName('FileMeta')._id;
+            field = <div>
+                      <input type="file" ref="imageinput" name="file" style={{display: "none"}} accept="image/*" onChange={this._fileuploadhtml5.bind(this)} />
+                      <div className="pic-with-text" style={{backgroundImage: "url("+img_src+")"}}>
+                        <header>
+                          <div style={{margin: "8px 30px"}}>
+                            <a onClick={this._clickFile.bind(this)}>upload new picture</a> |
+                            <a onClick={this._selectExisting.bind(this)}> select existing picture</a>
+                          </div>
+                          <div ref="progressline"></div>
+                        </header>
 
-                      </div>;
+                      </div>
+                      { this.state.picselectexisting &&
+                      <div>
+                        <div aria-hidden="false" role="dialog" className="slds-modal slds-modal--large slds-fade-in-open">
+                          <div className="slds-modal__container">
+                            <div className="slds-modal__content">
+                              { this.state.picFileList &&
+                              <RecordList view={picview} value={this.state.picFileList} selected={this._selectedFile}/>
+                              }
+                            </div>
+                          </div>
+                        </div>
+                        <div className="slds-modal-backdrop slds-modal-backdrop--open"></div>
+                      </div>
+                      }
+
+                    </div>;
             break;
         default:
             field = <div>Unknown fieldtype {this.props.fielddef.type}</div>;
@@ -297,7 +336,7 @@ export class Field extends Component {
   }
 }
 
-// Top level Form, with FormMan & Related Lists.
+// Top level Form, with FormMan & Related Lists. (called from Router - props much reflect URL params)
 export class Form extends Component {
 
   constructor(props) {
@@ -309,11 +348,14 @@ export class Form extends Component {
     this.state = {
       crud: !props.urlparam.id && "c" || props.urlparam.e && "u" || "r",
       metaview: metaview,
-      childformfields: metaview.fields.filter(m => m.type === 'childform')
+      childformfields: metaview.fields.filter(m => m.type === 'childform'),
+      value: {}
     };
+    console.log ('Form constructor setState : ' + JSON.stringify(this.state));
   }
 
   componentDidMount() {
+    console.log ('Form componentDidMount query database : ' + JSON.stringify(this.props.urlparam));
     let df = DynamicForm.instance;
     if (this.state.crud == 'u' || this.state.crud == 'r') {
       df.query ({form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}}).then(succVal => {
@@ -324,7 +366,7 @@ export class Form extends Component {
 
   render() {
     var self = this;
-    console.log ('Form: render state : ' + JSON.stringify(this.state));
+    console.log ('Form: rendering state');
     return (
         <div className="slds-grid">
           <div className="slds-col--padded slds-size--1-of-1 slds-large-size--1-of-2">
@@ -346,19 +388,21 @@ export class Form extends Component {
 export class FormMain extends Component {
   constructor(props) {
     super(props);
-    console.log ('FormMain constructor : ' + JSON.stringify(this.props));
     this.state =  {
-      value: props.value,
-      changeddata: {},
-      edit: props.crud === "c" || props.crud === "u", // edit mode if props.edit or value has no _id (new record)
+      value: props.value, // this is the original data from the props
+      changeddata: {}, // keep all data changes in the state
+      edit: props.crud === "c" || props.crud === "u", // edit mode if props.edit or value has no _id (new record),
       errors: null};
     console.log ('FormMain constructor setState : ' + JSON.stringify(this.state));
   }
+
+  // form data is ready from parent
   componentWillReceiveProps (nextProps) {
     if (nextProps.value) {
       this.setState ({value: nextProps.value});
     }
   }
+
   _fieldChange(d) { // Called form the Field
     let newState = {
         value: Object.assign(this.state.value, d),
@@ -366,6 +410,7 @@ export class FormMain extends Component {
     console.log ('FormMain _fieldChange setState : '+ JSON.stringify(newState));
     this.setState(newState);
   }
+
   _save() {
     var self = this,
         df = DynamicForm.instance,
@@ -505,7 +550,6 @@ export class RecordList extends Component {
 
   }
   _edit (id, edit) {
-
     if (this.props.parent) {
       console.log ('RecordList : want to edit a imbedded doc : ' + id);
       this.setState({editrow: {id: id, crud: !id && "c" || edit && "u" || "r"}});
@@ -545,6 +589,9 @@ export class RecordList extends Component {
       this.setState ({value: nextProps.value});
     }
   }
+  _handleSelect(id) {
+    this.props.selected(id);
+  }
 
   render() {
     console.log ('RecordList rendering ' + JSON.stringify(this.state.editrow));
@@ -553,13 +600,17 @@ export class RecordList extends Component {
         metaview = df.getForm (this.props.urlparam && this.props.urlparam.view || this.props.view),
         nonchildformfields = metaview.fields && metaview.fields.filter(m => m.type !== 'childform') || [];
 
+    let header = React.createElement (ListHeader, Object.assign ({key: +metaview._id, formName: metaview.name}, this.props.selected && {
+          closeButton: this._handleSelect.bind(this, null)
+        } || {
+          newButton: this._edit.bind(this, null, true)
+        }));
+
     return (
       <div className="slds-grid">
         <div className="slds-col--padded slds-size--1-of-2 slds-large-size--1-of-4">
         <div className="grid-card" style={{padding: "0px"}}>
-        { !this.state.editrow &&
-      <ListHeader key={metaview._id} formName={metaview.name} newButton={self._edit.bind(this, null, true)}/>
-        }
+        { !this.state.editrow && header }
       <div className="box-body table-responsive no-padding">
         { this.state.editrow &&
         <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || {}} view={metaview._id} crud={this.state.editrow.crud} parent={this.props.parent} navTo={this._formDoneNavTo.bind(this)}/>
@@ -573,7 +624,7 @@ export class RecordList extends Component {
               </th>
               {nonchildformfields.map(function(field, i) { return (
                 <th scope="col">
-                  <span className="slds-truncate">{field.name}</span>
+                  <span className="slds-truncate">{field.title}</span>
                 </th>
               );})}
             </tr>
@@ -582,8 +633,12 @@ export class RecordList extends Component {
             { self.state.value.map(function(row, i) { return (
               <tr className="slds-hint-parent">
                   <td className="slds-row-select">
+                    { self.props.selected &&
+                    <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
+                    ||
                     <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, row._id, true)}>edit </a>
-                    { !self.props.parent &&
+                    }
+                    { !self.props.parent && !self.props.selected &&
                     <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, row._id, false)}>view </a>
                     }
                   </td>
@@ -607,7 +662,7 @@ export class RecordList extends Component {
 export class ListHeader extends Component {
   render() {
     return (
-      <div className="slds-page-header">
+      <div className="slds-page-header slds-theme--alt-inverse">
         <div className="slds-grid">
           <div className="slds-col slds-has-flexi-truncate">
 
@@ -628,28 +683,33 @@ export class ListHeader extends Component {
 
               <div className="slds-button-group">
                 { typeof this.props.newButton !== "undefined" &&
-                <button onClick={this.props.newButton}  className="slds-button slds-button--brand" >
+                <button onClick={this.props.newButton}  className="slds-button slds-button--inverse" >
                   new
                 </button>
                 }
                 { typeof this.props.editButton !== "undefined" &&
-                <button onClick={this.props.editButton}  className="slds-button slds-button--brand" >
+                <button onClick={this.props.editButton}  className="slds-button slds-button--inverse" >
                   edit
                 </button>
                 }
                 { typeof this.props.deleteButton !== "undefined" &&
-                <button onClick={this.props.deleteButton}  className="slds-button slds-button--brand" >
+                <button onClick={this.props.deleteButton}  className="slds-button slds-button--inverse" >
                   delete
                 </button>
                 }
                 { typeof this.props.cancelButton !== "undefined" &&
-                <button onClick={this.props.cancelButton}  className="slds-button slds-button--brand" >
+                <button onClick={this.props.cancelButton}  className="slds-button slds-button--inverse" >
                   cancel
                 </button>
                 }
                 { typeof this.props.saveButton !== "undefined" &&
-                <button onClick={this.props.saveButton}  className="slds-button slds-button--brand" >
+                <button onClick={this.props.saveButton}  className="slds-button slds-button--inverse" >
                   save
+                </button>
+                }
+                { typeof this.props.closeButton !== "undefined" &&
+                <button onClick={this.props.closeButton}  className="slds-button slds-button--inverse" >
+                  close
                 </button>
                 }
               </div>

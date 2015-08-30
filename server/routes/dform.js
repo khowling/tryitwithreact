@@ -79,10 +79,17 @@ module.exports = function(options) {
     router.put ('/file/:filename'
          //, ensureAuthenticated
         , function(req,res) {
-            orm.putfile(req, res);
+            var filename = req.params["filename"];
+            orm.putfile(req, res, filename);
         });
 
-
+    router.get('/filelist', function (req,res) {
+      orm.listfiles( function success(j) {
+          res.json(j);
+      }, function error(e) {
+          res.status(400).send(e);
+      });
+    });
 
     router.get('/formdata', function(req, res) {
       res.setHeader('Content-Type', 'application/json');
