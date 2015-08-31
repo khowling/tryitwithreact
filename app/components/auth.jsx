@@ -82,7 +82,7 @@ export class AuthState extends Component {
     let df = DynamicForm.instance;
     df.logOut().then(succ => {
       this.setState ({user: {}}, () => {
-        window.location.href = "#";
+        window.location.reload("#");
       });
 
     });
