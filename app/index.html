@@ -71,6 +71,73 @@
       background-color: rgba(84, 105, 141, 0.5);
       color: white;
     }
+
+    /*  layout */
+    html {
+      background-color: rgb(244, 246, 249);
+    }
+    .site-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2rem;
+      z-index: 8000;
+
+      background-color: #fff;
+      box-shadow: 0 0 7px 0 rgba(0, 0, 0, 0.15);
+      padding: 5px 10px;
+      color: black;
+      box-sizing: border-box;
+      -webkit-transition: top 0.3s;
+      transition: top 0.3s;
+    }
+
+    /* login */
+    a.fbconnect_login_button {
+        cursor: pointer;
+        line-height: 16px;
+        display: inline-block;
+        padding: 0 0 0 1px;
+        text-decoration: none;
+    }
+
+    .fbconnect_login_button a:hover {
+        text-decoration : underline;
+    }
+
+    .FBConnectButton {
+        background: url("https://d1gw9egox2swwv.cloudfront.net/20111123b/images/facebook/connect_sprite.png") no-repeat scroll 0 0 #29447E;
+        cursor: default;
+        display: inline-block;
+        outline: medium none;
+        padding: 0 0 0 1px;
+        text-decoration: none;
+    }
+    .FBConnectButton .FBConnectButton_Text {
+        background: url("https://d1gw9egox2swwv.cloudfront.net/20111123b/images/facebook/connect_sprite.png") repeat scroll 0 0 #5F78AB;
+        border-bottom: 1px solid #1A356E;
+        border-top: 1px solid #879AC0;
+        color: #FFFFFF;
+        display: block;
+        font-family: "lucida grande",tahoma,sans-serif;
+        font-weight: bold;
+        margin: 1px 1px 0 0;
+        padding: 2px 6px 4px;
+        text-shadow: none;
+    }
+    .FBConnectButton_Large {
+        background-position: left -138px;
+        font-size: 13px;
+        line-height: 16px;
+    }
+    .FBConnectButton_Large .FBConnectButton_Text {
+        margin-left: 24px;
+    }
+    .FBConnectButton_Text {
+        margin-left: 21px;
+        padding: 2px 6px 3px;
+    }
    </style>
 </head>
 <body>

@@ -35,10 +35,6 @@ module.exports = function (passport, options) {
         }, function error(e) {
             res.status(400).send(e);
         }, true);
-/*
-        db.collection('user').findOne({_id: new ObjectID(id)}, function (err, user) {
-        });
-*/
     });
 
     passport.use(new LocalStrategy(
@@ -67,54 +63,42 @@ module.exports = function (passport, options) {
         }
     ));
 
+    var gotSocialLoginDetails = function(mappedUserObj, provider, provider_id, done) {
+      orm.find(meta.forms.Users, {'provider.provider_id': provider_id}, function success(j) {
+          var existinguser = j[0];
+          if (!existinguser) {
+              mappedUserObj.provider = [{ _id: new ObjectID(), type: provider, provider_id: provider_id }]
+              console.log(provider + ' strategy: no existing user, creating from social profile : ' + JSON.stringify(mappedUserObj));
+
+              // exps.forms.AuthProviders
+              orm.save (meta.forms.Users, null,null,mappedUserObj, function success(newuser) {
+                      console.log (provider + ' saved new user : ' + JSON.stringify(newuser));
+                      done(null, newuser);
+                  }, function error(ee) {
+                      return done(null, false, 'error creating user');
+                  });
+          } else {
+              console.log(provider + ' found existing user :' + JSON.stringify(existinguser));
+              return done(null, existinguser);
+          }
+      }, function error (e) {
+        console.log(provider + ' strategy find user error:' + JSON.stringify(e));
+        return done(provider + ' strategy find user error:' + JSON.stringify(e));
+       }, true);
+    }
+
     passport.use(new FacebookStrategy({
             clientID: '448297785208364', // myapp
             clientSecret: 'b9b07e0f0067868f597f1fa6deb279cd',
             callbackURL: "/auth/facebook/callback"
         },
         function (accessToken, refreshToken, profile, done) {
-            // console.log ('FacebookStrategy :' + JSON.stringify(profile));
-
-            //db.collection('user').find({"provider.facebook.id": profile.id}).toArray(function (err, existinguser) {
-
-            orm.find(meta.forms.Users, {'provider.provider_id': profile.id}, function success(j) {
-                var existinguser = j.documents;
-                console.log('FacebookStrategy find existing user returned : ' + JSON.stringify (existinguser));
-                if (!existinguser) {
-                    console.log('FacebookStrategy: no existing user, creating from facebook profile : ' + JSON.stringify(profile));
-
-                    // exps.forms.AuthProviders
-                    orm.save (meta.forms.Users, null,null,
-                        {
-                            name: profile.name.givenName + ' ' + profile.name.familyName,
-                            role: "new",
-                            email: profile.emails[0].value,
-                            provider: [
-                                { _id: new ObjectID(), type: "facebook", provider_id: profile.id }]
-                        }, function success(newuser) {
-                            console.log ('Saved new user : ' + JSON.stringify(newuser));
-                            done(null, newuser);
-                        }, function error(ee) {
-                            return done(null, false, 'error creating user');
-                        });
-                    /*
-                    db.collection('user').insert({
-                        'provider': { 'facebook': { 'id': profile.id }},
-                        'name': profile.name.givenName + ' ' + profile.name.familyName,
-                        'email': profile.emails[0].value    }, function (err, newuser) {
-                        console.log('created a user?? : ' + newuser);
-                        if (newuser) {
-                            done(null, newuser);
-                        } else {
-                            return done('error creating user');
-                        }
-                    });
-                    */
-                } else {
-                    console.log('found existing user :' + JSON.stringify(existinguser));
-                    return done(null, existinguser);
-                }
-            }, function error (e) { console.log('FacebookStrategy find user error:' + JSON.stringify(e)); }, true);
+          console.log ('FacebookStrategy : got profile: ' + JSON.stringify(profile));
+          return gotSocialLoginDetails({
+              name: profile.name.givenName + ' ' + profile.name.familyName,
+              role: "new",
+              email: profile.emails[0].value
+            }, "facebook", profile.id, done);
         }));
 
     passport.use(new ForceDotComStrategy({
@@ -125,27 +109,12 @@ module.exports = function (passport, options) {
             callbackURL: "/auth/salesforce/callback"
         },
         function (token, tokenSecret, profile, done) {
-            console.log('ForceDotComStrategy : ' + profile);
-            db.collection('user').find({"provider.chatter.id": profile.id}, function (err, existinguser) {
-                if (existinguser.length === 0) {
-                    console.log('no existing user, creating a user : ' + JSON.stringify(profile));
-
-                    db.collection('user').save({
-                        'provider': { 'chatter': { 'id': profile.id }},
-                        'name': 'Chatter User',
-                        'email': 'chatter@email.com'    }, function (newuser) {
-                        console.log('created a user?? : ' + newuser);
-                        if (newuser) {
-                            done(null, newuser);
-                        } else {
-                            return done('error creating user');
-                        }
-                    });
-                } else {
-                    console.log('found existing user :' + existinguser + ':');
-                    done(null, existinguser[0]);
-                }
-            });
+          console.log ('ForceDotComStrategy : got profile: ' + JSON.stringify(profile));
+          return gotSocialLoginDetails({
+              name: 'Chatter User',
+              role: "new",
+              email: 'chatter@email.com'
+            }, "chatter", profile.id, done);
         }));
 
     // redirects the user to Facebook login, including the relay
@@ -178,11 +147,12 @@ module.exports = function (passport, options) {
                 if (!user) { return res.redirect('/'); }
 
                 // res.send(req.user);
-                console.log('facebook callback authenticate, err : ' + JSON.stringify(err) + ' user : ' + JSON.stringify(user) + ' info : ' + JSON.stringify(info) + ' state : ' + req.query.state);
+                console.log('facebook callback: authenticate, err : ' + JSON.stringify(err) + ' user : ' + JSON.stringify(user) + ' info : ' + JSON.stringify(info));
                 req.logIn(user, function(err){
                     if (err) {
                         return next(err);
                     }
+                    console.log ('facebook callback: req.logIn successm now : redirect user to relaystate: ' + req.query.state);
                     res.redirect(req.query.state || '/');
                 });
             })(req,res,next);
@@ -237,7 +207,7 @@ module.exports = function (passport, options) {
     router.get('/logout', function (req,res) {
         console.error('logout called');
         req.logOut();
-        res.redirect('/');
+        res.send({ok: 1});
 
     });
 

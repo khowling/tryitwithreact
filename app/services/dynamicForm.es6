@@ -7,15 +7,13 @@ export default class DynamicForm {
 
   constructor (server_url) {
     if (instance) {
-      throw "SFData() only allow to construct once";
+      throw "DynamicForm() only allow to construct once";
     }
     this._host = server_url;
     this._formMeta = [];
+    this._user = {};
+    this.ROUTES = {dform: '/dform/', auth: '/auth/'};
     instance = this;
-  }
-
-  get host() {
-    return this._host;
   }
 
   static get instance() {
@@ -23,12 +21,20 @@ export default class DynamicForm {
     return instance;
   }
 
+  get host() {
+      return this._host;
+    }
+  get user() {
+      return this._user;
+    }
+
   _callServer(path, mode = 'GET', body) {
     return new Promise( (resolve, reject) => {
        // Instantiates the XMLHttpRequest
        var client = new XMLHttpRequest();
-       client.open(mode, this._host + '/dform/' + path);
+       client.open(mode, this._host  + path);
        client.setRequestHeader ("Authorization", "OAuth " + "Junk");
+       client.withCredentials = true;
        if (mode === 'POST') {
          console.log ('_callServer: POSTING : ' + JSON.stringify(body));
          client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
@@ -53,7 +59,10 @@ export default class DynamicForm {
   }
 
   loadMeta() {
-    return this._callServer('formdata').then(fmeta => this._formMeta = fmeta);
+    return this._callServer(this.ROUTES.dform + 'formdata').then(fmeta => {
+      this._formMeta = fmeta.formdata;
+      if (fmeta.user) this._user = fmeta.user;
+    });
   }
   getForm (fid) {
     this._formMeta.length > 0 ||   console.log( "DynamicForm.getForm : FormData Not Loaded");
@@ -77,16 +86,16 @@ export default class DynamicForm {
     return array.join("&");
   }
   query(req) {
-    return this._callServer('db/' + req.form + (req.q && ("?q=" + JSON.stringify(req.q)) || ''));
+    return this._callServer(this.ROUTES.dform + 'db/' + req.form + (req.q && ("?q=" + JSON.stringify(req.q)) || ''));
   }
   save(req) {
-    return this._callServer('db/' + req.form + (req.parent && "?"+this._queryParams(req.parent) || ''), 'POST', req.body);
+    return this._callServer(this.ROUTES.dform + 'db/' + req.form + (req.parent && "?"+this._queryParams(req.parent) || ''), 'POST', req.body);
   }
   delete(req) {
-    return this._callServer('db/' + req.form + '/' + req.id + (req.parent && "?"+this._queryParams(req.parent) || ''), 'DELETE');
+    return this._callServer(this.ROUTES.dform + 'db/' + req.form + '/' + req.id + (req.parent && "?"+this._queryParams(req.parent) || ''), 'DELETE');
   }
   listFiles() {
-    return this._callServer('filelist');
+    return this._callServer(this.ROUTES.dform + 'filelist');
   }
   uploadFile (file, evtFn) {
     return new Promise( (resolve, reject) => {
@@ -108,5 +117,15 @@ export default class DynamicForm {
      console.log ('uploadFile() sending : ' + file.name + ', ' + file.type);
      xhr.send(file);
    });
- }
+  }
+
+  getMe() {
+    return this._callServer(this.ROUTES.auth + 'me');
+  }
+
+  logOut() {
+    return this._callServer(this.ROUTES.auth + 'logout').then(succ => {
+      this._user = {};
+    });
+  }
 }

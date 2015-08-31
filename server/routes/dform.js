@@ -94,7 +94,7 @@ module.exports = function(options) {
     router.get('/formdata', function(req, res) {
       res.setHeader('Content-Type', 'application/json');
       orm.getmeta (function success(j) {
-            res.json(j);
+            res.json({formdata: j, user: req.user});
         }, function error(e) {
             res.status(400).send(e);
         });

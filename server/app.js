@@ -24,8 +24,10 @@ MongoClient.connect(process.env.MONGO_DB || "mongodb://localhost:27017/mydb01", 
     //app.use(favicon());
     //app.use(logger('dev'));
 
+    // This is requried if serving client app from react hot loader, and server from node (different ports)
     app.all('/*', function(req, res, next) {
-      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Origin", "http://localhost:8000");
+      res.header("Access-Control-Allow-Credentials", "true");
       res.header("Access-Control-Allow-Headers", "X-Requested-With,Authorization,Content-Type");
       res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE");
       //res.header("Access-Control-Allow-Headers", "Authorization");

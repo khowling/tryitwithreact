@@ -1,8 +1,11 @@
 'use strict';
 
 import React, {Component} from 'react';
+const DEFAULT_LANDING = 'TileList';
 
 export default class Router extends Component {
+
+
 
     static getURLNav (lnkhash) {
       var gethash = lnkhash || decodeURI(
@@ -10,7 +13,7 @@ export default class Router extends Component {
         // consistent across browsers - Firefox will pre-decode it!
         // window.location.pathname + window.location.search
         window.location.href.split('#')[1] || ''
-      ) || 'TileList';
+      ) || DEFAULT_LANDING;
       console.log ('App _getURLNav url changed : ' + gethash);
       let [comp, parms] = gethash.split('?');
       let paramjson = {};
@@ -30,7 +33,7 @@ export default class Router extends Component {
         else
           tfn (parms);
       }
-      return ({hash: comp, params: paramjson});
+      return ({hash: comp || DEFAULT_LANDING, params: paramjson});
     }
 
     static setupRouterfunction (onPopState) {

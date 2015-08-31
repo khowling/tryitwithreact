@@ -9,6 +9,7 @@ import React, {Component} from 'react';
 import Router from './components/router.jsx'
 import {TileList}  from './components/tiles.jsx'
 import {RecordList, Form} from './components/dform.jsx'
+import {Login, LogMeIn, AuthState} from './components/auth.jsx'
 
 import DynamicForm from './services/dynamicForm.es6';
 class App extends Component {
@@ -16,7 +17,7 @@ class App extends Component {
    constructor (props) {
      super(props);
      console.log ('call createFact ' );
-     this.appComponents = App.createFactories (TileList, RecordList, Form);
+     this.appComponents = App.createFactories (TileList, RecordList, Form, Login, LogMeIn);
      this.dynamicForm = new DynamicForm(props.buildprops.server_url);
      this.state = { formdata: [], booted: false, bootmsg: "not booted"};
    }
@@ -58,15 +59,33 @@ class App extends Component {
      if (this.state.booted) {
        return (
          <div className="slds">
-           <div className="slds-container--center slds-container--medium">
-             <section className="content-header">
-              <h1>
-                <a href='#'>Home</a>
-                <small>Version 2.0</small>
-              </h1>
+
+             <section className="site-banner">
+               <div className="slds-container--center slds-container--medium">
+                  <div className="slds-grid">
+                    <div className="slds-col slds-has-flexi-truncate">
+                      <h1>
+                        <a href='#'>Home</a>
+                        <small>Version 2.0</small>
+                      </h1>
+                    </div>
+
+                    <div className="slds-col slds-no-flex slds-align-bottom">
+                      <div className="slds-grid">
+                        <div className="slds-button-space-left" >
+                          <AuthState/>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
             </section>
-            <Router componentFactories={this.appComponents.factories} updateRoute={this.routeUpdated}/>
-           </div>
+            <div style={{height: "2.4rem"}}></div>
+
+            <div className="slds-container--center slds-container--medium">
+              <Router componentFactories={this.appComponents.factories} updateRoute={this.routeUpdated}/>
+            </div>
+
          </div>
        )
      } else return (
