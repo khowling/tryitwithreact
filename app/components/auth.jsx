@@ -3,6 +3,7 @@
 import React, {Component} from 'react';
 
 import {RecordList, Form} from './dform.jsx'
+import { SvgIcon } from './utils.jsx';
 
 import DynamicForm from '../services/dynamicForm.es6';
 
@@ -92,8 +93,8 @@ export class AuthState extends Component {
     if (this.state.user._id)
       return (
         <div className="slds-dropdown-trigger" aria-haspopup="true">
-            <div className="">
-              {this.state.user.name}
+            <div className="slds-button slds-button--neutral">
+              {this.state.user.name} <SvgIcon classOverride="header-icons" small={true} spriteType="utility" spriteName="down"/>
             </div>
             <div className="slds-dropdown slds-dropdown--nubbin-top slds-dropdown--menu" style={{left: "35%"}}>
              <ul className="slds-dropdown__list" role="menu">

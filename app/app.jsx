@@ -6,6 +6,7 @@ import 'babel-core/polyfill';
 import React, {Component} from 'react';
 //import ReactDOM from 'react-dom';
 
+import { SvgIcon } from './components/utils.jsx';
 import Router from './components/router.jsx'
 import {TileList}  from './components/tiles.jsx'
 import {RecordList, Form} from './components/dform.jsx'
@@ -65,8 +66,8 @@ class App extends Component {
                   <div className="slds-grid">
                     <div className="slds-col slds-has-flexi-truncate">
                       <h1>
-                        <a href='#'>Home</a>
-                        <small>Version 2.0</small>
+                        <a href='#'><SvgIcon classOverride="header-icons" spriteType="utility" spriteName="apps"/></a>
+                        <small></small>
                       </h1>
                     </div>
 
@@ -80,9 +81,9 @@ class App extends Component {
                   </div>
                 </div>
             </section>
-            <div style={{height: "2.4rem"}}></div>
+            <div style={{height: "3.5rem"}}></div>
 
-            <div className="slds-container--center slds-container--medium">
+            <div className="container">
               <Router componentFactories={this.appComponents.factories} updateRoute={this.routeUpdated}/>
             </div>
 

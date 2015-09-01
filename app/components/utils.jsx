@@ -12,11 +12,9 @@ export  class SvgIcon extends Component {
     let df = DynamicForm.instance;
 
     return (
-      <span className={this.props.classOverride && this.props.classOverride || "slds-icon__container"}>
-        <svg className={"slds-icon " + (this.props.small && "slds-icon--small" || "") + (this.props.large && "slds-icon--large" || "") + " slds-icon-"+this.props.spriteType+"-"+this.props.spriteName}
-          dangerouslySetInnerHTML={{__html: "<use xlink:href='"+df.host+"/assets/icons/"+this.props.spriteType+"-sprite/svg/symbols.svg#"+this.props.spriteName+"' />"}}>
+        <svg className={(this.props.classOverride && this.props.classOverride || "") + " slds-icon " + (this.props.small && "slds-icon--small" || "") + (this.props.large && "slds-icon--large" || "") + " slds-icon-"+this.props.spriteType+"-"+this.props.spriteName}
+          dangerouslySetInnerHTML={{__html: "<use xlink:href='/slds080/assets/icons/"+this.props.spriteType+"-sprite/svg/symbols.svg#"+this.props.spriteName+"' />"}}>
         </svg>
-      </span>
   )}
 }
 SvgIcon.propTypes = { spriteType: React.PropTypes.string, spriteName: React.PropTypes.string, small: React.PropTypes.bool, large: React.PropTypes.bool  };

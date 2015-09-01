@@ -25,16 +25,16 @@ export class Tile extends Component {
             iclass = "ion " + 'ion-stats-bars';
 
         return (
-          <li className="slds-col--padded slds-size--1-of-2 slds-large-size--1-of-4">
+          <li className="slds-list__item">
             <div className="grid-card">
 
               <div className="slds-grid slds-grid--align-spread">
                 <h3 className="site-text-heading--label-weak-large slds-align-middle">{meta.name} - <small>{meta.type}</small></h3>
-                <SvgIcon spriteType="utility" spriteName="add"/>
+                <SvgIcon spriteType="action" spriteName="fallback"/>
               </div>
 
               <hr className="hr hr--pink"/>
-              <p>descript this object, it could be anything but need to explain a little</p>
+              <p>descript this object</p>
               <div className="slds-button-group">
                 <a className="slds-button slds-button--neutral" href={"#RecordList?gid="+meta._id}>list</a>
                 <a className="slds-button slds-button--neutral" href={"#Form?gid="+meta._id}>new</a>
@@ -51,7 +51,7 @@ export class TileList extends Component {
             metaview = df.getForm ();
         console.log ('TileList render : ' + metaview.length);
         return (
-            <ul className="slds-grid slds-wrap slds-grid--align-left slds-grid--pull-padded-large">
+            <ul className="slds-list--horizontal slds-has-cards">
                   {metaview.map(function(row, i) { if (row.type === 'top') return (
                       <Tile key={row._id} meta={row}/>
                   );})}

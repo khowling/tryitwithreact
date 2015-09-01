@@ -313,7 +313,7 @@ export class Field extends Component {
                       <div>
                         <div aria-hidden="false" role="dialog" className="slds-modal slds-modal--large slds-fade-in-open">
                           <div className="slds-modal__container">
-                            <div className="slds-modal__content">
+                            <div className="slds-modal__content" style={{padding: "0"}}>
                               { this.state.picFileList &&
                               <RecordList view={picview} value={this.state.picFileList} selected={this._selectedFile}/>
                               }
@@ -368,15 +368,20 @@ export class Form extends Component {
     var self = this;
     console.log ('Form: rendering state');
     return (
-        <div className="slds-grid">
-          <div className="slds-col--padded slds-size--1-of-1 slds-large-size--1-of-2">
-            <div className="grid-card" style={{padding: "0px"}}>
-              <FormMain key={this.state.metaview._id} value={this.state.value} view={this.state.metaview._id} parent={this.props.urlparam.parent} crud={this.state.crud}/>
-            </div>
+        <div className="slds-grid slds-wrap">
+          <div className="slds-col slds-size--1-of-1">
+          { this.props.urlparam && <PageHeader formName={this.state.metaview.name}/> }
           </div>
-          <div className="slds-col--padded slds-size--1-of-1 slds-large-size--1-of-2">
+          <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
+
+              <FormMain key={this.state.metaview._id} value={this.state.value} view={this.state.metaview._id} parent={this.props.urlparam.parent} crud={this.state.crud}/>
+
+          </div>
+          <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
             {this.state.crud === "r"  && this.state.childformfields.map(function(field, i) { return (
-              <RecordList parent={self.state.metaview._id+":"+(self.state.value && self.state.value._id || "new")+":"+field._id} view={field.child_form} value={self.state.value && self.state.value[field.name]}/>
+              <div style={{padding: "0.5em"}}>
+                <RecordList parent={self.state.metaview._id+":"+(self.state.value && self.state.value._id || "new")+":"+field._id} view={field.child_form} value={self.state.value && self.state.value[field.name]}/>
+              </div>
             );})}
           </div>
         </div>
@@ -480,7 +485,7 @@ export class FormMain extends Component {
         metaview = df.getForm (this.props.view),
         nonchildformfields = metaview.fields.filter(m => m.type !== 'childform');
 
-    let header = React.createElement (ListHeader, Object.assign ({key: +metaview._id+":"+(self.state.value && self.state.value._id || "new"), formName: metaview.name}, this.state.edit && {
+    let header = React.createElement (SectionHeader, Object.assign ({key: +metaview._id+":"+(self.state.value && self.state.value._id || "new"), formName: metaview.name}, this.state.edit && {
       saveButton: this._save.bind(this),
       cancelButton: () => {
         if (this.props.parent) {
@@ -507,22 +512,25 @@ export class FormMain extends Component {
     console.log ('FormMain render ' + metaview.name + ', state : ' + JSON.stringify(this.state));
     return (
     <section>
-      { header}
-      <div className="slds-form--stacked slds-grid slds-wrap" style={{padding: "1em"}}>
-        <div className="slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2">
-          {nonchildformfields.map(function(field, i) {
-            let record = self.state.value;
-            if (!field.show_when || eval(field.show_when)) return (
-            <div className={"slds-form-element" + (field.required && " slds-is-required" || "") + ((field.required && !self.state.value[field.name]) && " slds-has-error" || "")}>
+        <div className="slds-form--stacked" style={{padding: "0.5em"}}>
+          <div className="slds-grid slds-wrap">
+              { header}
+            {nonchildformfields.map(function(field, i) {
+              let record = self.state.value;
+              if (!field.show_when || eval(field.show_when)) return (
+              <div className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
+              <div className={"slds-form-element field-seperator" + (field.required && " slds-is-required" || "") + ((field.required && !self.state.value[field.name]) && " slds-has-error" || "")}>
 
-                <label className="slds-form-element__label">{field.title}</label>
-                <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
-                  <Field fielddef={field} value={self.state.value[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
-                </div>
+                  <label className="slds-form-element__label">{field.title}</label>
+                  <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
+                    <Field fielddef={field} value={self.state.value[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
+                  </div>
 
-            </div>
-          );})}
-        </div>
+              </div>
+              </div>
+            );})}
+          </div>
+
       </div>
     </section>
     );
@@ -600,75 +608,76 @@ export class RecordList extends Component {
         metaview = df.getForm (this.props.urlparam && this.props.urlparam.view || this.props.view),
         nonchildformfields = metaview.fields && metaview.fields.filter(m => m.type !== 'childform') || [];
 
-    let header = React.createElement (ListHeader, Object.assign ({key: +metaview._id, formName: metaview.name}, this.props.selected && {
+    let header = React.createElement (SectionHeader, Object.assign ({key: +metaview._id, formName: metaview.name}, this.props.selected && {
           closeButton: this._handleSelect.bind(this, null)
         } || {
           newButton: this._edit.bind(this, null, true)
         }));
 
     return (
-      <div className="slds-grid">
-        <div className="slds-col--padded slds-size--1-of-2 slds-large-size--1-of-4">
-        <div className="grid-card" style={{padding: "0px"}}>
-        { !this.state.editrow && header }
-      <div className="box-body table-responsive no-padding">
-        { this.state.editrow &&
-        <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || {}} view={metaview._id} crud={this.state.editrow.crud} parent={this.props.parent} navTo={this._formDoneNavTo.bind(this)}/>
-        ||
-        <div className="slds-scrollable--x">
-        <table className="slds-table slds-table--bordered">
-          <thead>
-            <tr className="slds-text-heading--label">
-              <th className="slds-row-select" scope="col">
-                <span className="slds-truncate">Actions</span>
-              </th>
-              {nonchildformfields.map(function(field, i) { return (
-                <th scope="col">
-                  <span className="slds-truncate">{field.title}</span>
-                </th>
-              );})}
-            </tr>
-          </thead>
-          <tbody>
-            { self.state.value.map(function(row, i) { return (
-              <tr className="slds-hint-parent">
-                  <td className="slds-row-select">
-                    { self.props.selected &&
-                    <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
-                    ||
-                    <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, row._id, true)}>edit </a>
-                    }
-                    { !self.props.parent && !self.props.selected &&
-                    <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, row._id, false)}>view </a>
-                    }
-                  </td>
-                  {nonchildformfields.map(function(field, i) { return (
-                    <td><Field key={metaview._id+"RL"+field._id} fielddef={field} value={row[field.name]}/></td>
+      <div className="slds-grid slds-wrap">
+        <div className="slds-col slds-size--1-of-1">
+        { this.props.urlparam && <PageHeader formName={metaview.name}/> }
+        </div>
+        <div className="slds-col slds-size--1-of-1">
+          { !this.state.editrow && header }
+          <div className="box-body table-responsive no-padding">
+          { this.state.editrow &&
+            <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || {}} view={metaview._id} crud={this.state.editrow.crud} parent={this.props.parent} navTo={this._formDoneNavTo.bind(this)}/>
+          ||
+            <div className="slds-scrollable--x">
+              <table className="slds-table slds-table--bordered">
+                <thead>
+                  <tr className="slds-text-heading--label">
+                    <th className="slds-row-select" scope="col">
+                      <span className="slds-truncate">Actions</span>
+                    </th>
+                    {nonchildformfields.map(function(field, i) { return (
+                      <th scope="col">
+                        <span className="slds-truncate">{field.title}</span>
+                      </th>
+                    );})}
+                  </tr>
+                </thead>
+                <tbody>
+                  { self.state.value.map(function(row, i) { return (
+                    <tr className="slds-hint-parent">
+                        <td className="slds-row-select">
+                          { self.props.selected &&
+                          <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
+                          ||
+                          <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, row._id, true)}>edit </a>
+                          }
+                          { !self.props.parent && !self.props.selected &&
+                          <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, row._id, false)}>view </a>
+                          }
+                        </td>
+                        {nonchildformfields.map(function(field, i) { return (
+                          <td><Field key={metaview._id+"RL"+field._id} fielddef={field} value={row[field.name]}/></td>
+                        );})}
+                    </tr>
                   );})}
-              </tr>
-            );})}
-          </tbody>
-        </table>
+                </tbody>
+              </table>
+            </div>
+          }
+          </div>
+        </div>
       </div>
-      }
-      </div>
-    </div>
-  </div>
-</div>
     )
   }
 }
 
-export class ListHeader extends Component {
+export class PageHeader extends Component {
   render() {
     return (
-      <div className="slds-page-header slds-theme--alt-inverse">
+      <div className="slds-page-header ">
         <div className="slds-grid">
           <div className="slds-col slds-has-flexi-truncate">
 
             <div className="slds-media">
               <div className="slds-media__figure">
-                <SvgIcon spriteType="utility" spriteName="add"/>
+                <SvgIcon spriteType="utility" spriteName="people"/>
               </div>
               <div className="slds-media__body">
                 <p className="slds-text-heading--label">Record Type</p>
@@ -718,6 +727,56 @@ export class ListHeader extends Component {
           </div>
         </div>
         <p className="slds-text-body--small slds-m-top--x-small">10 items, sorted by name</p>
+      </div>
+    );
+  }
+}
+
+export class SectionHeader extends Component {
+  render() {
+    return (
+      <div className="slds-col slds-col--padded slds-size--1-of-1 ">
+          <div className="slds-grid form-seperator">
+            <div className="slds-col slds-col--padded slds-has-flexi-truncate">
+              <h3 className="slds-text-heading--small" style={{marginTop: "8px"}}>{this.props.formName}</h3>
+            </div>
+            <div className="slds-col slds-col--padded slds-no-flex slds-align-bottom">
+
+              <div className="slds-button-group" style={{marginBottom: "3px"}}>
+                { typeof this.props.newButton !== "undefined" &&
+                <button onClick={this.props.newButton}  className="slds-button slds-button--small slds-button--brand" >
+                  new
+                </button>
+                }
+                { typeof this.props.editButton !== "undefined" &&
+                <button onClick={this.props.editButton}  className="slds-button slds-button--small slds-button--brand" >
+                  edit
+                </button>
+                }
+                { typeof this.props.deleteButton !== "undefined" &&
+                <button onClick={this.props.deleteButton}  className="slds-button slds-button--small slds-button--brand" >
+                  delete
+                </button>
+                }
+                { typeof this.props.cancelButton !== "undefined" &&
+                <button onClick={this.props.cancelButton}  className="slds-button slds-button--small slds-button--brand" >
+                  cancel
+                </button>
+                }
+                { typeof this.props.saveButton !== "undefined" &&
+                <button onClick={this.props.saveButton}  className="slds-button slds-button--small slds-button--brand" >
+                  save
+                </button>
+                }
+                { typeof this.props.closeButton !== "undefined" &&
+                <button onClick={this.props.closeButton}  className="slds-button slds-button--small slds-button--brand" >
+                  close
+                </button>
+                }
+              </div>
+
+            </div>
+          </div>
       </div>
     );
   }
