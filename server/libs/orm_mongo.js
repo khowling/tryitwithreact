@@ -232,16 +232,20 @@ module.exports = function(options) {
     exps.delete = function(formparam, recid, parentfieldid, parentid, success, error ) {
 
         meta.getFormMeta(function(FORM_DATA) {
-            form = meta.findFormById(FORM_DATA, formparam);
+            var form = meta.findFormById(FORM_DATA, formparam),
+                isEmbedded = (parentfieldid && parentid);
 
             if (!form) {
                 error ("delete() not Found : " + formparam);
+            } else if (!isEmbedded && (parentfieldid || parentid)){
+                error ("delete() need to supply both 'parentfieldid' and 'parentid' for embedded document delete : " + formparam);
             } else {
 
                 var coll = form.collection;
                 var embedfield;
 
-                if (form.type == "childform") {
+                //if (form.type == "childform") {
+                if (isEmbedded) {
                     console.log('delete() Its a childform, get the collection & field from the parent form : ' + parentfieldid);
                     var parentmeta = meta.findFieldById(FORM_DATA, parentfieldid);
 
@@ -267,7 +271,7 @@ module.exports = function(options) {
                     }
                 };
 
-                if (parentid) {
+                if (isEmbedded) {
                   var query = {_id: new ObjectID(parentid)};
                   var update = { $pull: {} }
                   update["$pull"][embedfield] = { _id: new ObjectID(recid) };
@@ -302,17 +306,21 @@ module.exports = function(options) {
 
         meta.getFormMeta(function(FORM_DATA) {
             var form = meta.findFormById(FORM_DATA, formparam),
-                isInsert = typeof userdoc._id === 'undefined';
+                isInsert = typeof userdoc._id === 'undefined',
+                isEmbedded = (parentfieldid && parentid);
 
             if (!form) {
                 error ("save() not Found : " + formparam);
+            } else if (!isEmbedded && (parentfieldid || parentid)){
+                error ("save() need to supply both 'parentfieldid' and 'parentid' for embedded document save : " + formparam);
             } else {
 
                 console.log ('save() formparam:' + formparam + ' : got form lookup: ' + form.name);
                 var coll = form.collection;
                 var embedfield;
 
-                if (form.type == "childform") {
+                //if (form.type == "childform") {
+                if (isEmbedded) {
                     console.log ('save() Its a childform, get the collection & field from the parent parentfieldid : ' + parentfieldid);
                     var  parentmeta = meta.findFieldById(FORM_DATA, parentfieldid);
 
@@ -372,7 +380,7 @@ module.exports = function(options) {
                     return setval;
                 }
 
-                if (!embedfield) {
+                if (!isEmbedded) {
                     //console.log('/db/'+coll+'  saving or updating a top-level document :' + userdoc._id);
 
                     if (!isInsert) {
@@ -410,55 +418,52 @@ module.exports = function(options) {
                     }
 
                 } else {  // its modifing a embedded document
-                    if (!parentid)  {
-                        error ("save() No parentid Specified");
-                    } else {
-                        //console.log('/db/'+coll+'  set or push a embedded document :' + parentid);
+
+                      //console.log('/db/'+coll+'  set or push a embedded document :' + parentid);
+                      try {
+                        var query = {_id: new ObjectID(parentid)}, update;
+                      } catch (e) {
+                        error ("save() parentid not acceptable format : " + parentid);
+                      }
+                      /***** TRYING TO DO EMBEDDED ARRAY inside EMBEDDED ARRAY, BUT MONGO DOESNT SUPPORT NESTED POSITIONAL OPERATORS
+                       var embedsplit = embedfield.split('.');
+                       if (embedsplit.length == 2) {
+                          query['"' + embedsplit[0] + '._id"'] = new ObjectID(parentid);
+                      }  else {
+                          query = {_id: new ObjectID(parentid)};
+                      }
+                       */
+                      var validatedUpdates = validateSetFields(form.fields, userdoc, null);
+                      if (isInsert) { // its $push'ing a new entry
+                          savedEmbedDoc = { _id: new ObjectID() };
+
+                          var pushjson = {};
+                          pushjson[embedfield] =  validatedUpdates;
+                          pushjson[embedfield]._id  = savedEmbedDoc._id;
+                          // mongodb doesnt automatically provide a _Id for embedded docs!
+                          update = {'$push': pushjson} ;
+                      } else {
                         try {
-                          var query = {_id: new ObjectID(parentid)}, update;
+                          savedEmbedDoc = { _id: new ObjectID(userdoc._id) };
                         } catch (e) {
-                          error ("save() parentid not acceptable format : " + parentid);
+                          error ("save() _id not acceptable format : " + userdoc._id);
                         }
-                        /***** TRYING TO DO EMBEDDED ARRAY inside EMBEDDED ARRAY, BUT MONGO DOESNT SUPPORT NESTED POSITIONAL OPERATORS
-                         var embedsplit = embedfield.split('.');
-                         if (embedsplit.length == 2) {
-                            query['"' + embedsplit[0] + '._id"'] = new ObjectID(parentid);
-                        }  else {
-                            query = {_id: new ObjectID(parentid)};
-                        }
-                         */
-                        var validatedUpdates = validateSetFields(form.fields, userdoc, null);
-                        if (isInsert) { // its $push'ing a new entry
-                            savedEmbedDoc = { _id: new ObjectID() };
-
-                            var pushjson = {};
-                            pushjson[embedfield] =  validatedUpdates;
-                            pushjson[embedfield]._id  = savedEmbedDoc._id;
-                            // mongodb doesnt automatically provide a _Id for embedded docs!
-                            update = {'$push': pushjson} ;
+                        //query[embedfield] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
+                        query[embedfield+"._id"] = savedEmbedDoc._id;
+                        update = { '$set': validateSetFields(form.fields, userdoc, embedfield) };
+                      }
+                      console.log('save() update: query :' + JSON.stringify(query) +' update :' + JSON.stringify(update));
+                      db.collection(coll).update(query, update, function (err, out) {
+                        console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+                        if (err) {
+                           error (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
                         } else {
-                          try {
-                            savedEmbedDoc = { _id: new ObjectID(userdoc._id) };
-                          } catch (e) {
-                            error ("save() _id not acceptable format : " + userdoc._id);
-                          }
-                          //query[embedfield] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
-                          query[embedfield+"._id"] = savedEmbedDoc._id;
-                          update = { '$set': validateSetFields(form.fields, userdoc, embedfield) };
-                        }
-                        console.log('save() update: query :' + JSON.stringify(query) +' update :' + JSON.stringify(update));
-                        db.collection(coll).update(query, update, function (err, out) {
-                          console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
-                          if (err) {
-                             error (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
-                          } else {
 
-                            // return full update sent to database (the client uses this for child forms)
-                            validatedUpdates._id = savedEmbedDoc._id;
-                            success (validatedUpdates);
-                          }
-                        });
-                    }
+                          // return full update sent to database (the client uses this for child forms)
+                          validatedUpdates._id = savedEmbedDoc._id;
+                          success (validatedUpdates);
+                        }
+                      });
                 }
             }
         }, function (err) {

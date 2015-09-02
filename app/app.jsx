@@ -9,7 +9,7 @@ import React, {Component} from 'react';
 import { SvgIcon } from './components/utils.jsx';
 import Router from './components/router.jsx'
 import {TileList}  from './components/tiles.jsx'
-import {RecordList, Form} from './components/dform.jsx'
+import {ListPage, RecordPage} from './components/dform.jsx'
 import {Login, LogMeIn, AuthState} from './components/auth.jsx'
 
 import DynamicForm from './services/dynamicForm.es6';
@@ -18,7 +18,7 @@ class App extends Component {
    constructor (props) {
      super(props);
      console.log ('call createFact ' );
-     this.appComponents = App.createFactories (TileList, RecordList, Form, Login, LogMeIn);
+     this.appComponents = App.createFactories (TileList, ListPage, RecordPage, Login, LogMeIn);
      this.dynamicForm = new DynamicForm(props.buildprops.server_url);
      this.state = { formdata: [], booted: false, bootmsg: "not booted"};
    }

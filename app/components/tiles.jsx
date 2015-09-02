@@ -7,7 +7,6 @@ import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
 
 import DynamicForm from '../services/dynamicForm.es6';
-import {RecordList} from './dform.jsx';
 
 export class Tile extends Component {
 
@@ -36,8 +35,8 @@ export class Tile extends Component {
               <hr className="hr hr--pink"/>
               <p>descript this object</p>
               <div className="slds-button-group">
-                <a className="slds-button slds-button--neutral" href={"#RecordList?gid="+meta._id}>list</a>
-                <a className="slds-button slds-button--neutral" href={"#Form?gid="+meta._id}>new</a>
+                <a className="slds-button slds-button--neutral" href={"#ListPage?gid="+meta._id}>list</a>
+                <a className="slds-button slds-button--neutral" href={"#RecordPage?gid="+meta._id}>new</a>
               </div>
             </div>
           </li>

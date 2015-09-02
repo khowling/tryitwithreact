@@ -41,28 +41,15 @@ export class ChildForm extends Component {
 
 
 export class Field extends Component {
-  //mixins: [React.addons.LinkedStateMixin],
+
   constructor(props) {
     super(props);
-    // ES6 Computed Propery names
-    //let initState = {[this.props.fielddef.name]: this.props.value || this.props.fielddef.default_value, picupload:0};
-    //console.log ('Field getInitialState: ' + this.props.fielddef.name);
-    this.state = { picupload:0, picselectexisting:false, picFileList: false,  lookup: { visible: false, values: [], create: false, offercreate: false}};
+    this.state = { picupload:0, picselectexisting:false, picFileList: {state: "wait", records: []},  lookup: { visible: false, values: [], create: false, offercreate: false}};
     this._selectedFile = this._selectedFile.bind(this);
   }
 
   componentWillReceiveProps(nextProps) {
     console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
-    //if (nextProps.value) this.setState ({[this.props.fielddef.name]: nextProps.value});
-    /*
-    if (this.props.fielddef.type === 'lookup' && this.props.edit) {
-      if (nextProps.value) {
-        let loopupinput = this.getDOMNode().querySelector('input.tt-input');
-        console.log ('Field componentWillReceiveProps update typeahead value: ' + nextProps.value.primary);
-        $(loopupinput).typeahead('val', nextProps.value.primary);
-      }
-    }
-    */
   }
 
   shouldComponentUpdate(nextProps, nextState) {
@@ -84,6 +71,64 @@ export class Field extends Component {
     return true;
   }
 
+  handleChange(newValue) {
+    console.log ('Field handleChange ['+this.props.fielddef.name+'] = ' + JSON.stringify(newValue));
+    let newState = {[this.props.fielddef.name]: newValue};
+    if (this.props.onChange)
+      this.props.onChange (newState);
+    else
+      // not really needed as the change handler is at the form level, that will update props on this child!
+      this.setState(newState);
+  }
+  componentDidMount() {
+      var self = this,
+        df = DynamicForm.instance;
+      if (this.props.fielddef.type === 'lookup' && this.props.edit) {
+        React.findDOMNode(this.refs.lookupinput).addEventListener("keypress", this._handleLookupKeypress.bind(this), false);
+      }
+
+      if (this.props.fielddef.type === 'image' && this.props.edit) {
+        this.line = new ProgressBar.Line(React.findDOMNode(this.refs.progressline), {color: '#FCB03C'})
+      }
+  }
+
+  componentWillUnmount () {
+      if (this.line) this.line.destroy();
+  }
+
+  /********************/
+  /* Lookup Functions */
+  /********************/
+  _handleLookupKeypress() {
+    let df = DynamicForm.instance;
+    console.log ('_handleLookupKeypress: ' + this.refs.listbox);
+    this.setState({lookup: {visible: true, values:[], create: false}}, () => {
+      df.query({form: this.props.fielddef.search_form}).then(succVal => {
+        this.setState({lookup: {visible: true, values: succVal, offercreate: true}});
+      })
+    });
+  }
+  _handleLookupSelectOption (data) {
+    React.findDOMNode(this.refs.lookupinput).value = "";
+    this.setState({lookup: {visible: false, values: [] }});
+    this.handleChange(data && {_id: data._id, primary: data.name} || data);
+  }
+
+  _openCreate() {
+    this.setState({lookup: {create: true, visible: true}})
+  }
+
+  _newLookupRecord(row) {
+    console.log ("got new lookup record : " + JSON.stringify (row));
+    React.findDOMNode(this.refs.lookupinput).value = "";
+    this.setState({lookup: {create: false, visible: false, values:[]}}, () => {
+        if (row) this.handleChange(row);
+    });
+  }
+
+  /*******************/
+  /* Image Functions */
+  /*******************/
   _clickFile() {
     React.findDOMNode(this.refs.imageinput).click();
   }
@@ -116,53 +161,11 @@ export class Field extends Component {
    return false;
   }
 
-  handleChange(newValue) {
-    console.log ('Field handleChange ['+this.props.fielddef.name+'] = ' + JSON.stringify(newValue));
-    let newState = {[this.props.fielddef.name]: newValue};
-    if (this.props.onChange)
-      this.props.onChange (newState);
-    else
-      // not really needed as the change handler is at the form level, that will update props on this child!
-      this.setState(newState);
-  }
-  componentDidMount() {
-      var self = this,
-        df = DynamicForm.instance;
-      if (this.props.fielddef.type === 'lookup' && this.props.edit) {
-        React.findDOMNode(this.refs.lookupinput).addEventListener("keypress", this._handleLookupKeypress.bind(this), false);
-      }
-
-      if (this.props.fielddef.type === 'image' && this.props.edit) {
-        this.line = new ProgressBar.Line(React.findDOMNode(this.refs.progressline), {color: '#FCB03C'})
-      }
-  }
-
-  componentWillUnmount () {
-      if (this.line) this.line.destroy();
-  }
-  _handleLookupKeypress() {
-    let df = DynamicForm.instance;
-    console.log ('_handleLookupKeypress: ' + this.refs.listbox);
-    this.setState({lookup: {visible: true, values:[], create: false}}, () => {
-      df.query({form: this.props.fielddef.search_form}).then(succVal => {
-        this.setState({lookup: {visible: true, values: succVal, offercreate: true}});
-      })
-    });
-  }
-  _handleLookupSelectOption (data) {
-    React.findDOMNode(this.refs.lookupinput).value = "";
-    this.setState({lookup: {visible: false, values: [] }});
-    this.handleChange(data && {_id: data._id, primary: data.name} || data);
-  }
-
-  _openCreate() {
-    this.setState({lookup: {create: true, visible: true}})
-  }
   _selectExisting() {
     let df = DynamicForm.instance;
     this.setState({picselectexisting: true}, () => {
       df.listFiles().then(succVal => {
-        this.setState({picFileList: succVal});
+        this.setState({picFileList: {state: "wait", records: succVal}});
       });
     });
   }
@@ -201,7 +204,7 @@ export class Field extends Component {
         case 'lookup':
           if (this.props.value) {
             field = (<span className="slds-form-element__static">
-                      <a href={"#Form?gid="+this.props.fielddef.createnew_form+":"+this.props.value._id}>
+                      <a href={"#RecordPage?gid="+this.props.fielddef.createnew_form+":"+this.props.value._id}>
                         {this.props.value.primary}
                       </a>
                     </span>);
@@ -267,7 +270,9 @@ export class Field extends Component {
 
                       <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible && 'visible' || 'hidden'}}>
                         { this.state.lookup.create &&
-                          <FormMain view={this.props.fielddef.createnew_form} crud="c"/>
+                          <Modal>
+                            <FormMain key={"model-"+this.props.fielddef.name} view={this.props.fielddef.createnew_form} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
+                          </Modal>
                         }
                         { !this.state.lookup.create &&
                         <ul className="slds-lookup__list" role="presentation">
@@ -310,18 +315,9 @@ export class Field extends Component {
 
                       </div>
                       { this.state.picselectexisting &&
-                      <div>
-                        <div aria-hidden="false" role="dialog" className="slds-modal slds-modal--large slds-fade-in-open">
-                          <div className="slds-modal__container">
-                            <div className="slds-modal__content" style={{padding: "0"}}>
-                              { this.state.picFileList &&
-                              <RecordList view={picview} value={this.state.picFileList} selected={this._selectedFile}/>
-                              }
-                            </div>
-                          </div>
-                        </div>
-                        <div className="slds-modal-backdrop slds-modal-backdrop--open"></div>
-                      </div>
+                        <Modal>
+                              <ListMain view={picview} value={this.state.picFileList} selected={this._selectedFile}/>
+                        </Modal>
                       }
 
                     </div>;
@@ -336,57 +332,21 @@ export class Field extends Component {
   }
 }
 
-// Top level Form, with FormMan & Related Lists. (called from Router - props much reflect URL params)
-export class Form extends Component {
-
-  constructor(props) {
-    super(props);
-
-    let df = DynamicForm.instance,
-          metaview = df.getForm (props.urlparam.view);
-
-    this.state = {
-      crud: !props.urlparam.id && "c" || props.urlparam.e && "u" || "r",
-      metaview: metaview,
-      childformfields: metaview.fields.filter(m => m.type === 'childform'),
-      value: {}
-    };
-    console.log ('Form constructor setState : ' + JSON.stringify(this.state));
-  }
-
-  componentDidMount() {
-    console.log ('Form componentDidMount query database : ' + JSON.stringify(this.props.urlparam));
-    let df = DynamicForm.instance;
-    if (this.state.crud == 'u' || this.state.crud == 'r') {
-      df.query ({form: this.props.urlparam.view, q: {_id: this.props.urlparam.id}}).then(succVal => {
-          this.setState({ value: succVal[0]});
-      });
-    }
-  }
-
+export class Modal extends Component {
   render() {
-    var self = this;
-    console.log ('Form: rendering state');
     return (
-        <div className="slds-grid slds-wrap">
-          <div className="slds-col slds-size--1-of-1">
-          { this.props.urlparam && <PageHeader formName={this.state.metaview.name}/> }
-          </div>
-          <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
-
-              <FormMain key={this.state.metaview._id} value={this.state.value} view={this.state.metaview._id} parent={this.props.urlparam.parent} crud={this.state.crud}/>
-
-          </div>
-          <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
-            {this.state.crud === "r"  && this.state.childformfields.map(function(field, i) { return (
-              <div style={{padding: "0.5em"}}>
-                <RecordList parent={self.state.metaview._id+":"+(self.state.value && self.state.value._id || "new")+":"+field._id} view={field.child_form} value={self.state.value && self.state.value[field.name]}/>
-              </div>
-            );})}
+    <div>
+      <div aria-hidden="false" role="dialog" className="slds-modal slds-modal--large slds-fade-in-open">
+        <div className="slds-modal__container">
+          <div className="slds-modal__content" style={{padding: "0"}}>
+            {this.props.children}
           </div>
         </div>
-      );
-    }
+      </div>
+      <div className="slds-modal-backdrop slds-modal-backdrop--open"></div>
+    </div>
+    );
+  }
 }
 
 // Called from Form Route (top), or within List (embedded), for lookup (create new)
@@ -394,9 +354,9 @@ export class FormMain extends Component {
   constructor(props) {
     super(props);
     this.state =  {
-      value: props.value, // this is the original data from the props
+      value: props.crud == "c" && {state: "ready",  records: {}} || props.value, // this is the original data from the props
       changeddata: {}, // keep all data changes in the state
-      edit: props.crud === "c" || props.crud === "u", // edit mode if props.edit or value has no _id (new record),
+      edit: props.crud == "c" || props.crud == "u", // edit mode if props.edit or value has no _id (new record),
       errors: null};
     console.log ('FormMain constructor setState : ' + JSON.stringify(this.state));
   }
@@ -408,9 +368,11 @@ export class FormMain extends Component {
     }
   }
 
-  _fieldChange(d) { // Called form the Field
+  // Called form the Field
+  _fieldChange(d) {
     let newState = {
-        value: Object.assign(this.state.value, d),
+        // NEED TO REMOVE 'value' here!!
+        value: {records: Object.assign(this.state.value.records, d)},
         changeddata: Object.assign(this.state.changeddata, d)};
     console.log ('FormMain _fieldChange setState : '+ JSON.stringify(newState));
     this.setState(newState);
@@ -421,7 +383,7 @@ export class FormMain extends Component {
         df = DynamicForm.instance,
         saveopt = {
           form: this.props.view,
-          body: this.state.value._id && Object.assign(this.state.value, this.state.changeddata) || this.state.changeddata
+          body: this.state.value.records._id && Object.assign(this.state.value.records, this.state.changeddata) || this.state.changeddata
         };
 
     // if its a childform - add parent details to the save for mongo & nav back to parent
@@ -438,11 +400,14 @@ export class FormMain extends Component {
       console.log ('FormMain _save, response from server : ' + JSON.stringify(succVal));
       if (succVal._id) {
         console.log ('successful save');
-        if (saveopt.parent) {
+        if (this.props.onComplete) {
+          // create new via Lookup+
+          this.props.onComplete({_id: succVal._id, primary: this.state.changeddata['name']});
+        } else if (saveopt.parent) {
           // inform Parent RecordList to update record and close edit window.
           this.props.navTo('save', succVal);
         } else {
-          var navto = "#Form?gid=" + saveopt.form+":"+succVal._id;
+          var navto = "#RecordPage?gid=" + saveopt.form+":"+succVal._id;
           window.location.href = navto;
         }
       } else {
@@ -457,7 +422,7 @@ export class FormMain extends Component {
         df = DynamicForm.instance,
         saveopt = {
           form: this.props.view,
-          id: this.state.value._id
+          id: this.state.value.records._id
         };
 
     if (this.props.parent) {
@@ -473,7 +438,7 @@ export class FormMain extends Component {
       if (this.props.parent) {
         self.props.navTo('delete', succVal);
       } else {
-        window.location.href = "#RecordList?gid="+this.props.view;
+        window.location.href = "#ListPage?gid="+this.props.view;
       }
     });
   }
@@ -481,22 +446,27 @@ export class FormMain extends Component {
   render() {
 
     var self = this,
+        state = this.state.value.state,
+        record = this.state.value.records,
         df = DynamicForm.instance,
         metaview = df.getForm (this.props.view),
         nonchildformfields = metaview.fields.filter(m => m.type !== 'childform');
 
-    let header = React.createElement (SectionHeader, Object.assign ({key: +metaview._id+":"+(self.state.value && self.state.value._id || "new"), formName: metaview.name}, this.state.edit && {
+    let header = React.createElement (SectionHeader, Object.assign ({key: +metaview._id+":"+(state === "ready" && record._id || "new"), formName: metaview.name}, this.state.edit && {
       saveButton: this._save.bind(this),
       cancelButton: () => {
-        if (this.props.parent) {
+        if (this.props.onComplete) {
+          // create new via Lookup+
+          this.props.onComplete();
+        } else if (this.props.parent) {
           this.props.navTo('cancel');
         } else {
-          if (this.state.value._id) {
+          if (record._id) {
             // edit an existing record, go to view using url (keep history)
-            window.location.href = "#Form?gid="+this.props.view+":"+this.props.value._id;
+            window.location.href = "#RecordPage?gid="+this.props.view+":"+record._id;
           } else {
             // creating a new record, goto list
-            window.location.href = "#RecordList?gid="+this.props.view;
+            window.location.href = "#ListPage?gid="+this.props.view;
           }
       }
     }} || {
@@ -505,7 +475,7 @@ export class FormMain extends Component {
         if (this.props.parent)
           this.setState ({edit: true});
         else
-          window.location.href = "#Form?gid="+this.props.view+":"+this.props.value._id+"&e=1";
+          window.location.href = "#RecordPage?gid="+this.props.view+":"+record._id+"&e=1";
       }
     }));
 
@@ -516,14 +486,13 @@ export class FormMain extends Component {
           <div className="slds-grid slds-wrap">
               { header}
             {nonchildformfields.map(function(field, i) {
-              let record = self.state.value;
               if (!field.show_when || eval(field.show_when)) return (
               <div className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
-              <div className={"slds-form-element field-seperator" + (field.required && " slds-is-required" || "") + ((field.required && !self.state.value[field.name]) && " slds-has-error" || "")}>
+              <div className={"slds-form-element field-seperator" + (field.required && " slds-is-required" || "") + ((field.required && !record[field.name]) && " slds-has-error" || "")}>
 
                   <label className="slds-form-element__label">{field.title}</label>
                   <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
-                    <Field fielddef={field} value={self.state.value[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
+                    <Field fielddef={field} value={record[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
                   </div>
 
               </div>
@@ -540,90 +509,136 @@ FormMain.propTypes = {  crud: React.PropTypes.string, value: React.PropTypes.obj
 FormMain.defaultProps = { crud: "r", value: {} };
 
 // RecordList - list of records, supports inline editing of embedded docs.
-export class RecordList extends Component {
+export class ListPage extends Component {
+
+    constructor(props) {
+      super(props);
+      let df = DynamicForm.instance,
+            metaview = df.getForm (props.urlparam.view);
+
+      this.state = {
+        metaview: metaview,
+        value: {status: "wait", records: []}
+      };
+      console.log ('ListPage constructor setState : ' + JSON.stringify(this.state));
+    }
+
+    componentDidMount() {
+      let df = DynamicForm.instance;
+      console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.state.metaview._id));
+      df.query ({form: this.state.metaview._id}).then(succRes =>
+        this.setState({value: {status: "wait", records: succRes}})
+      );
+    }
+
+    render() {
+      return (
+        <div className="slds-grid slds-wrap">
+          <div className="slds-col slds-size--1-of-1">
+          { this.props.urlparam && <PageHeader formName={this.state.metaview.name}/> }
+          </div>
+          <div className="slds-col slds-size--1-of-1">
+            <ListMain value={this.state.value} view={this.state.metaview._id}/>
+          </div>
+        </div>
+      );
+    }
+}
+
+
+export class ListMain extends Component {
   constructor(props) {
     super(props);
-    console.log ('RecordList InitialState : ' + JSON.stringify(this.props.value));
-    this.state = { value: this.props.value || [], editrow: false };
+    console.log ('ListMain InitialState : ' + JSON.stringify(props.value));
+    this.state = {
+      value: props.value,
+      editrow: false
+    };
   }
-  componentDidMount() {
-    let df = DynamicForm.instance;
-    if (!this.props.value && this.props.urlparam && this.props.urlparam.view) {
-      console.log ('RecordList componentDidMount, got url para so running query : ' + JSON.stringify(this.props.urlparam.view));
-      df.query ({form: this.props.urlparam.view}).then(succRes => this.setState({ value: succRes}));
-    }
-  }
+
 
   _delete (e) {
-
   }
-  _edit (id, edit) {
+
+  _edit (row, crud) {
+    console.log ('_edit row: ' + JSON.stringify (row) + ': edit: ' + crud);
     if (this.props.parent) {
-      console.log ('RecordList : want to edit a imbedded doc : ' + id);
-      this.setState({editrow: {id: id, crud: !id && "c" || edit && "u" || "r"}});
-    } else if (this.props.urlparam) {
+      console.log ('ListMain : want to edit a imbedded doc');
+      this.setState({editrow: {value: row, crud: crud}});
+    } else  {
       //this.props.navTo(
-      let nurl = "#Form?gid=" + this.props.urlparam.view + (id && ":" + id || "") + (edit && "&e=true" || "");
-      console.log ("RecordList : _edit: " + nurl);
+      let edit_id = row.records._id && ":" + row.records._id || "",
+          edit_url = (crud === "c" || crud ==="u") && "&e=true" || "",
+          nurl = "#RecordPage?gid=" + this.props.view + edit_id + edit_url;
+      console.log ("ListMain : _edit: " + nurl);
       window.location.href = nurl;
     }
   }
-  _formDoneNavTo (operation, res) {
-    console.log ('RecordList _formDone() ' + JSON.stringify(res));
+
+
+  _onFinished (operation, res) {
+    console.log ('ListMain _onFinished() ' + JSON.stringify(res));
     if (res) {
-      console.log ('RecordList _formDone() update of row ' + JSON.stringify(this.state.editrow));
+      if (this.props.onDataChange) {
+        // this will re-load the data at the parent, and in turn send new props
+        this.props.onDataChange();
+      }
+/*
+      console.log ('ListMain _formDone() update of row ' + JSON.stringify(this.state.editrow));
       if (operation === 'save') {
 
-        if (this.state.editrow.id) {
-          var newVals = seq(this.state.value,
-            map(x => x._id === this.state.editrow.id && res || x));
-        } else {
-          this.state.value.push(res);
-          var newVals = this.state.value;
+        if (this.state.editrow.crud === "u") {
+          var newVals = seq(this.state.value.records,
+            map(x => x._id === this.state.editrow.value.records._id && res || x));
+        } else if (this.state.editrow.crud === "c") { {
+          this.state.value.records.push(res);
+          var newVals = this.state.value.records;
         }
 
       } else if (operation === 'delete') {
-        var newVals = this.state.value.filter (r => r._id !== this.state.editrow.id);
+        var newVals = this.state.value.records.filter (r => r._id !== this.state.editrow.value.records._id);
       }
       this.setState ({value: newVals, editrow: false});
+*/
     } else {
-      console.log ('RecordList _formDone() no data, must be cancel');
+      console.log ('ListMain _formDone() no data, must be cancel');
       this.setState ({editrow: false});
     }
   }
-  componentWillReceiveProps(nextProps) {
+
+  componentWillReceiveProps (nextProps) {
+    console.log ('ListMain componentWillReceiveProps : '+ JSON.stringify(nextProps.value));
     if (nextProps.value) {
-      console.log ('RecordList componentWillReceiveProps : got data from parent prop: ' + JSON.stringify(nextProps.value));
-      this.setState ({value: nextProps.value});
+      this.setState ({value: nextProps.value, editrow: false});
     }
   }
+
+  // When used to select from a list
   _handleSelect(id) {
     this.props.selected(id);
   }
 
   render() {
-    console.log ('RecordList rendering ' + JSON.stringify(this.state.editrow));
+    console.log ('ListMain rendering ' + JSON.stringify(this.state.editrow));
     var self = this,
+        state = this.state.value.state,
+        records = this.state.value.records,
         df = DynamicForm.instance,
-        metaview = df.getForm (this.props.urlparam && this.props.urlparam.view || this.props.view),
-        nonchildformfields = metaview.fields && metaview.fields.filter(m => m.type !== 'childform') || [];
+        metaview = df.getForm (this.props.view),
+        nonchildformfields = metaview.fields.filter(m => m.type !== 'childform');
 
     let header = React.createElement (SectionHeader, Object.assign ({key: +metaview._id, formName: metaview.name}, this.props.selected && {
           closeButton: this._handleSelect.bind(this, null)
         } || {
-          newButton: this._edit.bind(this, null, true)
+          newButton: this._edit.bind(this, {state: "ready", records: {}}, "c")
         }));
 
     return (
-      <div className="slds-grid slds-wrap">
-        <div className="slds-col slds-size--1-of-1">
-        { this.props.urlparam && <PageHeader formName={metaview.name}/> }
-        </div>
-        <div className="slds-col slds-size--1-of-1">
+      <div className="">
           { !this.state.editrow && header }
           <div className="box-body table-responsive no-padding">
           { this.state.editrow &&
-            <FormMain  value={this.state.editrow.id && self.state.value.filter(r => r._id === this.state.editrow.id)[0] || {}} view={metaview._id} crud={this.state.editrow.crud} parent={this.props.parent} navTo={this._formDoneNavTo.bind(this)}/>
+            <FormMain  value={this.state.editrow.value} view={metaview._id} crud={this.state.editrow.crud} parent={this.props.parent} navTo={this._onFinished.bind(this)}/>
           ||
             <div className="slds-scrollable--x">
               <table className="slds-table slds-table--bordered">
@@ -640,16 +655,16 @@ export class RecordList extends Component {
                   </tr>
                 </thead>
                 <tbody>
-                  { self.state.value.map(function(row, i) { return (
+                  { records.map(function(row, i) { return (
                     <tr className="slds-hint-parent">
                         <td className="slds-row-select">
                           { self.props.selected &&
                           <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
                           ||
-                          <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, row._id, true)}>edit </a>
+                          <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, {state: "ready", records: row}, "u")}>edit </a>
                           }
-                          { !self.props.parent && !self.props.selected &&
-                          <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, row._id, false)}>view </a>
+                          {  !self.props.selected &&
+                          <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, {state: "ready", records: row}, "r")}>view </a>
                           }
                         </td>
                         {nonchildformfields.map(function(field, i) { return (
@@ -662,10 +677,70 @@ export class RecordList extends Component {
             </div>
           }
           </div>
-        </div>
       </div>
     )
   }
+}
+
+// Top level Form, with FormMan & Related Lists. (called from Router - props much reflect URL params)
+export class RecordPage extends Component {
+
+  constructor(props) {
+    super(props);
+
+    let df = DynamicForm.instance,
+          metaview = df.getForm (props.urlparam.view);
+
+    this.state = {
+      crud: !props.urlparam.id && "c" || props.urlparam.e && "u" || "r",
+      metaview: metaview,
+      childformfields: metaview.fields.filter(m => m.type === 'childform'),
+      value: {status: "wait", records: {}}
+    };
+    console.log ('RecordPage constructor setState : ' + JSON.stringify(this.state));
+  }
+
+  componentDidMount() {
+    this._dataChanged();
+  }
+
+  _dataChanged() {
+    console.log ('RecordPage componentDidMount query database : ');
+    let df = DynamicForm.instance;
+    if (this.state.crud == 'u' || this.state.crud == 'r') {
+      df.query ({form: this.state.metaview._id, q: {_id: this.props.urlparam.id}}).then(succVal => {
+          this.setState({ value: {status: "ready", records: succVal[0]}});
+      });
+    }
+  }
+
+  render() {
+    var self = this,
+        status = self.state.value.status,
+        records = self.state.value.records;
+
+    console.log ('Form: rendering state');
+  /* Removed prop from FormMain - parent={this.props.urlparam.parent}  - will never happen?? */
+    return (
+        <div className="slds-grid slds-wrap">
+          <div className="slds-col slds-size--1-of-1">
+          { this.props.urlparam && <PageHeader formName={this.state.metaview.name}/> }
+          </div>
+          <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
+
+              <FormMain key={this.state.metaview._id} value={this.state.value} view={this.state.metaview._id}  crud={this.state.crud}/>
+
+          </div>
+          <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
+            {this.state.crud === "r"  && this.state.childformfields.map(function(field, i) { return (
+              <div style={{padding: "0.5em"}}>
+                <ListMain parent={self.state.metaview._id+":"+(status === 'ready' && records._id || "new")+":"+field._id} view={field.child_form} value={{status: status, records: status === "ready" && records[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
+              </div>
+            );})}
+          </div>
+        </div>
+      );
+    }
 }
 
 export class PageHeader extends Component {
