@@ -3,19 +3,44 @@
 import React, {Component} from 'react';
 const DEFAULT_LANDING = 'TileList';
 
+let _backUrl = null;
 export default class Router extends Component {
 
+    static navBack(alt) {
+      console.log ('Router.navBack, backurl: ' + JSON.stringify(_backUrl));
+        if (Router.backUrl)
+          window.location.href = Router.encodeHash(Router.backUrl);
+        else if (alt)
+          window.location.href = alt;
+        else
+          window.location.href = "#" + DEFAULT_LANDING;
+    }
 
 
-    static getURLNav (lnkhash) {
-      var gethash = lnkhash || decodeURI(
-        // We can't use window.location.hash here because it's not
-        // consistent across browsers - Firefox will pre-decode it!
-        // window.location.pathname + window.location.search
-        window.location.href.split('#')[1] || ''
-      ) || DEFAULT_LANDING;
-      console.log ('App _getURLNav url changed : ' + gethash);
-      let [comp, parms] = gethash.split('?');
+    static set backUrl(val) {
+      _backUrl = val;
+    }
+    static get backUrl() {
+      return _backUrl;
+    }
+
+    static encodeHash (routeJson) {
+      var array = [],
+          hash = routeJson.hash,
+          params = routeJson.params;
+
+      for(var key in params) {
+        if (params[key]) {
+          array.push(encodeURIComponent(key) + "=" + encodeURIComponent(params[key]));
+        }
+      }
+      console.log ("encodeHash got params " + array.length + " : " + JSON.stringify(array));
+      return "#" + (hash || DEFAULT_LANDING) + ((array.length > 0) &&  ("?" + array.join("&")) || "");
+    }
+
+    static decodeHash (hashuri) {
+      console.log ('Router.decodeHash value : ' + hashuri);
+      let [comp, parms] = hashuri.split('?');
       let paramjson = {};
       if (typeof parms !== 'undefined') {
         let tfn = x => {
@@ -55,49 +80,35 @@ export default class Router extends Component {
     constructor (props) {
       super (props);
       console.log ('Router() Initialising...');
-      Router.setupRouterfunction ( () => {
-        var newComp = Router.getURLNav();
-        console.log ('App url changed : ' + JSON.stringify(newComp));
-        //if (newComp !== this.state.renderThis) {
-        this.props.updateRoute (newComp.hash);
-        this.setState ({renderThis: newComp.hash, urlparam: newComp.params});
-        //};
-      });
 
-      var newComp = Router.getURLNav();
-      console.log ('App Initial URL : ' + JSON.stringify(newComp));
-      this.props.updateRoute (newComp.hash);
-      this.state =  {renderThis: newComp.hash, urlparam: newComp.params, formdata: []};
+      let chng_route_fn = () => {
+        let navurl = decodeURI(window.location.href.split('#')[1] || '') || DEFAULT_LANDING;
+        var newroute = Router.decodeHash(navurl);
+        console.log ('Router() url changed : ' + JSON.stringify(newroute));
+        if (props.updateRoute) props.updateRoute (newroute);
+        // Save current route before overriding for backURL
+        if (this.state) Router.backUrl = this.state.newroute;
+
+        return {newroute: newroute};
+      };
+
+      // Register function on route changes
+      Router.setupRouterfunction (() => {
+        this.setState (chng_route_fn());
+      });
+      // Handle initial app load
+      this.state = chng_route_fn();
     }
-/*
-    navTo (element) {
-      let href, newComp;
-      if (typeof element === 'object') {
-        event.preventDefault();
-        //var newComp = $(event.target).attr('href').substring(1);
-        href = $(element.currentTarget).attr('href').substring(1);
-        newComp = Router.getURLNav (href);
-      } else if (typeof element === 'string') {
-        href = element;
-        newComp = Router.getURLNav (href);
-      }
-      // HTML5 history API
-      history.pushState({}, "page", "/#" + href);
-      console.log ('App navTo ' + JSON.stringify(newComp));
-      //if (newComp !== this.state.renderThis) {
-      this.setState ({renderThis: newComp.hash, urlparam: newComp.params});
-      //}
-    }
-*/
+
     render() {
-      console.log ('Router() Rendering new Component: ' + this.state.renderThis);
-      let Routefactory = this.props.componentFactories[this.state.renderThis];
+      console.log ('Router() Rendering newroute: ' + JSON.stringify(this.state));
+      let Routefactory = this.props.componentFactories[this.state.newroute.hash];
       if (Routefactory) {
           return Routefactory(
-            {key: JSON.stringify(this.state.urlparam),
-             urlparam: this.state.urlparam});
+            {key: JSON.stringify(this.state.newroute.params),
+             urlparam: this.state.newroute.params});
       } else return (
-          <div>404 {this.state.renderThis}</div>
+          <div>404</div>
       )
     }
 }

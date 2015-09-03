@@ -104,15 +104,6 @@ module.exports = function(options) {
             name: "FormFieldMetadata",
             type: "childform",
             fields: [
-
-                {
-                    name: "name",
-                    title: "Field Name",
-                    show_when: "true",
-                    type: "text",
-                    placeholder: "No Spaces please",
-                    required: true
-                },
                 {
                     name: "title",
                     title: "Field Title",
@@ -122,27 +113,12 @@ module.exports = function(options) {
                     required: true
                 },
                 {
-                    name: "default_value",
-                    title: "Default Value",
+                    name: "name",
+                    title: "Field Name",
                     show_when: "true",
                     type: "text",
-                    placeholder: "Default Value",
-                    required: false
-                },
-                {
-                    name: "placeholder",
-                    title: "Placeholder Value",
-                    show_when: "record['type'] == 'list'",
-                    type: "text",
-                    required: false
-                },
-                {
-                    name: "show_when",
-                    title: "Show When ( ie: record['type'] == 'list')",
-                    show_when: "true",
-                    type: "text",
-                    default_value: "true",
-                    required: false
+                    placeholder: "No Spaces please",
+                    required: true
                 },
                 {
                     name: "type",
@@ -182,6 +158,30 @@ module.exports = function(options) {
                         },
                     ]
                 },
+                {
+                    name: "default_value",
+                    title: "Default Value",
+                    show_when: "true",
+                    type: "text",
+                    placeholder: "Default Value",
+                    required: false
+                },
+                {
+                    name: "placeholder",
+                    title: "Placeholder Value",
+                    show_when: "record['type'] == 'list'",
+                    type: "text",
+                    required: false
+                },
+                {
+                    name: "show_when",
+                    title: "Show When ( ie: record['type'] == 'list')",
+                    show_when: "true",
+                    type: "text",
+                    default_value: "true",
+                    required: false
+                },
+
                 {
                     name: "createnew_form",
                     title: "Lookup Create form",
