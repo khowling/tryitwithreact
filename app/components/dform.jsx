@@ -371,22 +371,25 @@ export class FormMain extends Component {
   constructor(props) {
     super(props);
     let df = DynamicForm.instance,
-        metaview = df.getForm (this.props.view),
-        nonchildformfields = metaview.fields.filter(m => m.type !== 'childform');
+        metaview = df.getForm (props.view),
+        nonchildformfields = metaview.fields.filter(m => m.type !== 'childform'),
+        value = props.crud == "c" && {state: "ready",  records: {}} || (props.value || {state: "wait",  records: {}});
 
     this.state =  {
       metaview: metaview,
       nonchildformfields: nonchildformfields,
-      value: props.crud == "c" && {state: "ready",  records: {}} || props.value, // this is the original data from the props
+      value: value, // this is the original data from the props
       changedata: {}, // keep all data changes in the state
-      formcontrol: props.crud == "c" && this._formControlState (nonchildformfields, {}) || {},  // keep form control (visibility and validity)
+      formcontrol: this._formControlState (nonchildformfields, value.records),  // keep form control (visibility and validity)
       edit: props.crud == "c" || props.crud == "u", // edit mode if props.edit or value has no _id (new record),
       errors: null};
     console.log ('FormMain constructor setState : ' + JSON.stringify(this.state));
   }
+
   shouldComponentUpdate(nextProps, nextState) {
+    console.log ("FormMain shouldComponentUpdate");
     if (nextProps.value != this.props.value ||
-        nextState.formcontrol != this.state.formcontrol) {
+        nextState.formcontrol && nextState.formcontrol.change) {
         console.log ("FormMain shouldComponentUpdate: yes");
         return true;
     }
@@ -395,11 +398,37 @@ export class FormMain extends Component {
 
   // form control - visibility and validity
   // TODO : Needs to be MUCH better, not calling eval many times!
-  _formControlState (fields, record) {
-    let cnrt = {};
-    for (let f of fields) {
-      cnrt[f.name] = {visible: f.show_when && eval(f.show_when) || true, invalid: f.required && !record[f.name]};
+  _formControlState (fields, val, currentState) {
+    console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
+    let cnrt = {flds:{},invalid: false, change: false};
+    for (let fld of fields) {
+      let record = val,
+          visible = true;
+
+      if (fld.show_when) {
+          console.log ("evaluating: " + fld.show_when)
+          visible = eval(fld.show_when);
+      }
+
+      let fctrl = {
+              invalid: fld.required && !record[fld.name],
+              visible: visible
+              };
+
+      // check to see if form control state has changed from last time, if so, it will re-render the whole form!
+      if (currentState && currentState.flds[fld.name]) {
+        if (!Object.is(currentState.flds[fld.name].invalid, fctrl.invalid) ||
+            !Object.is(currentState.flds[fld.name].visible, fctrl.visible))
+              cnrt.change = true;
+      } else if (fctrl.invalid || !fctrl.visible) {
+        // no current state, so much be change
+        cnrt.change = true;
+      }
+
+      if (fctrl.invalid) cnrt.invalid = true;
+      cnrt.flds[fld.name] = fctrl;
     }
+    console.log ("FormMain _formControlState result : " + JSON.stringify(cnrt));
     return cnrt;
   }
 
@@ -414,7 +443,7 @@ export class FormMain extends Component {
   _fieldChange(d) {
     let changedata = Object.assign({}, this.state.changedata, d),
         fullobject = Object.assign({}, this.state.value.records , changedata),
-        newState  = {changedata: changedata, formcontrol: this._formControlState (this.state.nonchildformfields, fullobject)};
+        newState  = {changedata: changedata, formcontrol: this._formControlState (this.state.nonchildformfields, fullobject, this.state.formcontrol)};
     console.log ('FormMain _fieldChange setState: ' + JSON.stringify(newState));
     this.setState(newState);
 
@@ -528,9 +557,10 @@ export class FormMain extends Component {
           <div className="slds-grid slds-wrap">
               { header}
             {nonchildformfields.map(function(field, i) {
-              if (formcontrol[field.name] && formcontrol[field.name].visible || true) return (
+              let fc = formcontrol.flds[field.name];
+              if (fc.visible) return (
               <div className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
-              <div className={"slds-form-element field-seperator" + (field.required && " slds-is-required" || "") + ((formcontrol[field.name] && formcontrol[field.name].invalid) && " slds-has-error" || "")}>
+              <div className={"slds-form-element field-seperator" + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
 
                   <label className="slds-form-element__label">{field.title}</label>
                   <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
