@@ -20,12 +20,9 @@ module.exports = function(options) {
     exps.find = function (formparam, q, success, error, ignoreLookups) {
         console.log ('find() formparam ' + formparam + ' q ' + JSON.stringify (q));
 
-
-
         /* search form meta-data for 'lookup' fields to resolve (also search through 'childform' subforms) */
 //        var subqarray = []; // lookup fields to query
 //        var fields = {}; // fields to return in find
-
 
         var findFieldsandLookups = function (FORM_DATA, form, parentField, lastresult) {
             var result = lastresult || {findField: {}, subqarray: []};
@@ -37,7 +34,7 @@ module.exports = function(options) {
                 }
                 if (!ignoreLookups) {
                     if (field.type === 'lookup') {
-                        console.log('find() findFieldsandLookups: found a lookup field on ' + form.name + ' field ' + field.name);
+                        console.log('find() findFieldsandLookups: found a lookup field on [' + form.name + '] field : ' + field.name);
                         var searchform = meta.findFormById(FORM_DATA, field.search_form);
                         if (searchform) {
                             var subqobj = {
@@ -54,7 +51,7 @@ module.exports = function(options) {
                         if (!childform) {
                             return {error: 'find() Cannot find childform definitions on field ['+form.name+'.'+field.name+'] : ' + field.child_form};
                         } else {
-                            console.log('find() findFieldsandLookups: found a childfield, recurse onit! name :' + field.child_form + ' : ' + childform.name);
+                            console.log('find() findFieldsandLookups: found a childform, recurse onit! name :' + field.child_form + ' : ' + childform.name);
                             result = findFieldsandLookups(FORM_DATA, childform, field.name, result);
                             if (result.error) break;
                         }
@@ -127,46 +124,44 @@ module.exports = function(options) {
         }
 
         /* run subquery */
-        var subq_res = {};
-        var runsubquery = function (scoll, objids, callwhendone, success, error) {
-            var q = { _id: { $in: objids }};
-            var flds = { name: 1 };
+        var runsubquery = function (scoll, objids, pfld) {
+          return new Promise(function (resolve, reject)  {
+            var primaryfld = pfld || "name",
+                q = { _id: { $in: objids }},
+                flds = { [primaryfld]: 1 }; // Computed property names (ES6)
             console.log('find() runsubquery() find  ' + scoll + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(flds));
 
-            db.collection(scoll).find(q, flds, function(err, resultCursor) {
-                if (err) {
-                    error(err);
-                    //callwhendone();
-                }
-                var fnProcessItem = function (err, item) {
-                    //console.log ('got ' + JSON.stringify(item));
-                    if (item === null) {
-                        // finished
-                        callwhendone();
-                    } else {
-                        subq_res[item._id] = item.name;
-                        resultCursor.nextObject(fnProcessItem);
-                    }
-                };
-                resultCursor.nextObject(fnProcessItem);
+            db.collection(scoll).find(q, flds).toArray(function (err, docs) {
+                if (err) reject(err);
+                else resolve({primaryfld: primaryfld, recs: docs});
             });
+          });
         };
 
         /* flow control - run sub queries in parrallel & call alldonefn(docs) when done! */
-        var runallsubqueries = function (subqarray, lookupkeys, docs, alldonefn ) {
+        var runallsubqueries = function (subqarray, lookupkeys) {
+          return new Promise(function (resolve, reject)  {
             if (Object.keys(lookupkeys).length == 0) {
-                alldonefn(docs);
+              resolve();
             } else {
-                var completed = 0;
-                for (var scoll in lookupkeys) {
-                    runsubquery (scoll, lookupkeys [scoll], function(){
-                        completed++;
-                        if(completed ===  Object.keys(lookupkeys).length) {
-                            alldonefn(processlookupids(subqarray, docs, subq_res));
-                        }
-                    });
-                }
+              let promises = []
+              for (var scoll in lookupkeys) {
+                  promises.push(runsubquery (scoll, lookupkeys[scoll]));
+              }
+              Promise.all(promises).then(function (succVal) {
+                  console.log ('Got all suqqueries, now shape the data: ' + JSON.stringify(succVal));
+                  let subq_res = {};
+                  for (let subq of succVal) {
+                      for (let rec of subq.recs) {
+                        subq_res[rec._id] = rec[subq.primaryfld];
+                      }
+                  }
+                  resolve(subq_res);
+                }).catch(function (reason) {
+                    reject(reason);
+                });
             }
+          });
         }
 
 
@@ -201,9 +196,9 @@ module.exports = function(options) {
                                 var lookupkeys = processlookupids(fieldsandlookups.subqarray, [doc]);
                                 console.log('find() got query for foriegn key lookup ' + JSON.stringify(lookupkeys));
 
-                                runallsubqueries(fieldsandlookups.subqarray, lookupkeys, [doc], function (docs) {
-                                    success(docs);
-                                });
+                                runallsubqueries(fieldsandlookups.subqarray, lookupkeys).then(function (succVal) {
+                                  success(succVal && processlookupids (fieldsandlookups.subqarray, [doc], succVal) || [doc]);
+                                }, function (errVal) { error(errVal) });
                             }
                         }
                     });
@@ -224,9 +219,9 @@ module.exports = function(options) {
                                 var lookupkeys = processlookupids(fieldsandlookups.subqarray, docs);
                                 console.log('find() query for foriegn key lookup ' + JSON.stringify(lookupkeys));
 
-                                runallsubqueries(fieldsandlookups.subqarray, lookupkeys, docs, function (docs) {
-                                    success(docs);
-                                });
+                                runallsubqueries(fieldsandlookups.subqarray, lookupkeys).then(function (succVal) {
+                                  success(succVal && processlookupids (fieldsandlookups.subqarray, docs, succVal) || docs);
+                                }, function (errVal) { error(errVal) });
                             }
                         }
                     });
@@ -390,10 +385,13 @@ module.exports = function(options) {
                           return {error: "data contains fields not recognised : " + propname};
                         if (fldmeta.type === "lookup") {
                           if (fval && !fval._id) {error: "data contains lookup field with recognised _id: " + propname};
-                          tv[tprop] = fval && !fval._id || null;
+                          tv[tprop] = fval && fval._id || null;
                         } else if (fldmeta.type === "childform") {
 
-                          if (!allowchildform) return {error: "data contains childform field, not allowed in this mode: " + propname};
+                          if (!allowchildform) {
+                            continue; // just ignore the childform data!
+                            return {error: "data contains childform field, not allowed in this mode: " + propname};
+                          }
                           // NEED TO VALIDATE CHILD FORM DATA!
                           if (!Array.isArray(fval)) return {error: "data contains childform field, but data is not array: " + propname};
                           let cform = meta.findFormById(FORM_DATA, fldmeta.child_form);
@@ -524,12 +522,10 @@ module.exports = function(options) {
     /* ------------------------------------- FILE HANDLING
      *
      */
-
     /* UNIX COMMAND
      mongofiles -d myapp_dev list
      mongofiles -d myapp_dev get profile-pic511a7c150c62fde30f000003
      */
-
     exps.getfile = function (filename, res) {
         console.log ('getfile() filename : ' + filename);
 
@@ -562,26 +558,6 @@ module.exports = function(options) {
           console.log ('getfile try error : ' + JSON.stringify(e));
           res.status(400).send({error: JSON.stringify(e)});
         }
-
-        /*
-        var gs = new GridStore(db, filename, 'r');
-        console.log ('getfile() new GridStore');
-        gs.open(function(err, gs){
-            if (err) {
-              console.log ('getfile() cannot open GridStore: ' + JSON.stringify(err));
-              res.end();
-            } else {
-
-              // Strange - commented out code crashes
-              //gs.on('close',function(){
-              //  console.log ('getfile() finished');
-              //});
-
-              console.log ('getfile() open GridStore pipe to response');
-              gs.stream([autoclose=true]).pipe(res);
-            }
-        });
-        */
     };
 
     exps.putfile = function (req, res, origname) {
@@ -628,5 +604,9 @@ module.exports = function(options) {
         });
 
     };
+
+    exps.defaultData = function () {
+      return meta.defaultData;
+    }
     return exps;
 }

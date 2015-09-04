@@ -213,6 +213,9 @@ export class Field extends Component {
         case 'textarea':
           field = (<span className="slds-form-element__static">{this.props.value}</span>);
           break;
+        case 'jsonarea':
+          field = (<span className="slds-form-element__static">{JSON.stringify(this.props.value, null, 4)}</span>);
+          break;
         case 'dropdown':
           let ddopt = this.props.value &&  this.props.fielddef.dropdown_options.filter(f => f.value === this.props.value)[0];
           field = (<span className="slds-form-element__static">{ddopt && ddopt.name || (this.props.value && 'Unknown option <' + this.props.value +'>' || '')}</span>);
@@ -220,7 +223,7 @@ export class Field extends Component {
         case 'lookup':
           if (this.props.value) {
             field = (<span className="slds-form-element__static">
-                      <a href={"#RecordPage?gid="+this.props.fielddef.createnew_form+":"+this.props.value._id}>
+                      <a href={"#RecordPage?gid="+this.props.fielddef.search_form+":"+this.props.value._id}>
                         {this.props.value.primary}
                       </a>
                     </span>);
@@ -250,6 +253,9 @@ export class Field extends Component {
           break;
         case 'textarea':
           field = <textarea className="slds-input" rows="3" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}></textarea>;
+            break;
+        case 'jsonarea':
+            field = <textarea className="slds-input" rows="3" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}></textarea>;
             break;
         case 'dropdown':
           field = <select className="slds-input" value={this.state.value} onChange={this.handleValueChange.bind(this)}>
@@ -609,9 +615,14 @@ export class ListPage extends Component {
     componentDidMount() {
       let df = DynamicForm.instance;
       console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.state.metaview._id));
-      df.query ({form: this.state.metaview._id}).then(succRes =>
-        this.setState({value: {status: "wait", records: succRes}})
-      );
+      if (this.state.metaview.collection)
+        df.query ({form: this.state.metaview._id}).then(succRes =>
+          this.setState({value: {status: "ready", records: succRes}})
+        );
+      else if (this.state.metaview.url)
+        df._callServer(this.state.metaview.url).then(succRes =>
+          this.setState({value: {status: "ready", records: succRes}})
+        );
     }
 
     render() {
@@ -791,9 +802,14 @@ export class RecordPage extends Component {
     console.log ('RecordPage componentDidMount query database : ');
     let df = DynamicForm.instance;
     if (this.state.crud == 'u' || this.state.crud == 'r') {
-      df.query ({form: this.state.metaview._id, q: {_id: this.props.urlparam.id}}).then(succVal => {
-          this.setState({ value: {status: "ready", records: succVal[0]}});
-      });
+      if (this.state.metaview.collection)
+        df.query ({form: this.state.metaview._id, q: {_id: this.props.urlparam.id}}).then(succVal => {
+            this.setState({ value: {status: "ready", records: succVal[0]}});
+        });
+      else if (this.state.metaview.url)
+        df._callServer(this.state.metaview.url+"?_id="+this.props.urlparam.id).then(succRes =>
+          this.setState({value: {status: "ready", records: succRes}})
+        );
     }
   }
 

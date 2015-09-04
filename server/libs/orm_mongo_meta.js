@@ -519,13 +519,25 @@ module.exports = function(options) {
             _id: exps.forms.ImportMeta,
             name: "ImportMeta",
             type: "top",
+            url: "/dform/defaultData",
+            action: "import",
             fields: [
-
                 {
                     name: "meta",
                     title: "Unique Filename",
                     show_when: "true",
                     type: "textarea"
+                },
+                {
+                    name: "form",
+                    title: "Form",
+                    type: "lookup",
+                    search_form: exps.forms.formMetadata
+                },
+                {
+                    name: "load",
+                    title: "Meta",
+                    type: "jsonarea"
                 }
             ]
         },
@@ -563,21 +575,22 @@ module.exports = function(options) {
         }
     ];
 
-    exps.data =
-       [
+    exps.defaultData =   [
           {
-            form: exps.forms.AppMeta,
+            _id: "LoadApp001",
+            name: "Load App",
+            form: {_id: exps.forms.AppMeta},
             load: [
               {name: "Admin App", type: "deployed", appmeta: [
-                {form: exps.forms.formMetadata, crud: "crud"},
-                {form: exps.forms.FormFieldMetadata, crud: "crud"},
-                {form: exps.forms.metaSearch, crud: "crud"},
-                {form: exps.forms.Users, crud: "crud"},
-                {form: exps.forms.AuthProviders, crud: "crud"},
-                {form: exps.forms.UserApps, crud: "crud"},
-                {form: exps.forms.App, crud: "crud"},
-                {form: exps.forms.AppMeta, crud: "crud"},
-                {form: exps.forms.ImportMeta, crud: "crud"}
+                {form: {_id: exps.forms.formMetadata}, crud: "crud"},
+                {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
+                {form: {_id: exps.forms.metaSearch}, crud: "crud"},
+                {form: {_id: exps.forms.Users}, crud: "crud"},
+                {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
+                {form: {_id: exps.forms.UserApps}, crud: "crud"},
+                {form: {_id: exps.forms.App}, crud: "crud"},
+                {form: {_id: exps.forms.AppMeta}, crud: "crud"},
+                {form: {_id: exps.forms.ImportMeta}, crud: "crud"}
                 ]}
             ]
           }

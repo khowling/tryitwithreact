@@ -1,3 +1,5 @@
+"use strict"
+
 var   express = require('express')
     , router = express.Router();
 /*
@@ -101,6 +103,18 @@ module.exports = function(options) {
             res.status(400).send(e);
         });
     });
+
+  router.get('/defaultData', function(req, res) {
+    let id = req.query._id;
+    if (id) {
+      let d = {};
+      for (let x of orm.defaultData()) {
+        if (x._id === id) { d = x; break; }
+      }
+      res.json(d);
+    }  else
+      res.json(orm.defaultData());
+  });
 
     return router;
 };
