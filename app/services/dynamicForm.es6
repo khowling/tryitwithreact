@@ -49,7 +49,7 @@ export default class DynamicForm {
            resolve(JSON.parse(this.response));
          } else {
            // Performs the function "reject" when this.status is different than 200
-           reject("Response Error:" + this.statusText);
+           reject(this.response);
          }
        };
        client.onerror = function (e) {

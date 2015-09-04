@@ -53,7 +53,7 @@ module.exports = function(options) {
     	    parentid = req.query.parentid,
     		//userdoc = JSON.parse(JSON.stringify(req.body).replace(/<DOLLAR>/g,'$'));
     	    userdoc = req.body;
-      orm.save (formparam, parentfieldid,parentid, userdoc, function success(j) {
+      orm.save (formparam, parentfieldid,parentid, userdoc).then(function success(j) {
         console.log ('save() : responding : ' + JSON.stringify(j));
         res.json(j);
       }, function error(e) {
@@ -94,6 +94,8 @@ module.exports = function(options) {
     router.get('/formdata', function(req, res) {
       res.setHeader('Content-Type', 'application/json');
       orm.getmeta (function success(j) {
+            // filter formmeta based on user
+
             res.json({formdata: j, user: req.user});
         }, function error(e) {
             res.status(400).send(e);

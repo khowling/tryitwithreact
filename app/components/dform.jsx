@@ -482,8 +482,10 @@ export class FormMain extends Component {
         }
       } else {
         console.log ('save error: ' + JSON.stringify(succVal));
-        self.setState({errors: JSON.stringify(succVal.data)});
+        self.setState({formcontrol: {serverError: JSON.stringify(succVal.data) }});
       }
+    }, errVal => {
+        self.setState({formcontrol: Object.assign (this.state.formcontrol, {serverError: JSON.stringify(errVal), change: true })});
     });
   }
 
@@ -556,23 +558,32 @@ export class FormMain extends Component {
         <div className="slds-form--stacked" style={{padding: "0.5em"}}>
           <div className="slds-grid slds-wrap">
               { header}
+
+
+
             {nonchildformfields.map(function(field, i) {
               let fc = formcontrol.flds[field.name];
               if (fc.visible) return (
               <div className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
-              <div className={"slds-form-element field-seperator" + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
-
-                  <label className="slds-form-element__label">{field.title}</label>
-                  <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
-                    <Field fielddef={field} value={record[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
-                  </div>
-
-              </div>
+                <div className={"slds-form-element field-seperator" + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
+                    <label className="slds-form-element__label">{field.title}</label>
+                    <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
+                      <Field fielddef={field} value={record[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
+                    </div>
+                </div>
               </div>
             );})}
           </div>
-
       </div>
+      { this.state.formcontrol.serverError &&
+        <div className="slds-notify slds-notify--alert slds-theme--error " >
+          <span className="slds-assistive-text">Error</span>
+          <h2>
+            <SvgIcon spriteType="utility" spriteName="ban"/>
+            <span >{this.state.formcontrol.serverError}</span>
+          </h2>
+        </div>
+      }
     </section>
     );
   }

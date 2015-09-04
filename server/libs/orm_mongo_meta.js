@@ -11,9 +11,14 @@ module.exports = function(options) {
         forms: {
             "formMetadata" : new ObjectID('000000000100'),
             "FormFieldMetadata": new ObjectID('000000000200'),
+            "metaSearch": new ObjectID('000000000400'),
             "Users": new ObjectID('000000000600'),
             "AuthProviders": new ObjectID('000000000700'),
-            "FileMeta": new ObjectID('000000000800')
+            "FileMeta": new ObjectID('000000000800'),
+            "UserApps": new ObjectID('000000000900'),
+            "App": new ObjectID('000000000a00'),
+            "AppMeta": new ObjectID('000000000b00'),
+            "ImportMeta": new ObjectID('000000000c00')
         }
     };
 
@@ -181,7 +186,6 @@ module.exports = function(options) {
                     default_value: "true",
                     required: false
                 },
-
                 {
                     name: "createnew_form",
                     title: "Lookup Create form",
@@ -190,7 +194,7 @@ module.exports = function(options) {
                     show_when: "record['type'] == 'lookup'",
                     createnew_form: exps.forms.formMetadata,
                     createnew_defaults: '{"primary": "name", "others": {}}',
-                    search_form: new ObjectID('000000000400'),
+                    search_form: exps.forms.metaSearch,
                     required: false,
                     _id: new ObjectID('000000000207'),
                 },
@@ -210,7 +214,7 @@ module.exports = function(options) {
                     show_when: "record['type'] == 'lookup'",
                     createnew_form: exps.forms.formMetadata,
                     createnew_defaults: '{"primary": "name", "others": {}}',
-                    search_form: new ObjectID('000000000400'),
+                    search_form: exps.forms.metaSearch,
                     required: false,
                     _id: new ObjectID('000000000209'),
                 },
@@ -221,7 +225,7 @@ module.exports = function(options) {
                     show_when: "record['type'] == 'childform'",
                     createnew_form: exps.forms.formMetadata,
                     createnew_defaults: '{"primary": "name", "others": { "type": "childform"}}',
-                    search_form: new ObjectID('000000000400'),
+                    search_form: exps.forms.metaSearch,
                     required: false,
                     _id: new ObjectID('000000000210'),
                 },
@@ -269,7 +273,7 @@ module.exports = function(options) {
             ]
         },
         {
-            _id: new ObjectID('000000000400'),
+            _id: exps.forms.metaSearch,
             name: "metaSearch",
             type: "search",
             collection: "formmeta",
@@ -345,6 +349,14 @@ module.exports = function(options) {
                     type: "childform",
                     child_form: exps.forms.AuthProviders,
                     _id: new ObjectID('000000000604')
+                },
+                {
+                    name: "apps",
+                    title: "Apps",
+                    type: "childform",
+                    createnew_form: exps.forms.UserApps,
+                    child_form: exps.forms.UserApps,
+                    _id: new ObjectID('000000000601'),
                 }
             ]
         },
@@ -394,6 +406,130 @@ module.exports = function(options) {
             ]
         },
         {
+            _id: exps.forms.UserApps,
+            name: "User Apps",
+            type: "childform",
+            fields: [
+              {
+                  name: "app",
+                  title: "App",
+                  type: "lookup",
+                  search_form: exps.forms.App,
+                  required: true,
+                  _id: new ObjectID('000000000901')
+              }
+            ]
+        },
+        {
+            _id: exps.forms.App,
+            name: "App",
+            collection: "app",
+            type: "top",
+            layout: "1col",
+            icon: "page-edit",
+            fields: [
+
+                {
+                    name: "name",
+                    show_when: "true",
+                    title: "App Name",
+                    type: "text",
+                    placeholder: "",
+                    required: true
+                },
+                {
+                    name: "type",
+                    title: "Form Type",
+                    show_when: "true",
+                    type: "dropdown",
+                    required: true,
+                    default_value: "top",
+                    dropdown_options: [
+                        {
+                            name: "Deployed",
+                            value: "deployed"
+                        },
+                        {
+                            name: "Sandbox",
+                            value: "sandbox"
+                        }
+                    ]
+                },
+                {
+                    name: "icon",
+                    show_when: "true",
+                    title: "Form Icon",
+                    type: "text",
+                    placeholder: "Checkout http://zurb.com/playground/foundation-icon-fonts-3",
+                    required: false
+                },
+                {
+                    name: "appmeta",
+                    title: "App Forms",
+                    show_when: "true",
+                    type: "childform",
+                    layout: "list",
+                    child_form: exps.forms.AppMeta,
+                    _id: new ObjectID('000000000a01')
+                }
+            ]
+        },
+        {
+            _id: exps.forms.AppMeta,
+            name: "App Meta",
+            type: "childform",
+            fields: [
+              {
+                  name: "form",
+                  title: "Form",
+                  type: "lookup",
+                  search_form: exps.forms.metaSearch,
+                  required: true,
+                  _id: new ObjectID('000000000b01'),
+              },
+              {
+                  name: "crud",
+                  title: "CRUD",
+                  show_when: "true",
+                  type: "dropdown",
+                  required: true,
+                  default_value: "text",
+                  dropdown_options: [
+                      {
+                          name: "-R--",
+                          value: "r"
+                      },
+                      {
+                          name: "CR--",
+                          value: "cr"
+                      },
+                      {
+                          name: "CRU-",
+                          value: "cru"
+                      },
+                      {
+                          name: "CRUD",
+                          value: "crud"
+                      }
+                    ]
+                }
+            ]
+        },
+        {
+            _id: exps.forms.ImportMeta,
+            name: "ImportMeta",
+            type: "top",
+            fields: [
+
+                {
+                    name: "meta",
+                    title: "Unique Filename",
+                    show_when: "true",
+                    type: "textarea"
+                }
+            ]
+        },
+        {
             _id: exps.forms.FileMeta,
             name: "FileMeta",
             type: "fileform",
@@ -427,6 +563,25 @@ module.exports = function(options) {
         }
     ];
 
+    exps.data =
+       [
+          {
+            form: exps.forms.AppMeta,
+            load: [
+              {name: "Admin App", type: "deployed", appmeta: [
+                {form: exps.forms.formMetadata, crud: "crud"},
+                {form: exps.forms.FormFieldMetadata, crud: "crud"},
+                {form: exps.forms.metaSearch, crud: "crud"},
+                {form: exps.forms.Users, crud: "crud"},
+                {form: exps.forms.AuthProviders, crud: "crud"},
+                {form: exps.forms.UserApps, crud: "crud"},
+                {form: exps.forms.App, crud: "crud"},
+                {form: exps.forms.AppMeta, crud: "crud"},
+                {form: exps.forms.ImportMeta, crud: "crud"}
+                ]}
+            ]
+          }
+      ];
 
     exps.getFormMeta = function (success, error) {
         db.collection('formmeta').find({}).toArray(function (err, docs) {
