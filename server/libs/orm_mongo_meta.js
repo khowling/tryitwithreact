@@ -18,7 +18,8 @@ module.exports = function(options) {
             "UserApps": new ObjectID('000000000900'),
             "App": new ObjectID('000000000a00'),
             "AppMeta": new ObjectID('000000000b00'),
-            "ImportMeta": new ObjectID('000000000c00')
+            "ImportMeta": new ObjectID('000000000c00'),
+            "ImportMetaData": new ObjectID('000000000d00')
         }
     };
 
@@ -523,11 +524,27 @@ module.exports = function(options) {
             action: "import",
             fields: [
                 {
-                    name: "meta",
-                    title: "Unique Filename",
+                    name: "app",
+                    title: "App Name",
                     show_when: "true",
-                    type: "textarea"
+                    type: "text"
                 },
+                {
+                    name: "metadata",
+                    title: "App Meta Data",
+                    show_when: "true",
+                    type: "childform",
+                    layout: "list",
+                    child_form: exps.forms.ImportMetaData,
+                    _id: new ObjectID('000000000d01')
+                }
+            ]
+        },
+        {
+            _id: exps.forms.ImportMetaData,
+            name: "FormFieldMetadata",
+            type: "childform",
+            fields: [
                 {
                     name: "form",
                     title: "Form",
@@ -578,20 +595,24 @@ module.exports = function(options) {
     exps.defaultData =   [
           {
             _id: "LoadApp001",
-            name: "Load App",
-            form: {_id: exps.forms.AppMeta},
-            load: [
-              {name: "Admin App", type: "deployed", appmeta: [
-                {form: {_id: exps.forms.formMetadata}, crud: "crud"},
-                {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
-                {form: {_id: exps.forms.metaSearch}, crud: "crud"},
-                {form: {_id: exps.forms.Users}, crud: "crud"},
-                {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
-                {form: {_id: exps.forms.UserApps}, crud: "crud"},
-                {form: {_id: exps.forms.App}, crud: "crud"},
-                {form: {_id: exps.forms.AppMeta}, crud: "crud"},
-                {form: {_id: exps.forms.ImportMeta}, crud: "crud"}
-                ]}
+            app: "Admin App",
+            metadata: [
+              {
+                form: {_id: exps.forms.App, primary: "App"},
+                load: [
+                  {name: "Admin App", type: "deployed", appmeta: [
+                    {form: {_id: exps.forms.formMetadata}, crud: "crud"},
+                    {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
+                    {form: {_id: exps.forms.metaSearch}, crud: "crud"},
+                    {form: {_id: exps.forms.Users}, crud: "crud"},
+                    {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
+                    {form: {_id: exps.forms.UserApps}, crud: "crud"},
+                    {form: {_id: exps.forms.App}, crud: "crud"},
+                    {form: {_id: exps.forms.AppMeta}, crud: "crud"},
+                    {form: {_id: exps.forms.ImportMeta}, crud: "crud"}
+                    ]}
+                ]
+              }
             ]
           }
       ];

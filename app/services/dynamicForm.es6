@@ -36,7 +36,7 @@ export default class DynamicForm {
        client.setRequestHeader ("Authorization", "OAuth " + "Junk");
        client.withCredentials = true;
        if (mode === 'POST') {
-         console.log ('_callServer: POSTING : ' + JSON.stringify(body));
+         console.log ('_callServer: POSTING to ['+this._host  + path+']: ' + JSON.stringify(body));
          client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
          client.send(JSON.stringify(body));
        } else {

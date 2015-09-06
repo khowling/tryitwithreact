@@ -66,7 +66,7 @@ class App extends Component {
                   <div className="slds-grid">
                     <div className="slds-col slds-has-flexi-truncate">
                       <h1>
-                        <a href='#'><SvgIcon classOverride="header-icons" spriteType="utility" spriteName="apps"/></a>
+                        <a href='#'><SvgIcon classOverride="slds-button__icon slds-button__icon--large" spriteType="utility" spriteName="apps"/></a>
                         <small></small>
                       </h1>
                     </div>

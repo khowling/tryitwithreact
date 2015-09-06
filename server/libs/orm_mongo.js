@@ -341,11 +341,7 @@ module.exports = function(options) {
                     }
                 }
 
-                var savedEmbedDoc; // set later, used by callback
-
                 console.log('save() collection: '+coll+' userdoc: ' + JSON.stringify(userdoc));
-
-
                 // build the field set based on metadata - NOT the passed in JSON!
                 // 'allowchildform'  if its a INSERT of a TOP LEVEL form, allow a childform to be passed in (used by auth.js)
                 var validateSetFields = function (isInsert, formFields, dataval, embedField, allowchildform) {
@@ -366,9 +362,11 @@ module.exports = function(options) {
 
                     if (isInsert) {
                       if (rv._id) return {error: "Insert request, data already contains key (_id) : " + rv._id};
+                      // generate new ID.
                       tv._id = new ObjectID();
-                    } else {
-                      //tv._id = new ObjectID(rv._id);
+                    } else { // update
+                      // if updating, data doesn't need new _id.
+                      if (!rv._id) return {error: "Update request, data doesnt contain key (_id)"};
                     }
 
                     // for each data record prop
@@ -392,19 +390,30 @@ module.exports = function(options) {
                             continue; // just ignore the childform data!
                             return {error: "data contains childform field, not allowed in this mode: " + propname};
                           }
+
                           // NEED TO VALIDATE CHILD FORM DATA!
                           if (!Array.isArray(fval)) return {error: "data contains childform field, but data is not array: " + propname};
                           let cform = meta.findFormById(FORM_DATA, fldmeta.child_form);
+
+                          // create formfield object keyed on fieldname
+                          let cfldmetalist = {};
+                          for (let f of cform.fields) {
+                            cfldmetalist[f.name] = f;
+                          }
+
                           for (let cval of fval) {
                             if (cval._id) return {error: "data contains childform field, and data array contains existing _id: " + propname};
                             cval._id =  new ObjectID(rv._id);
                             for (let cpropname in cval) {
-                                let cfldmeta = cform.fields.find (function(v) {return v.name === cpropname;});
+
+                                if (cpropname === "_id") continue;
+
+                                let cfldmeta = cfldmetalist[cpropname];
                                 if (!cfldmeta)
                                   return {error: "data contains fields in child for not recognised : " + propname + "." + cpropname};
                                 if (cfldmeta.type === "lookup") {
-                                  if (cval && !cval._id) {error: "data contains lookup field with recognised _id: " + propname};
-                                  cval[cpropname] = cval && !cval._id || null;
+                                  if (cval[cpropname] && !cval[cpropname]._id) {error: "data contains lookup field with recognised _id: " + propname};
+                                  cval[cpropname] = cval[cpropname] && cval[cpropname]._id || null;
                                 }
 
                             }
@@ -422,94 +431,105 @@ module.exports = function(options) {
                 if (!isEmbedded) {
                     //console.log('/db/'+coll+'  saving or updating a top-level document :' + userdoc._id);
 
-                    if (!isInsert) {
-                        //console.log('/db/'+coll+' got _id,  update doc, use individual fields : ' + userdoc._id);
-                        try {
-                          var query = {_id: new ObjectID(userdoc._id)};
-                        } catch (e) {
-                          error ("save() _id not acceptable format : " + userdoc._id);
-                        }
-                        var update = validateSetFields(isInsert, form.fields, userdoc, null);
-                        if (update.error) return reject (update.error); else update = update.data;
+                  if (!isInsert) {
+                    //console.log('/db/'+coll+' got _id,  update doc, use individual fields : ' + userdoc._id);
+                    let query, update;
 
-                        var update_set = { '$set': update };
-
-                        console.log('save() '+coll+' update verified data : ' + JSON.stringify (update_set));
-                        db.collection(coll).update (query, update_set,  function (err, out) {
-                          console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
-                          if (err) {
-                             reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
-                          } else {
-                            resolve ({_id: query._id});
-                          }
-                        });
-                    } else {
-                        //console.log('/db/'+coll+'  insert toplevel document, use individual fields');
-                        var insert = validateSetFields(isInsert, form.fields, userdoc, null, true);
-                        if (insert.error) return reject (insert.error); else insert = insert.data;
-
-                        console.log('save() '+coll+' insert verified data : ' + JSON.stringify (insert));
-                        db.collection(coll).insert (insert, function (err, out) {
-                          console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
-                          if (err) {
-                             reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
-                          } else {
-                            if (Array.isArray(userdoc))
-                              resolve (out);
-                            else
-                              resolve ({_id: insert._id});
-                          }
-                        });
+                    try {
+                      query = {_id: new ObjectID(userdoc._id)};
+                    } catch (e) {
+                      return reject  ("save() _id not acceptable format : " + userdoc._id);
                     }
+                    let validatedUpdates = validateSetFields(isInsert, form.fields, userdoc, null);
+                    if (validatedUpdates.error)
+                      return reject (validatedUpdates.error);
+                    else
+                      update = { '$set': validatedUpdates.data};
+
+                    console.log('save() collection ['+coll+'] update verified data : ' + JSON.stringify (update));
+                    db.collection(coll).update (query, update,  function (err, out) {
+                      console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+                      if (err) {
+                         reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+                      } else {
+                        resolve ({_id: query._id});
+                      }
+                    });
+                  } else {
+                    //console.log('/db/'+coll+'  insert toplevel document, use individual fields');
+                    let insert,
+                        validatedUpdates = validateSetFields(isInsert, form.fields, userdoc, null, true);
+                    if (validatedUpdates.error)
+                      return reject (validatedUpdates.error);
+                    else
+                      insert = validatedUpdates.data;
+
+                    console.log('save() '+coll+' insert verified data : ' + JSON.stringify (insert));
+                    db.collection(coll).insert (insert, function (err, out) {
+                      console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+                      if (err) {
+                         reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+                      } else {
+                        if (Array.isArray(userdoc))
+                          resolve (out);
+                        else
+                          resolve ({_id: insert._id});
+                      }
+                    });
+                  }
 
                 } else {  // its modifing a embedded document
+                  let query, update;
+                  //console.log('/db/'+coll+'  set or push a embedded document :' + parentid);
+                  try {
+                    query = {_id: new ObjectID(parentid)};
+                  } catch (e) {
+                    return reject ("save() parentid not acceptable format : " + parentid);
+                  }
+                  /***** TRYING TO DO EMBEDDED ARRAY inside EMBEDDED ARRAY, BUT MONGO DOESNT SUPPORT NESTED POSITIONAL OPERATORS
+                   var embedsplit = embedfield.split('.');
+                   if (embedsplit.length == 2) {
+                      query['"' + embedsplit[0] + '._id"'] = new ObjectID(parentid);
+                  }  else {
+                      query = {_id: new ObjectID(parentid)};
+                  }
+                   */
 
-                      //console.log('/db/'+coll+'  set or push a embedded document :' + parentid);
-                      try {
-                        var query = {_id: new ObjectID(parentid)}, update;
-                      } catch (e) {
-                        return reject ("save() parentid not acceptable format : " + parentid);
-                      }
-                      /***** TRYING TO DO EMBEDDED ARRAY inside EMBEDDED ARRAY, BUT MONGO DOESNT SUPPORT NESTED POSITIONAL OPERATORS
-                       var embedsplit = embedfield.split('.');
-                       if (embedsplit.length == 2) {
-                          query['"' + embedsplit[0] + '._id"'] = new ObjectID(parentid);
-                      }  else {
-                          query = {_id: new ObjectID(parentid)};
-                      }
-                       */
-                      var validatedUpdates = validateSetFields(isInsert, form.fields, userdoc, null);
-                      if (validatedUpdates.error) return reject (validatedUpdates.error); else validatedUpdates = validatedUpdates.data;
-                      if (isInsert) { // its $push'ing a new entry
-                          savedEmbedDoc = { _id: new ObjectID() };
+                  if (!isInsert) { // its updating a existing embedded entry
+                    try {
+                      // add embedded doc id to the query
+                      query[embedfield+"._id"] =  new ObjectID(userdoc._id);
+                    } catch (e) {
+                      return reject ("save() _id not acceptable format : " + userdoc._id);
+                    }
+                  //query[embedfield] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
+                    let validatedUpdates = validateSetFields(isInsert, form.fields, userdoc, embedfield);
+                    if (validatedUpdates.error)
+                      return reject (validatedUpdates.error);
+                    else {
+                      update = {'$set': validatedUpdates.data};
+                    }
 
-                          var pushjson = {};
-                          pushjson[embedfield] =  validatedUpdates;
-                          pushjson[embedfield]._id  = savedEmbedDoc._id;
-                          // mongodb doesnt automatically provide a _Id for embedded docs!
-                          update = {'$push': pushjson} ;
-                      } else {
-                        try {
-                          savedEmbedDoc = { _id: new ObjectID(userdoc._id) };
-                        } catch (e) {
-                          return reject ("save() _id not acceptable format : " + userdoc._id);
-                        }
-                        //query[embedfield] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
-                        query[embedfield+"._id"] = savedEmbedDoc._id;
-                        update = { '$set': validateSetFields(isInsert, form.fields, userdoc, embedfield).data };
-                      }
-                      console.log('save() update: query :' + JSON.stringify(query) +' update :' + JSON.stringify(update));
-                      db.collection(coll).update(query, update, function (err, out) {
-                        console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
-                        if (err) {
-                           return reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
-                        } else {
+                  } else {  // its $push'ing a new embedded entry
 
-                          // return full update sent to database (the client uses this for child forms)
-                          validatedUpdates._id = savedEmbedDoc._id;
-                          return resolve (validatedUpdates);
-                        }
-                      });
+                    let validatedUpdates = validateSetFields(isInsert, form.fields, userdoc, null);
+                    if (validatedUpdates.error)
+                      return reject (validatedUpdates.error);
+                    else {
+                      let fldpush = { [embedfield]: validatedUpdates.data};
+                      console.log ('embedded fld:' + embedfield + ', : ' + JSON.stringify(fldpush));
+                      update = {'$push': fldpush};
+                    }
+                  }
+                  console.log('save() update: query :' + JSON.stringify(query) +' update :' + JSON.stringify(update));
+                  db.collection(coll).update(query, update, function (err, out) {
+                    console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+                    if (err) {
+                       return reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+                    } else {
+                  return resolve ({_id: isInsert && update['$push'][embedfield]._id || query[embedfield+"._id"]});
+                    }
+                  });
                 }
             }
         }, function (err) {

@@ -571,7 +571,7 @@ export class FormMain extends Component {
               let fc = formcontrol.flds[field.name];
               if (fc.visible) return (
               <div className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
-                <div className={"slds-form-element field-seperator" + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
+                <div className={"slds-form-element " + (self.state.edit && "  " || " field-seperator ") + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
                     <label className="slds-form-element__label">{field.title}</label>
                     <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
                       <Field fielddef={field} value={record[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
@@ -813,6 +813,31 @@ export class RecordPage extends Component {
     }
   }
 
+  _importMeta() {
+    let df = DynamicForm.instance,
+        p,
+        appmeta = this.state.value.records;
+
+
+    for (let meta of appmeta.metadata) {
+      if (!p) {
+        p = df.save ({form: meta.form._id, body: meta.load});
+      } else {
+        p = p.then(() => {
+          // some progress update
+          df.save ({form: meta.form._id, body: meta.load});
+        });
+      }
+    }
+    if (p) {
+      // some progress update
+      p.then (() => {
+        console.log ('ok');
+        // all done!!
+      });
+    }
+  }
+
   render() {
     var self = this,
         status = self.state.value.status,
@@ -824,6 +849,7 @@ export class RecordPage extends Component {
         <div className="slds-grid slds-wrap">
           <div className="slds-col slds-size--1-of-1">
           { this.props.urlparam && <PageHeader formName={this.state.metaview.name}/> }
+          <button onClick={this._importMeta.bind(this)}>import</button>
           </div>
           <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
 
@@ -851,7 +877,7 @@ export class PageHeader extends Component {
 
             <div className="slds-media">
               <div className="slds-media__figure">
-                <SvgIcon spriteType="utility" spriteName="people"/>
+                <SvgIcon classOverride="slds-icon" spriteType="utility" spriteName="people"/>
               </div>
               <div className="slds-media__body">
                 <p className="slds-text-heading--label">Record Type</p>
