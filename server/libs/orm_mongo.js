@@ -17,13 +17,11 @@ module.exports = function(options) {
     var db = options.db;
     var exps = {};
 
-    exps.find = function (formparam, q, success, error, ignoreLookups) {
-        console.log ('find() formparam ' + formparam + ' q ' + JSON.stringify (q));
+    exps.find = function (formparam, query, findone, ignoreLookups) {
+      return new Promise(function (resolve, reject)  {
+        console.log ("find() staring, form: " + formparam + ", findone: ["+findone+"], ingnore lookups ["+ignoreLookups+"] query: " + JSON.stringify (query));
 
         /* search form meta-data for 'lookup' fields to resolve (also search through 'childform' subforms) */
-//        var subqarray = []; // lookup fields to query
-//        var fields = {}; // fields to return in find
-
         var findFieldsandLookups = function (FORM_DATA, form, parentField, lastresult) {
             var result = lastresult || {findField: {}, subqarray: []};
             for (var f in form.fields) {
@@ -39,7 +37,7 @@ module.exports = function(options) {
                         if (searchform) {
                             var subqobj = {
                                 field: field.name,
-                                collection: searchform.collection
+                                form: searchform
                             };
                             if (parentField) {
                                 subqobj.subdocfield = parentField;
@@ -72,7 +70,7 @@ module.exports = function(options) {
                     // for each 'lookup' field
                     var subq_obj = subqarray[saidx];
                     // if in harvest mode, initialise lookupkeys array
-                    if (!subq && !lookupkeys[subq_obj.collection])  lookupkeys[subq_obj.collection] = [];
+                    if (!subq && !lookupkeys[subq_obj.form._id])  lookupkeys[subq_obj.form._id] = {form: subq_obj.form, keys: []};
 
                     if (subq_obj.subdocfield) {
                         // if field is in an embedded-document,
@@ -84,7 +82,7 @@ module.exports = function(options) {
                             if (!subq) {
                               // harvest mode
                               try {
-                                lookupkeys[subq_obj.collection].push(new ObjectID(lookupfieldval));
+                                lookupkeys[subq_obj.form._id].keys.push(new ObjectID(lookupfieldval));
                               } catch (e) {
                                 console.log ('Warning : lookup value not in format of ObjectId: ' + doc._id + ', field : ' + subq_obj.field + ', val: ' + JSON.stringify(lookupfieldval));
                               }
@@ -92,7 +90,7 @@ module.exports = function(options) {
                               // update mode
                               doc[subq_obj.subdocfield][edidx][subq_obj.field] = {
                                 _id: lookupfieldval,
-                                primary: subq[lookupfieldval]};
+                                primary: subq[lookupfieldval] || 'missing'};
                             }
                           }
                         }
@@ -102,7 +100,7 @@ module.exports = function(options) {
                         if (!subq) {
                           // harvest mode
                           try {
-                            lookupkeys[subq_obj.collection].push(new ObjectID(doc[subq_obj.field]));
+                            lookupkeys[subq_obj.form._id].keys.push(new ObjectID(doc[subq_obj.field]));
                           } catch (e) {
                             console.log ('Warning : lookup value not in format of ObjectId: ' + doc._id + ', field : ' + subq_obj.field + ', val: ' + JSON.stringify(doc[subq_obj.field]));
                           }
@@ -110,7 +108,7 @@ module.exports = function(options) {
                           // update mode
                           doc[subq_obj.field] = {
                             _id: doc[subq_obj.field],
-                            primary: subq[doc[subq_obj.field]]};
+                            primary: subq[doc[subq_obj.field]] || 'missing'};
                         }
                     }
                 }
@@ -121,32 +119,52 @@ module.exports = function(options) {
             } else {
               return docs;
             }
-        }
+        };
 
         /* run subquery */
-        var runsubquery = function (scoll, objids, pfld) {
+        var runsubquery = function (FORM_DATA, form, objids, pfld) {
           return new Promise(function (resolve, reject)  {
             var primaryfld = pfld || "name",
                 q = { _id: { $in: objids }},
                 flds = { [primaryfld]: 1 }; // Computed property names (ES6)
-            console.log('find() runsubquery() find  ' + scoll + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(flds));
+            console.log('find() runsubquery() find  ' + form.collection + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(flds));
 
-            db.collection(scoll).find(q, flds).toArray(function (err, docs) {
+            db.collection(form.collection).find(q, flds).toArray(function (err, docs) {
                 if (err) reject(err);
-                else resolve({primaryfld: primaryfld, recs: docs});
+                else {
+
+                  // if less results than expected and using 'formMeta' lookup to the formMetadata object, include the META_DATA, as there may be a reference.
+                  if (objids.length > docs.length && form._id === meta.forms.metaSearch) {
+                    console.log ('finding in metasearch');
+                    let metares = [];
+                    for (let lid of objids) {
+                      //if (!docs.filter(r => r._id === lid))  // ES6 :(
+                      let gotit = false;
+                      for (let d of docs) {if (d._id === lid) gotit = true;};
+                      if  (!gotit) {
+                        let lform = meta.findFormById(FORM_DATA, lid);
+                        if (lform) docs.push ({_id: lform._id, name: lform.name});
+                      }
+                    }
+                  }
+
+                  resolve({primaryfld: primaryfld, recs: docs});
+                }
             });
           });
         };
 
         /* flow control - run sub queries in parrallel & call alldonefn(docs) when done! */
-        var runallsubqueries = function (subqarray, lookupkeys) {
+        var runallsubqueries = function (FORM_DATA, subqarray, lookupkeys) {
           return new Promise(function (resolve, reject)  {
             if (Object.keys(lookupkeys).length == 0) {
               resolve();
             } else {
               let promises = []
               for (var scoll in lookupkeys) {
-                  promises.push(runsubquery (scoll, lookupkeys[scoll]));
+                  let form = lookupkeys[scoll].form,
+                      keys = lookupkeys[scoll].keys;
+                  promises.push(runsubquery (FORM_DATA, form, keys));
               }
               Promise.all(promises).then(function (succVal) {
                   console.log ('Got all suqqueries, now shape the data: ' + JSON.stringify(succVal));
@@ -164,78 +182,111 @@ module.exports = function(options) {
           });
         }
 
-
-        meta.getFormMeta(function(FORM_DATA) {
-            console.log('find() looking for fields in form : ' + formparam);
+        exps.getFormMeta().then(function(FORM_DATA) {
             let form = meta.findFormById(FORM_DATA, formparam);
 
             if (!form  || !form.collection) {
-              error ("find() form not Found or no defined collection : " + formparam);
+              reject ("find() form not Found or no defined collection : " + formparam);
             } else {
+
+              console.log("find() create the mongo query");
+              let mquery = {};
+              if (query) {
+                if (typeof query === "object") {
+                  for (let qkey in query) {
+                    if (qkey === "id") {
+                      if (Array.isArray(query.id)) {
+                        if (findone) return reject ("query parameter 'id' is a array, but findone is 'true'");
+                        mquery._id = {"$in": []};
+                        for (let i of query.id) {
+                          try {
+                            mquery._id["$in"].push (new ObjectID(i));
+                          } catch (e) {
+                            return reject ("query parameter 'id' doesnt contain a valid objectid :  " + i);
+                          }
+                        }
+                      } else {
+                        if (!findone) return reject ("query parameter 'id' is a objectid, but findone is 'false'");
+                        try {
+                          mquery._id = new ObjectID(query.id);
+                        } catch (e) {
+                          return reject ("query parameter 'id' doesnt contain a valid objectid :  " + query.id);
+                        }
+                      }
+                    } else if (qkey === "p")  {
+                      if (findone) return reject ("query parameter 'p' (text search on primary field), but findone is 'true'");
+                      // searches field with ->> db.ensureIndex(collectionname, index[, options], callback)
+                      //db.createIndex(form.collection, {"name": "text"}, { comments: "text" }, function (a,b) {console.log ("create idx : " + JSON.stringify({a: a, b: b}))});
+                      //mquery = { "$text": { "$search": query.p}};
+                      mquery = {name: {$regex: query.p, $options: 'i'}}
+                    } else if (qkey === "q") {
+                      mquery = query.q;
+                    } else {
+                      return reject ("query parameter not recognised : " + qkey);
+                    }
+                  }
+                } else return reject ("query parameter needs to be an objet");
+              }
+              console.log("find() create the mongo query : " + JSON.stringify(mquery));
 
               //console.log('looking for lookup fields in ' + form.name);
               var fieldsandlookups = findFieldsandLookups(FORM_DATA, form);
               console.log('find() fieldsandlookups: ' + JSON.stringify(fieldsandlookups));
+
               if (fieldsandlookups.error) {
-                error(fieldsandlookups.error)
+                reject(fieldsandlookups.error)
               } else {
 
-                // its find one!  TIMEBOM??
-                if ("_id" in q || "provider.provider_id"  in q) {
-                    console.log('findOne for ' + form.collection + ' id: ' + JSON.stringify(q));
-                    if ("_id" in q)  q._id = new ObjectID(q._id);
-                    db.collection(form.collection).findOne(q, function (err, doc) {
-                        if (err ) {
-                            error (err);
+                let retfn = function (err, doc) {
+                    if (err ) {
+                      console.log('find() find ERROR :  ' + err);
+                      reject (err);
+                    } else {
+                        console.log("find() got documents succfull") // ' + JSON.stringify(doc));
+
+                        if (ignoreLookups) {
+                            resolve(doc);
                         } else {
-                            console.log('find() got document ' + JSON.stringify(doc));
+                            var lookupkeys = processlookupids(fieldsandlookups.subqarray, findone && [doc] || doc);
+                            console.log("find() got query for foriegn key lookup "); // + JSON.stringify(lookupkeys));
 
-                            if (ignoreLookups) {
-                                success([doc]);
-                            } else {
-                                var lookupkeys = processlookupids(fieldsandlookups.subqarray, [doc]);
-                                console.log('find() got query for foriegn key lookup ' + JSON.stringify(lookupkeys));
-
-                                runallsubqueries(fieldsandlookups.subqarray, lookupkeys).then(function (succVal) {
-                                  success(succVal && processlookupids (fieldsandlookups.subqarray, [doc], succVal) || [doc]);
-                                }, function (errVal) { error(errVal) });
-                            }
+                            runallsubqueries(FORM_DATA, fieldsandlookups.subqarray, lookupkeys).then(function (succVal) {
+                              if (succVal) {
+                                console.log("find() runallsubqueries success, now processlookupids, recs:" + (findone && "1" || doc.length));
+                                processlookupids (fieldsandlookups.subqarray, findone && [doc] || doc, succVal);
+                              }
+                              resolve(doc);
+                            }, function (errVal) {
+                              console.log("find() runallsubqueries error " + errVal);
+                              reject(errVal)
+                            });
                         }
-                    });
+                    }
+                };
+
+
+                // its find one, DOESNT RETURN A CURSOR
+                if (findone) {
+                    console.log('findOne for ' + form.collection + ' id: ' + JSON.stringify(mquery));
+                    db.collection(form.collection).findOne(mquery, fieldsandlookups.findField, retfn);
 
                 } else {
-                    console.log('find() ' + form.collection + ' : query : ' + JSON.stringify(q) + ' :  findField : ' + JSON.stringify(fieldsandlookups.findField));
-                    db.collection(form.collection).find(q, fieldsandlookups.findField, {}).toArray(function (err, docs) {
-                        if (err) {
-                            console.log('find() find ERROR :  ' + err);
-                            error (err);
-                        } else {
-
-                            console.log('find() documents ' + JSON.stringify(docs));
-
-                            if (ignoreLookups) {
-                                success(docs);
-                            } else {
-                                var lookupkeys = processlookupids(fieldsandlookups.subqarray, docs);
-                                console.log('find() query for foriegn key lookup ' + JSON.stringify(lookupkeys));
-
-                                runallsubqueries(fieldsandlookups.subqarray, lookupkeys).then(function (succVal) {
-                                  success(succVal && processlookupids (fieldsandlookups.subqarray, docs, succVal) || docs);
-                                }, function (errVal) { error(errVal) });
-                            }
-                        }
-                    });
+                    console.log('find() ' + form.collection + ' : query : ' + JSON.stringify(mquery) + ' :  findField : ' + JSON.stringify(fieldsandlookups.findField));
+                    db.collection(form.collection).find(mquery, fieldsandlookups.findField, {}).toArray(retfn);
                 }
               }
             }
         }, function (err) {
-            error ('find() Cannot find form definitions ' + err);
+            reject ('find() Cannot find form definitions ' + err);
+        }).catch(function (err) {
+            reject ('find() catch error ' + err);
         });
+      });
     };
 
     exps.delete = function(formparam, recid, parentfieldid, parentid, success, error ) {
 
-        meta.getFormMeta(function(FORM_DATA) {
+        exps.getFormMeta().then(function(FORM_DATA) {
             var form = meta.findFormById(FORM_DATA, formparam),
                 isEmbedded = (parentfieldid && parentid);
 
@@ -308,7 +359,7 @@ module.exports = function(options) {
 
     exps.save = function (formparam, parentfieldid,parentid, userdoc) {
         return new Promise( function(resolve, reject)  {
-          meta.getFormMeta(function(FORM_DATA) {
+          exps.getFormMeta().then(function(FORM_DATA) {
             var form = meta.findFormById(FORM_DATA, formparam),
                 isInsert = Array.isArray (userdoc) || typeof userdoc._id === 'undefined',
                 isEmbedded = (parentfieldid && parentid);
@@ -533,7 +584,7 @@ module.exports = function(options) {
                 }
             }
         }, function (err) {
-            reject ('find() Cannot find form definitions ' + err);
+            reject ('save() Cannot find form definitions ' + err);
         });
       });
     };
@@ -614,19 +665,63 @@ module.exports = function(options) {
       })
     }
 
-    exps.getmeta = function (success, error) {
-        //	var formid = req.params["id"];
-        //	res.send (FORM_DATA[formid]);
-        meta.getFormMeta(function (docs) {
-            success (docs);
-        }, function (err) {
-            error (err);
-        });
+    exps.forms = meta.forms;
+    // expose these from the static data
 
-    };
 
+    exps.getFormMeta = function (filterids) {
+      // filterids:  not specified, return all
+      // if specified, use as a query filter
+
+      return new Promise(function (resolve, reject)  {
+        console.log("getFormMeta() filterids : " + JSON.stringify(filterids));
+        let adminmeta = meta.adminMetabyId(),
+            retadminmeta = [];
+
+        if (filterids) {
+          let oids = [];
+          if (filterids) {
+            for (let strid of filterids) {
+              if (adminmeta.hasOwnProperty(strid)) {
+                retadminmeta.push(adminmeta.strid);
+              } else {
+                oids.push(new ObjectID(strid));
+              }
+            }
+          }
+          if (oids.length == 0) {
+            resolve (retadminmeta);
+          } else {
+            db.collection('formmeta').find(oids.length >0 && { _id: { $in: oids }} || {}).toArray(function (err, docs) {
+              console.log("getFormMeta: got user-based form meta data [err: "+err+"]: " + docs.length);
+              if (err) reject (err);
+              else resolve(retadminmeta.concat(docs)); //retmeta.concat(docs));
+            });
+          }
+          /*exps.find(exps.forms["formMetadata"], filterids && {id: filterids}, false, true).then(function(sucval) {
+              console.log('getFormMeta: got user-based form meta data : ' + sucval.length);
+              resolve(retmeta.concat(docs));
+            }, function (errval) {
+              console.log('getFormMeta : err ' + errval);
+              reject(errval);
+            });
+            */
+        } else {
+          //reject("getFormMeta needs a list of forms to return");
+          // TODO: just return everything :(  I need to fix this.
+          db.collection('formmeta').find({}).toArray(function (err, docs) {
+            console.log("getFormMeta: got user-based form meta data [err: "+err+"]: " + docs.length);
+            if (err) reject (err);
+            else resolve(docs.concat(meta.FORMMETA)); //retmeta.concat(docs));
+          });
+        }
+      });
+    }
+
+/*
     exps.defaultData = function () {
       return meta.defaultData;
     }
+*/
     return exps;
 }

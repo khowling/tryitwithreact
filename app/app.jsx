@@ -43,7 +43,7 @@ class App extends Component {
    componentWillMount() {
     console.log ('App componentWillMount: setting up services');
     //this.setState ({ bootmsg:  'got cordova deviceready'});
-    this.dynamicForm.loadMeta().then (() => {
+    this.dynamicForm.loadApp().then (() => {
         this.setState ({ booted: true, bootmsg: 'loaded meta'});
     }, (error) => {
         this.setState ({ bootmsg: 'error loading meta : ' + error});

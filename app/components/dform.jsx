@@ -81,10 +81,6 @@ export class Field extends Component {
   componentDidMount() {
       var self = this,
         df = DynamicForm.instance;
-      if (this.props.fielddef.type === 'lookup' && this.props.edit) {
-        React.findDOMNode(this.refs.lookupinput).addEventListener("keypress", this._handleLookupKeypress.bind(this), false);
-      }
-
       if (this.props.fielddef.type === 'image' && this.props.edit) {
         this.line = new ProgressBar.Line(React.findDOMNode(this.refs.progressline), {color: '#FCB03C'})
       }
@@ -97,15 +93,18 @@ export class Field extends Component {
   /********************/
   /* Lookup Functions */
   /********************/
-  _handleLookupKeypress() {
-    let df = DynamicForm.instance;
-    console.log ('_handleLookupKeypress: ' + this.refs.listbox);
+  _handleLookupKeypress(e) {
+    let df = DynamicForm.instance,
+        inval = e.target.value;
+    console.log ('_handleLookupKeypress: ' + inval);
     this.setState({lookup: {visible: true, values:[], create: false}}, () => {
-      df.query({form: this.props.fielddef.search_form}).then(succVal => {
+      df.search(this.props.fielddef.search_form, inval).then(succVal => {
         this.setState({lookup: {visible: true, values: succVal, offercreate: true}});
       })
     });
   }
+
+
   _handleLookupSelectOption (data) {
     let lookupval = data && {_id: data._id, primary: data.name} || null;
     React.findDOMNode(this.refs.lookupinput).value = "";
@@ -282,7 +281,7 @@ export class Field extends Component {
                           </button>
                         </span>
                         }
-                        <input id="lookup" className="slds-input--bare" type="text" ref="lookupinput" disabled={this.state.value && "disabled" || ""}/>
+                        <input className="slds-input--bare" type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value && "disabled" || ""}/>
                       </div>
 
                       <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible && 'visible' || 'hidden'}}>
@@ -616,7 +615,7 @@ export class ListPage extends Component {
       let df = DynamicForm.instance;
       console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.state.metaview._id));
       if (this.state.metaview.collection)
-        df.query ({form: this.state.metaview._id}).then(succRes =>
+        df.query (this.state.metaview._id).then(succRes =>
           this.setState({value: {status: "ready", records: succRes}})
         );
       else if (this.state.metaview.url)
@@ -803,8 +802,8 @@ export class RecordPage extends Component {
     let df = DynamicForm.instance;
     if (this.state.crud == 'u' || this.state.crud == 'r') {
       if (this.state.metaview.collection)
-        df.query ({form: this.state.metaview._id, q: {_id: this.props.urlparam.id}}).then(succVal => {
-            this.setState({ value: {status: "ready", records: succVal[0]}});
+        df.get (this.state.metaview._id, this.props.urlparam.id).then(succVal => {
+            this.setState({ value: {status: "ready", records: succVal}});
         });
       else if (this.state.metaview.url)
         df._callServer(this.state.metaview.url+"?_id="+this.props.urlparam.id).then(succRes =>

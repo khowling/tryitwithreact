@@ -1,3 +1,4 @@
+"use strict"
 /**
  * Created by keith on 17/10/14.
  */
@@ -17,13 +18,13 @@ module.exports = function(options) {
             "FileMeta": new ObjectID('000000000800'),
             "UserApps": new ObjectID('000000000900'),
             "App": new ObjectID('000000000a00'),
-            "AppMeta": new ObjectID('000000000b00'),
+            "AppPerms": new ObjectID('000000000b00'),
             "ImportMeta": new ObjectID('000000000c00'),
             "ImportMetaData": new ObjectID('000000000d00')
         }
     };
 
-    var FORMMETA = [
+    exps.FORMMETA = [
         {
             _id: exps.forms.formMetadata,
             name: "FormMetadata",
@@ -465,18 +466,18 @@ module.exports = function(options) {
                     required: false
                 },
                 {
-                    name: "appmeta",
+                    name: "appperms",
                     title: "App Forms",
                     show_when: "true",
                     type: "childform",
                     layout: "list",
-                    child_form: exps.forms.AppMeta,
+                    child_form: exps.forms.AppPerms,
                     _id: new ObjectID('000000000a01')
                 }
             ]
         },
         {
-            _id: exps.forms.AppMeta,
+            _id: exps.forms.AppPerms,
             name: "App Meta",
             type: "childform",
             fields: [
@@ -593,41 +594,36 @@ module.exports = function(options) {
     ];
 
     exps.defaultData =   [
+      {
+        _id: "LoadApp001",
+        app: "Admin App",
+        metadata: [
           {
-            _id: "LoadApp001",
-            app: "Admin App",
-            metadata: [
-              {
-                form: {_id: exps.forms.App, primary: "App"},
-                load: [
-                  {name: "Admin App", type: "deployed", appmeta: [
-                    {form: {_id: exps.forms.formMetadata}, crud: "crud"},
-                    {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
-                    {form: {_id: exps.forms.metaSearch}, crud: "crud"},
-                    {form: {_id: exps.forms.Users}, crud: "crud"},
-                    {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
-                    {form: {_id: exps.forms.UserApps}, crud: "crud"},
-                    {form: {_id: exps.forms.App}, crud: "crud"},
-                    {form: {_id: exps.forms.AppMeta}, crud: "crud"},
-                    {form: {_id: exps.forms.ImportMeta}, crud: "crud"}
-                    ]}
-                ]
-              }
+            form: {_id: exps.forms.App, primary: "App"},
+            load: [
+              {name: "Admin App", type: "deployed", appperms: [
+                {form: {_id: exps.forms.formMetadata}, crud: "crud"},
+                {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
+                {form: {_id: exps.forms.metaSearch}, crud: "crud"},
+                {form: {_id: exps.forms.Users}, crud: "crud"},
+                {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
+                {form: {_id: exps.forms.UserApps}, crud: "crud"},
+                {form: {_id: exps.forms.App}, crud: "crud"},
+                {form: {_id: exps.forms.AppPerms}, crud: "crud"},
+                {form: {_id: exps.forms.ImportMeta}, crud: "crud"}
+                ]}
             ]
           }
-      ];
+        ]
+      }
+    ];
 
-    exps.getFormMeta = function (success, error) {
-        db.collection('formmeta').find({}).toArray(function (err, docs) {
-            if (err) {
-                console.log('err ' + err);
-                error(err);
-            } else {
-                var defs = FORMMETA.concat(docs);
-                //console.log('getFormMeta: got ALL form meta data ' + JSON.stringify(defs));
-                success(defs);
-            }
-        });
+    exps.adminMetabyId = function() {
+      let res = {};
+      for (let v of exps.FORMMETA) {
+        res[v._id.toString()] = v;
+      }
+      return res;
     }
 
     exps.findFormById = function (meta, name) {

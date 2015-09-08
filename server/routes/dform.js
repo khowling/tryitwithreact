@@ -25,13 +25,28 @@ module.exports = function(options) {
 
 
     router.get('/db/:form', function(req, res) {
-        var formparam = req.params["form"],
-            q = JSON.parse((req.query.q || '{}').replace(/<DOLLAR>/g, '$')); // replace required because angular $resource.query doesnt encode '$'
-        orm.find(formparam, q, function success(j) {
+        console.log ("/db/:form: : " +  JSON.stringify(req.query));
+        let formparam = req.params["form"],
+            query;
+
+        if (req.query) {
+          if (req.query.id) {
+            query =  {id: req.query.id.indexOf(",") > -1 && req.query.id.split(",") || req.query.id};
+          } else if (req.query.p)
+            query =  {p: req.query.p};
+          else if (req.query.q)
+            query =  {q: JSON.parse(req.query.q)};
+        }
+        console.log ("/db/:form query: " + JSON.stringify(query));
+        orm.find(formparam, query, (query && query.id && !Array.isArray(query.id))).then(function success(j) {
             res.json(j);
         }, function error(e) {
-            res.status(400).send(e);
-        });
+          console.log ("find err : " + e);
+          res.status(400).send(e);
+        }).catch(function error(e) {
+          console.log ("catch err : " + e);
+          res.status(400).send(e);
+        })
     });
 
 
@@ -93,15 +108,42 @@ module.exports = function(options) {
       });
     });
 
-    router.get('/formdata', function(req, res) {
-      res.setHeader('Content-Type', 'application/json');
-      orm.getmeta (function success(j) {
-            // filter formmeta based on user
+    router.get('/loadApp', function(req, res) {
+      let appid = req.params["appid"] || ((req.user && req.user.apps && req.user.apps[0]) && req.user.apps[0].app || null);
+      console.log ("/formdata: starting, appid: " + appid);
 
-            res.json({formdata: j, user: req.user});
-        }, function error(e) {
-            res.status(400).send(e);
-        });
+      res.setHeader('Content-Type', 'application/json');
+
+      let objectids = [], //new Set(),
+          errfn = function (errval) {
+            res.status(400).send(errval);
+          };
+/*
+      let appids = [];
+      if (req.user && req.user.apps) {
+        for (let app of req.user.apps) {
+          appids.push(app.app);
+        }
+      }
+*/
+      if (appid) {
+        console.log ("/formdata: user logged on and authorised for these apps : " + JSON.stringify (appid));
+        orm.find(orm.forms.App, { id: appid}, true, true).then(function success(app) {
+            if (app && app.appperms) for (let perm of app.appperms) {
+              console.log ("/formdata: adding form app ["+app.name+"]: " + perm.form);
+              objectids.push(perm.form); //.add[perm.form];
+              //perm.crud
+            }
+            orm.getFormMeta(objectids).then (function (sucval) {
+              res.json({user: req.user, app: app, appMeta: sucval});
+            }, errfn).catch(errfn);
+        }, errfn)
+      } else {
+        orm.getFormMeta(objectids).then (function (sucval) {
+          res.json({user: req.user, appMeta: sucval});
+        }, errfn).catch(errfn);
+      }
+
     });
 
   router.get('/defaultData', function(req, res) {

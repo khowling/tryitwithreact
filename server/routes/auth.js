@@ -20,7 +20,7 @@ module.exports = function (passport, options) {
     // this will be as simple as storing the user ID when serializing, and
     // finding the user by ID when deserializing.
     passport.serializeUser(function (user, done) {
-        console.log ('passport.serializeUser : ' + JSON.stringify(user));
+        console.log ("passport.serializeUser");
         done(null, user._id);
     });
 
@@ -28,13 +28,12 @@ module.exports = function (passport, options) {
     passport.deserializeUser(function (id, done) {
         console.log('passport.deserializeUser : ' + id);
 
-        orm.find(meta.forms.Users, {_id: new ObjectID(id)}, function success(j) {
-            var user = j.documents;
-            console.log('passport.deserializeUser : ' + JSON.stringify(user));
+        orm.find(meta.forms.Users, {id: id}, true, true).then( function success(user) {
+            console.log("passport.deserializeUser : got user");
             done(null, user);
         }, function error(e) {
             res.status(400).send(e);
-        }, true);
+        });
     });
 
     passport.use(new LocalStrategy(
@@ -64,17 +63,18 @@ module.exports = function (passport, options) {
     ));
 
     var gotSocialLoginDetails = function(mappedUserObj, provider, provider_id, done) {
-      orm.find(meta.forms.Users, {'provider.provider_id': provider_id}, function success(j) {
-          var existinguser = j[0];
+      orm.find(meta.forms.Users, {q: {'provider.provider_id': provider_id}}, true, true).then(function success(existinguser) {
+
           if (!existinguser) {
-              mappedUserObj.provider = [{ _id: new ObjectID(), type: provider, provider_id: provider_id }]
+              mappedUserObj.provider = [{type: provider, provider_id: provider_id }]
               console.log(provider + ' strategy: no existing user, creating from social profile : ' + JSON.stringify(mappedUserObj));
 
               // exps.forms.AuthProviders
-              orm.save (meta.forms.Users, null,null,mappedUserObj, function success(newuser) {
+              orm.save (meta.forms.Users, null,null,mappedUserObj).then(function success(newuser) {
                       console.log (provider + ' saved new user : ' + JSON.stringify(newuser));
                       done(null, newuser);
                   }, function error(ee) {
+                      console.log ('create user error: ' + ee);
                       return done(null, false, 'error creating user');
                   });
           } else {
@@ -84,7 +84,7 @@ module.exports = function (passport, options) {
       }, function error (e) {
         console.log(provider + ' strategy find user error:' + JSON.stringify(e));
         return done(provider + ' strategy find user error:' + JSON.stringify(e));
-       }, true);
+       });
     }
 
     passport.use(new FacebookStrategy({

@@ -76,7 +76,7 @@ export class AuthState extends Component {
   constructor(props) {
     super(props);
     let df = DynamicForm.instance;
-    this.state = {user: df.user};
+    this.state = {user: df.user, app: df.app};
   }
 
   _logout() {
@@ -94,7 +94,7 @@ export class AuthState extends Component {
       return (
         <div className="slds-dropdown-trigger" aria-haspopup="true">
             <div className="slds-button slds-button--neutral">
-              {this.state.user.name} <SvgIcon classOverride="header-icons" small={true} spriteType="utility" spriteName="down"/>
+              {this.state.user.name} ({this.state.app.name}) <SvgIcon classOverride="header-icons" small={true} spriteType="utility" spriteName="down"/>
             </div>
             <div className="slds-dropdown slds-dropdown--nubbin-top slds-dropdown--menu" style={{left: "35%"}}>
              <ul className="slds-dropdown__list" role="menu">

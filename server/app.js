@@ -60,20 +60,6 @@ MongoClient.connect(process.env.MONGO_DB || "mongodb://localhost:27017/mydb01", 
     app.use(passport.initialize());
     app.use(passport.session());
 
-    passport.serializeUser(function (user, done) {
-        console.log ('passport.serializeUser : ' + JSON.stringify(user));
-        done(null, user._id);
-    });
-
-    // from the id, retrieve the user details
-    passport.deserializeUser(function (id, done) {
-        console.log('passport.deserializeUser : ' + id);
-        db.collection('user').findOne({_id: new ObjectID(id)}, function (err, user) {
-            console.log('passport.deserializeUser : ' + JSON.stringify(user));
-            done(null, user);
-        });
-    });
-
     // routes are the last thing to be initialised!
     app.use('/auth', require('./routes/auth')(passport, {  db: db }));
     app.use('/dform', require('./routes/dform')({  db: db }));

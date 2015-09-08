@@ -10,8 +10,9 @@ export default class DynamicForm {
       throw "DynamicForm() only allow to construct once";
     }
     this._host = server_url;
-    this._formMeta = [];
+    this._appMeta = [];
     this._user = {};
+    this._currentApp = {};
     this.ROUTES = {dform: '/dform/', auth: '/auth/'};
     instance = this;
   }
@@ -25,8 +26,11 @@ export default class DynamicForm {
       return this._host;
     }
   get user() {
-      return this._user;
-    }
+    return this._user;
+  }
+  get app() {
+    return this._currentApp;
+  }
 
   _callServer(path, mode = 'GET', body) {
     return new Promise( (resolve, reject) => {
@@ -58,25 +62,26 @@ export default class DynamicForm {
      });
   }
 
-  loadMeta() {
-    return this._callServer(this.ROUTES.dform + 'formdata').then(fmeta => {
-      this._formMeta = fmeta.formdata;
-      if (fmeta.user) this._user = fmeta.user;
+  loadApp(appid) {
+    return this._callServer(this.ROUTES.dform + 'loadApp/' + (appid && ("?appid=" + appid) || '')).then(val => {
+      this._appMeta = val.appMeta;
+      this._user = val.user;
+      this._currentApp = val.app;
     });
   }
   getForm (fid) {
-    this._formMeta.length > 0 ||   console.log( "DynamicForm.getForm : FormData Not Loaded");
+    this._appMeta.length > 0 ||   console.log( "DynamicForm.getForm : FormData Not Loaded");
     if (!fid)
-      return this._formMeta;
+      return this._appMeta;
     else
-      return this._formMeta.find(f => f._id === fid);
+      return this._appMeta.find(f => f._id === fid);
   }
   getFormByName (fid) {
-    this._formMeta.length > 0 ||   console.log( "DynamicForm.getForm : FormData Not Loaded");
+    this._appMeta.length > 0 ||   console.log( "DynamicForm.getForm : FormData Not Loaded");
     if (!fid)
-      return this._formMeta;
+      return this._appMeta;
     else
-      return this._formMeta.find(f => f.name === fid);
+      return this._appMeta.find(f => f.name === fid);
   }
   _queryParams(source) {
     var array = [];
@@ -85,8 +90,18 @@ export default class DynamicForm {
     }
     return array.join("&");
   }
-  query(req) {
-    return this._callServer(this.ROUTES.dform + 'db/' + req.form + (req.q && ("?q=" + JSON.stringify(req.q)) || ''));
+  // get 1 or many by ID
+  get(viewid, ids) {
+    if (!Array.isArray(ids)) ids = [ids];
+    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (ids && ("?id=" + ids.join(",")) || ''));
+  }
+  // search by name (primary)
+  search(viewid, str) {
+    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (str && ("?p=" + str) || ''));
+  }
+  // full query
+  query(viewid, q) {
+    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (q && ("?q=" + JSON.stringify(q)) || ''));
   }
   save(req) {
     return this._callServer(this.ROUTES.dform + 'db/' + req.form + (req.parent && "?"+this._queryParams(req.parent) || ''), 'POST', req.body);
