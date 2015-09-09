@@ -109,7 +109,7 @@ module.exports = function(options) {
     });
 
     router.get('/loadApp', function(req, res) {
-      let appid = req.params["appid"] || ((req.user && req.user.apps && req.user.apps[0]) && req.user.apps[0].app || null);
+      let appid = req.params["appid"] || ((req.user && req.user.apps && req.user.apps[0]) && req.user.apps[0].app._id || null);
       console.log ("/formdata: starting, appid: " + appid);
 
       res.setHeader('Content-Type', 'application/json');
@@ -128,7 +128,7 @@ module.exports = function(options) {
 */
       if (appid) {
         console.log ("/formdata: user logged on and authorised for these apps : " + JSON.stringify (appid));
-        orm.find(orm.forms.App, { id: appid}, true, true).then(function success(app) {
+        orm.find(orm.forms.App, { id: appid}, true, true).then((app) => {
             if (app && app.appperms) for (let perm of app.appperms) {
               console.log ("/formdata: adding form app ["+app.name+"]: " + perm.form);
               objectids.push(perm.form); //.add[perm.form];

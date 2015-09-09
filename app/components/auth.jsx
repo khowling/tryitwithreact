@@ -89,7 +89,14 @@ export class AuthState extends Component {
     });
   }
 
+  _changeapp(appid) {
+    let newurl = "/#" + appid + "/";
+    console.log ("change app : " + newurl);
+    window.location.href = newurl;
+  }
+
   render () {
+    let self = this;
     if (this.state.user._id)
       return (
         <div className="slds-dropdown-trigger" aria-haspopup="true">
@@ -98,8 +105,13 @@ export class AuthState extends Component {
             </div>
             <div className="slds-dropdown slds-dropdown--nubbin-top slds-dropdown--menu" style={{left: "35%"}}>
              <ul className="slds-dropdown__list" role="menu">
+               { this.state.user.apps && this.state.user.apps.map(function(val, i) { return (
+               <li className="slds-dropdown__item" style={{whiteSpace: "nowrap"}}>
+                   <a onClick={self._changeapp.bind(self, val.app._id)} className="slds-truncate">{val.app.primary}</a>
+               </li>
+             );})}
                <li className="slds-dropdown__item" >
-                 <a onClick={this._logout.bind(this)} tabindex="-1" className="slds-truncate">logout</a>
+                 <a onClick={this._logout.bind(this)} className="slds-truncate">logout</a>
                </li>
              </ul>
            </div>

@@ -8,7 +8,7 @@
     "devPort": 8000
    },
    "scripts": {
-     "start": "node dev-server ./webpack.config"
+     "start": "~/node-v4.0.0-linux-x64/bin/node dev-server ./webpack.config"
    },
   "dependencies": {
     "express": "*",

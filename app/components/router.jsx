@@ -9,7 +9,7 @@ export default class Router extends Component {
     static navBack(alt) {
       console.log ('Router.navBack, backurl: ' + JSON.stringify(_backUrl));
         if (Router.backUrl)
-          window.location.href = Router.encodeHash(Router.backUrl);
+          window.location.href = Router._encodeHash(Router.backUrl);
         else if (alt)
           window.location.href = alt;
         else
@@ -24,41 +24,59 @@ export default class Router extends Component {
       return _backUrl;
     }
 
-    static encodeHash (routeJson) {
-      var array = [],
-          hash = routeJson.hash,
-          params = routeJson.params;
+    static _encodeHash (routeJson) {
+      let array = [],
+          {appid, hash, params} = routeJson;
+
 
       for(var key in params) {
         if (params[key]) {
           array.push(encodeURIComponent(key) + "=" + encodeURIComponent(params[key]));
         }
       }
-      console.log ("encodeHash got params " + array.length + " : " + JSON.stringify(array));
-      return "#" + (hash || DEFAULT_LANDING) + ((array.length > 0) &&  ("?" + array.join("&")) || "");
+      console.log ("Router._encodeHash got params " + array.length + " : " + JSON.stringify(array));
+      return "#" + (appid && (appid+"/") || "") + (hash || DEFAULT_LANDING) + ((array.length > 0) &&  ("?" + array.join("&")) || "");
     }
 
-    static decodeHash (hashuri) {
-      console.log ('Router.decodeHash value : ' + hashuri);
-      let [comp, parms] = hashuri.split('?');
-      let paramjson = {};
-      if (typeof parms !== 'undefined') {
-        let tfn = x => {
-          let [n, v] = x.split('=');
-          if (n === 'gid') {
-            let [view, id] = v.split (':');
-            paramjson.view = view;
-            paramjson.id = id;
-          } else
-            paramjson[n] = v;
+    static _decodeHash (hashuri) {
+      console.log ('Router._decodeHash value : ' + hashuri);
+      let retval = {appid: null, hash: DEFAULT_LANDING, params: null},
+          paramjson = {};
+
+      // url format: #[<appid>/]<compoment>
+      if (hashuri &&  hashuri !== "undefined") {
+        let [main, parms] = hashuri.split('?');
+
+        if (main) {
+          if (main.indexOf("/") > -1) {
+            let [appid, component] = main.split('/');
+            if (appid &&  appid !== "undefined") retval.appid = appid;
+            if (component &&  component !== "undefined") retval.hash = component;
+          } else {
+            retval.hash = main;
+          }
+        }
+        // url params ?gid=<view>[:<id>]
+        if (parms) {
+          let tfn = x => {
+            let [n, v] = x.split('=');
+            if (n === 'gid') {
+              let [view, id] = v.split (':');
+              paramjson.view = view;
+              paramjson.id = id;
+            } else
+              paramjson[n] = v;
           };
 
-        if (parms.indexOf ('&') > -1)
-          parms.split('&').map (tfn);
-        else
-          tfn (parms);
+          if (parms.indexOf ('&') > -1)
+            parms.split('&').map (tfn);
+          else
+            tfn (parms);
+          retval.params = paramjson;
+        }
       }
-      return ({hash: comp || DEFAULT_LANDING, params: paramjson});
+      console.log ('Router._decodeHash return value : ' + JSON.stringify(retval));
+      return (retval);
     }
 
     static setupRouterfunction (onPopState) {
@@ -77,13 +95,22 @@ export default class Router extends Component {
       }
     }
 
+    static decodeCurrentURI () {
+      return Router._decodeHash(decodeURI(window.location.href.split('#')[1]));
+    }
+
+    static ensureAppInUrl (appid) {
+      let currentroute = Router.decodeCurrentURI();
+      currentroute.appid = appid;
+      window.history.replaceState("", "", Router._encodeHash(currentroute));
+    }
+
     constructor (props) {
       super (props);
       console.log ('Router() Initialising...');
 
       let chng_route_fn = () => {
-        let navurl = decodeURI(window.location.href.split('#')[1] || '') || DEFAULT_LANDING;
-        var newroute = Router.decodeHash(navurl);
+        var newroute = Router.decodeCurrentURI();
         console.log ('Router() url changed : ' + JSON.stringify(newroute));
         if (props.updateRoute) props.updateRoute (newroute);
         // Save current route before overriding for backURL

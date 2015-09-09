@@ -65,8 +65,8 @@ export default class DynamicForm {
   loadApp(appid) {
     return this._callServer(this.ROUTES.dform + 'loadApp/' + (appid && ("?appid=" + appid) || '')).then(val => {
       this._appMeta = val.appMeta;
-      this._user = val.user;
-      this._currentApp = val.app;
+      this._user = val.user || {};
+      this._currentApp = val.app || {};
     });
   }
   getForm (fid) {

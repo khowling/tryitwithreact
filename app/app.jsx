@@ -43,7 +43,13 @@ class App extends Component {
    componentWillMount() {
     console.log ('App componentWillMount: setting up services');
     //this.setState ({ bootmsg:  'got cordova deviceready'});
-    this.dynamicForm.loadApp().then (() => {
+     // decodeURI(window.location.href.split('#')[1] || '') || DEFAULT_LANDING;
+    var urlappid = Router.decodeCurrentURI().appid;
+    this.dynamicForm.loadApp(urlappid).then (val => {
+        if ((!urlappid) && this.dynamicForm.app) {
+          console.log ("App  No App specified, so updating url with default app : " + this.dynamicForm.app._id);
+          Router.ensureAppInUrl (this.dynamicForm.app._id);
+        }
         this.setState ({ booted: true, bootmsg: 'loaded meta'});
     }, (error) => {
         this.setState ({ bootmsg: 'error loading meta : ' + error});
