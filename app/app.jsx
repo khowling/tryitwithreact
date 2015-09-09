@@ -40,21 +40,40 @@ class App extends Component {
      return {factories: factories, navMeta: navMeta};
    }
 
-   componentWillMount() {
-    console.log ('App componentWillMount: setting up services');
-    //this.setState ({ bootmsg:  'got cordova deviceready'});
-     // decodeURI(window.location.href.split('#')[1] || '') || DEFAULT_LANDING;
-    var urlappid = Router.decodeCurrentURI().appid;
-    this.dynamicForm.loadApp(urlappid).then (val => {
-        if ((!urlappid) && this.dynamicForm.app) {
-          console.log ("App  No App specified, so updating url with default app : " + this.dynamicForm.app._id);
-          Router.ensureAppInUrl (this.dynamicForm.app._id);
-        }
-        this.setState ({ booted: true, bootmsg: 'loaded meta'});
-    }, (error) => {
-        this.setState ({ bootmsg: 'error loading meta : ' + error});
-    });
+   _loadApp(appid) {
+     let loadappid = appid;
+     this.setState ({ booted: false, bootmsg: 'loading app'});
 
+       this.dynamicForm.loadApp(loadappid).then ((val) => {
+
+         if ((!loadappid) && this.dynamicForm.app) {
+           console.log ("App  No App specified, so updating url with default app : " + this.dynamicForm.app._id);
+           Router.ensureAppInUrl (this.dynamicForm.app._id);
+         }
+         this.setState ({ booted: true, bootmsg: null, user: this.dynamicForm.user, currentApp: this.dynamicForm.app});
+       }, (error) => {
+           this.setState ({ bootmsg: 'error loading app : ' + error});
+       });
+
+   }
+
+   componentWillMount() {
+    var urlappid = Router.decodeCurrentURI().appid;
+    console.log ("App componentWillMount: setting up services: " + urlappid);
+    this._loadApp(urlappid);
+  }
+
+  _authChange(chng) {
+    console.log ('App:  router noitified authChange: ' + JSON.stringify(chng));
+    if (chng.newappid) {
+      this._loadApp(chng.newappid);
+    } else if (chng.logout) {
+      this.dynamicForm.logOut().then(succ => {
+        //this.setState ({user: {}}, () => {
+          window.location.reload("#");
+      //  });
+      });
+    }
   }
 
   routeUpdated () {
@@ -80,7 +99,7 @@ class App extends Component {
                     <div className="slds-col slds-no-flex slds-align-bottom">
                       <div className="slds-grid">
                         <div className="slds-button-space-left" >
-                          <AuthState/>
+                          <AuthState user={this.state.user} currentApp={this.state.currentApp} onchange={this._authChange.bind(this)}/>
                         </div>
                       </div>
                     </div>

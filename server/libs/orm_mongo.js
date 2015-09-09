@@ -672,21 +672,23 @@ module.exports = function(options) {
     exps.getFormMeta = function (filterids) {
       // filterids:  not specified, return all
       // if specified, use as a query filter
-
       return new Promise(function (resolve, reject)  {
         console.log("getFormMeta() filterids : " + JSON.stringify(filterids));
         let adminmeta = meta.adminMetabyId(),
             retadminmeta = [];
 
+        // apps that need to work with files
+        retadminmeta.push(adminmeta[exps.forms.FileMeta.toString()]);
+
+
         if (filterids) {
           let oids = [];
-          if (filterids) {
-            for (let strid of filterids) {
-              if (adminmeta.hasOwnProperty(strid)) {
-                retadminmeta.push(adminmeta.strid);
-              } else {
-                oids.push(new ObjectID(strid));
-              }
+          for (let strid of filterids) {
+            let aview = adminmeta[strid];
+            if (aview) {
+              retadminmeta.push(aview);
+            } else {
+              oids.push(new ObjectID(strid));
             }
           }
           if (oids.length == 0) {

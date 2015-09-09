@@ -65,34 +65,19 @@ export class Login extends Component {
             </div>
           </div>
         </div>
-
       )
   }
 }
-
 
 export class AuthState extends Component {
 
   constructor(props) {
     super(props);
-    let df = DynamicForm.instance;
-    this.state = {user: df.user, app: df.app};
-  }
-
-  _logout() {
-    let df = DynamicForm.instance;
-    df.logOut().then(succ => {
-      this.setState ({user: {}}, () => {
-        window.location.reload("#");
-      });
-
-    });
+    this.state = {user: props.user, app: props.currentApp};
   }
 
   _changeapp(appid) {
-    let newurl = "/#" + appid + "/";
-    console.log ("change app : " + newurl);
-    window.location.href = newurl;
+    this.props.onchange(appid);
   }
 
   render () {
@@ -107,11 +92,11 @@ export class AuthState extends Component {
              <ul className="slds-dropdown__list" role="menu">
                { this.state.user.apps && this.state.user.apps.map(function(val, i) { return (
                <li className="slds-dropdown__item" style={{whiteSpace: "nowrap"}}>
-                   <a onClick={self._changeapp.bind(self, val.app._id)} className="slds-truncate">{val.app.primary}</a>
+                   <a onClick={self._changeapp.bind(self, {newappid: val.app._id})} className="slds-truncate">{val.app.primary}</a>
                </li>
              );})}
                <li className="slds-dropdown__item" >
-                 <a onClick={this._logout.bind(this)} className="slds-truncate">logout</a>
+                 <a onClick={this._changeapp.bind(this, {logout: true})} className="slds-truncate">logout</a>
                </li>
              </ul>
            </div>

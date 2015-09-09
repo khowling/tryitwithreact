@@ -109,7 +109,7 @@ module.exports = function(options) {
     });
 
     router.get('/loadApp', function(req, res) {
-      let appid = req.params["appid"] || ((req.user && req.user.apps && req.user.apps[0]) && req.user.apps[0].app._id || null);
+      let appid = req.query["appid"] || ((req.user && req.user.apps && req.user.apps[0]) && req.user.apps[0].app._id || null);
       console.log ("/formdata: starting, appid: " + appid);
 
       res.setHeader('Content-Type', 'application/json');
