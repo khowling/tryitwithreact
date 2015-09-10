@@ -222,7 +222,7 @@ export class Field extends Component {
         case 'lookup':
           if (this.props.value) {
             field = (<span className="slds-form-element__static">
-                      <a href={"#RecordPage?gid="+this.props.fielddef.search_form+":"+this.props.value._id}>
+                      <a href={Router.URLfor("RecordPage", this.props.fielddef.search_form, this.props.value._id)}>
                         {this.props.value.primary}
                       </a>
                     </span>);
@@ -271,7 +271,7 @@ export class Field extends Component {
 
                         { this.state.value &&
                         <span className="slds-pill">
-                          <a href="#" className="slds-pill__label">
+                          <a href={Router.URLfor("RecordPage", this.props.fielddef.createnew_form, this.state.value._id)} className="slds-pill__label">
                             <SvgIcon spriteType="standard" spriteName="account" small={true} classOverride=" "/>
                             <span>{this.state.value.primary}</span>
                           </a>
@@ -483,7 +483,7 @@ export class FormMain extends Component {
           // inform Parent RecordList to update record and close edit window.
           this.props.onFinished('save', succVal);
         } else {
-          Router.navBack("#RecordPage?gid=" + saveopt.form+":"+succVal._id);
+          Router.navTo("RecordPage", saveopt.form, succVal._id, null, true);
         }
       } else {
         console.log ('save error: ' + JSON.stringify(succVal));
@@ -515,7 +515,7 @@ export class FormMain extends Component {
       if (this.props.parent) {
         self.props.onFinished('delete', succVal);
       } else {
-        window.location.href = "#ListPage?gid="+this.props.view;
+        Router.navTo("ListPage", this.props.view);
       }
     });
   }
@@ -541,10 +541,10 @@ export class FormMain extends Component {
         } else {
           if (record._id) {
             // edit an existing record, go to view using url (keep history)
-            window.location.href = "#RecordPage?gid="+this.props.view+":"+record._id;
+            Router.navTo("RecordPage",this.props.view,record._id);
           } else {
             // creating a new record, goto list
-            window.location.href = "#ListPage?gid="+this.props.view;
+            Router.navTo("ListPage",this.props.view);
           }
       }
     }} || {
@@ -553,7 +553,7 @@ export class FormMain extends Component {
         if (this.props.parent)
           this.setState ({edit: true});
         else
-          window.location.href = "#RecordPage?gid="+this.props.view+":"+record._id+"&e=1";
+          Router.navTo("RecordPage", this.props.view, record._id, {e: true});
       }
     }));
 
@@ -612,6 +612,10 @@ export class ListPage extends Component {
     }
 
     componentDidMount() {
+      this._dataChanged();
+    }
+
+    _dataChanged() {
       let df = DynamicForm.instance;
       console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.state.metaview._id));
       if (this.state.metaview.collection)
@@ -631,7 +635,7 @@ export class ListPage extends Component {
           { this.props.urlparam && <PageHeader formName={this.state.metaview.name}/> }
           </div>
           <div className="slds-col slds-size--1-of-1">
-            <ListMain value={this.state.value} view={this.state.metaview._id}/>
+            <ListMain value={this.state.value} view={this.state.metaview._id} onDataChange={this._dataChanged.bind(this)}/>
           </div>
         </div>
       );
@@ -649,8 +653,28 @@ export class ListMain extends Component {
     };
   }
 
-
-  _delete (e) {
+  _delete (row) {
+    if (window.confirm("Sure?")) {
+      let df = DynamicForm.instance,
+          saveopt = {
+            form: this.props.view,
+            id: row._id
+          };
+      if (this.props.parent) {
+        var [viewid, recordid, fieldid] = this.props.parent.split(":");
+        saveopt.parent = {
+          parentid: recordid,
+          parentfieldid: fieldid
+        };
+      }
+      console.log ('ListMain _delete : '+ JSON.stringify(saveopt));
+      df.delete (saveopt).then(succVal => {
+        if (this.props.onDataChange) {
+          // this will re-load the data at the parent, and in turn send new props
+          this.props.onDataChange();
+        }
+      });
+    }
   }
 
   _edit (row, crud) {
@@ -659,12 +683,7 @@ export class ListMain extends Component {
       console.log ('ListMain : want to edit a imbedded doc');
       this.setState({editrow: {value: row, crud: crud}});
     } else  {
-
-      let edit_id = row.records._id && ":" + row.records._id || "",
-          edit_url = (crud === "c" || crud ==="u") && "&e=true" || "",
-          nurl = "#RecordPage?gid=" + this.props.view + edit_id + edit_url;
-      console.log ("ListMain : _edit: " + nurl);
-      window.location.href = nurl;
+      Router.navTo("RecordPage", this.props.view, row.records._id,  (crud === "c" || crud ==="u") && {"e": true} || {});
     }
   }
 
@@ -754,15 +773,25 @@ export class ListMain extends Component {
                           { self.props.selected &&
                           <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
                           ||
-                          <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, {state: "ready", records: row}, "u")}>edit </a>
-                          }
-                          {  !self.props.selected &&
-                          <a className="slds-button slds-button--brand" onClick={self._edit.bind(self, {state: "ready", records: row}, "r")}>view </a>
+                          <div className="slds-button-group">
+                            <button className="slds-button slds-button--brand" onClick={self._edit.bind(self, {state: "ready", records: row}, "u")}>edit </button>
+                            <button className="slds-button slds-button--brand" onClick={self._delete.bind(self, row)}>del </button>
+                          </div>
                           }
                         </td>
-                        {nonchildformfields.map(function(field, i) { return (
-                          <td><Field key={metaview._id+"RL"+field._id} fielddef={field} value={row[field.name]}/></td>
-                        );})}
+                        {nonchildformfields.map(function(field, i) {
+                            let listfield =  <Field key={metaview._id+"RL"+field._id} fielddef={field} value={row[field.name]}/>;
+                            if (field.name === "name") {
+                              return (
+                                <td>
+                                  <a href={Router.URLfor("RecordPage", metaview._id, row._id)}>
+                                    {listfield}
+                                  </a>
+                                </td>);
+                            } else {
+                              return (<td>{listfield}</td>);
+                            }
+                        })}
                     </tr>
                   );})}
                 </tbody>

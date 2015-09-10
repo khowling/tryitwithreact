@@ -44,17 +44,13 @@ class App extends Component {
      let loadappid = appid;
      this.setState ({ booted: false, bootmsg: 'loading app'});
 
-       this.dynamicForm.loadApp(loadappid).then ((val) => {
-
-         if ((!loadappid) && this.dynamicForm.app) {
-           console.log ("App  No App specified, so updating url with default app : " + this.dynamicForm.app._id);
-           Router.ensureAppInUrl (this.dynamicForm.app._id);
-         }
-         this.setState ({ booted: true, bootmsg: null, user: this.dynamicForm.user, currentApp: this.dynamicForm.app});
-       }, (error) => {
-           this.setState ({ bootmsg: 'error loading app : ' + error});
-       });
-
+     this.dynamicForm.loadApp(loadappid).then ((val) => {
+       console.log ("App  No App specified, so updating url with default app : " + this.dynamicForm.app._id);
+       Router.ensureAppInUrl (this.dynamicForm.app._id);
+       this.setState ({ booted: true, bootmsg: null, user: this.dynamicForm.user, currentApp: this.dynamicForm.app});
+     }, (error) => {
+         this.setState ({ bootmsg: 'error loading app : ' + error});
+     });
    }
 
    componentWillMount() {
@@ -91,7 +87,7 @@ class App extends Component {
                   <div className="slds-grid">
                     <div className="slds-col slds-has-flexi-truncate">
                       <h1>
-                        <a href='#'><SvgIcon classOverride="slds-button__icon slds-button__icon--large" spriteType="utility" spriteName="apps"/></a>
+                        <a href={Router.URLfor()}><SvgIcon classOverride="slds-button__icon slds-button__icon--large" spriteType="utility" spriteName="apps"/></a>
                         <small></small>
                       </h1>
                     </div>

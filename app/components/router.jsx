@@ -1,21 +1,13 @@
 'use strict';
 
 import React, {Component} from 'react';
+import DynamicForm from '../services/dynamicForm.es6';
+
+
 const DEFAULT_LANDING = 'TileList';
 
 let _backUrl = null;
 export default class Router extends Component {
-
-    static navBack(alt) {
-      console.log ('Router.navBack, backurl: ' + JSON.stringify(_backUrl));
-        if (Router.backUrl)
-          window.location.href = Router._encodeHash(Router.backUrl);
-        else if (alt)
-          window.location.href = alt;
-        else
-          window.location.href = "#" + DEFAULT_LANDING;
-    }
-
 
     static set backUrl(val) {
       _backUrl = val;
@@ -24,10 +16,25 @@ export default class Router extends Component {
       return _backUrl;
     }
 
+    static URLfor(comp, form, record, params) {
+      let df = DynamicForm.instance,
+          routeJson = {appid: df.app && df.app._id, params: {}};
+      if (comp) routeJson.hash = comp;
+      if (form) routeJson.params.gid = form + (record && ("-"+record) || "");
+      if (params) Object.assign (routeJson.params, params);
+      return Router._encodeHash (routeJson);
+    }
+
+    static navTo(comp, form, record, params, backiflist) {
+      if (Router.backUrl && backiflist && Router.backUrl.hash === "ListPage")
+        window.location.href = Router._encodeHash(Router.backUrl);
+      else
+        window.location.href = Router.URLfor(comp, form, record, params);
+    }
+
     static _encodeHash (routeJson) {
       let array = [],
           {appid, hash, params} = routeJson;
-
 
       for(var key in params) {
         if (params[key]) {
@@ -61,7 +68,7 @@ export default class Router extends Component {
           let tfn = x => {
             let [n, v] = x.split('=');
             if (n === 'gid') {
-              let [view, id] = v.split (':');
+              let [view, id] = v.split ('-');
               paramjson.view = view;
               paramjson.id = id;
             } else
@@ -99,9 +106,15 @@ export default class Router extends Component {
       return Router._decodeHash(decodeURI(window.location.href.split('#')[1]));
     }
 
-    static ensureAppInUrl (appid) {
+    static ensureAppInUrl (newappid) {
       let currentroute = Router.decodeCurrentURI();
-      currentroute.appid = appid;
+      console.log ("current route " + JSON.stringify(currentroute) + "new app requeted: " + newappid);
+      if (currentroute.appid && (currentroute.appid != newappid)) {
+        console.log ("chaning apps, ensure the hash and params are wiped");
+        delete currentroute.hash;
+        delete currentroute.params;
+      }
+      currentroute.appid = newappid;
       window.history.replaceState("", "", Router._encodeHash(currentroute));
     }
 

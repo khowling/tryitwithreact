@@ -109,37 +109,39 @@ module.exports = function(options) {
     });
 
     router.get('/loadApp', function(req, res) {
-      let appid = req.query["appid"] || ((req.user && req.user.apps && req.user.apps[0]) && req.user.apps[0].app._id || null);
-      console.log ("/formdata: starting, appid: " + appid);
-
-      res.setHeader('Content-Type', 'application/json');
-
-      let objectids = [], //new Set(),
+      let urlappid = req.query["appid"],
+          app = null,
           errfn = function (errval) {
-            res.status(400).send(errval);
-          };
-/*
-      let appids = [];
-      if (req.user && req.user.apps) {
-        for (let app of req.user.apps) {
-          appids.push(app.app);
-        }
+                res.status(400).send(errval);
+            };
+
+      console.log ("/formdata: starting, requested app:  urlappid=" + urlappid);
+
+      if (req.user) {
+        let userapps = req.user.apps  || [];
+        if (urlappid)
+          app = userapps.find(ua => ua.app._id == urlappid).app;
+        else
+          app = userapps[0] && userapps[0].app;
+      } else {
+        // not logged on
       }
-*/
-      if (appid) {
-        console.log ("/formdata: user logged on and authorised for these apps : " + JSON.stringify (appid));
-        orm.find(orm.forms.App, { id: appid}, true, true).then((app) => {
-            if (app && app.appperms) for (let perm of app.appperms) {
-              console.log ("/formdata: adding form app ["+app.name+"]: " + perm.form);
+      //res.setHeader('Content-Type', 'application/json');
+      if (app) {
+        console.log ("/formdata: user logged on and authorised for the apps : " + app.name);
+        orm.find(orm.forms.App, { id: app._id}, true, true).then((apprec) => {
+            let objectids = [];
+            if (apprec && apprec.appperms) for (let perm of apprec.appperms) {
+              console.log ("/formdata: adding form app ["+apprec.name+"]: " + perm.form);
               objectids.push(perm.form); //.add[perm.form];
               //perm.crud
             }
             orm.getFormMeta(objectids).then (function (sucval) {
-              res.json({user: req.user, app: app, appMeta: sucval});
+              res.json({user: req.user, app: apprec, appMeta: sucval});
             }, errfn).catch(errfn);
         }, errfn)
       } else {
-        orm.getFormMeta(objectids).then (function (sucval) {
+        orm.getFormMeta([]).then (function (sucval) {
           res.json({user: req.user, appMeta: sucval});
         }, errfn).catch(errfn);
       }
@@ -150,12 +152,12 @@ module.exports = function(options) {
     let id = req.query._id;
     if (id) {
       let d = {};
-      for (let x of orm.defaultData()) {
+      for (let x of orm.defaultData) {
         if (x._id === id) { d = x; break; }
       }
       res.json(d);
     }  else
-      res.json(orm.defaultData());
+      res.json(orm.defaultData);
   });
 
     return router;

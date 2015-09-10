@@ -19,6 +19,7 @@ module.exports = function(options) {
             "UserApps": new ObjectID('000000000900'),
             "App": new ObjectID('000000000a00'),
             "AppPerms": new ObjectID('000000000b00'),
+            "AppPageComponent": new ObjectID('000000000e00'),
             "ImportMeta": new ObjectID('000000000c00'),
             "ImportMetaData": new ObjectID('000000000d00')
         }
@@ -430,7 +431,6 @@ module.exports = function(options) {
             layout: "1col",
             icon: "page-edit",
             fields: [
-
                 {
                     name: "name",
                     show_when: "true",
@@ -473,7 +473,90 @@ module.exports = function(options) {
                     layout: "list",
                     child_form: exps.forms.AppPerms,
                     _id: new ObjectID('000000000a01')
+                },
+                {
+                    name: "landingpage",
+                    title: "Landing Page",
+                    type: "childform",
+                    createnew_form: exps.forms.AppPageComponent,
+                    child_form: exps.forms.AppPageComponent,
+                    _id: new ObjectID('000000000a02'),
                 }
+            ]
+        },
+        {
+            _id: exps.forms.AppPageComponent,
+            name: "App Page Component",
+            type: "childform",
+            fields: [
+              {
+                  name: "title",
+                  title: "Title",
+                  type: "text",
+                  required: true
+              },
+              {
+                  name: "size",
+                  title: "Form",
+                  type: "lookup",
+                  search_form: exps.forms.metaSearch,
+                  required: true,
+                  _id: new ObjectID('000000000e01'),
+              },
+              {
+                  name: "view",
+                  title: "View",
+                  show_when: "true",
+                  type: "dropdown",
+                  required: true,
+                  dropdown_options: [
+                      {
+                          name: "Tile view",
+                          value: "TileMain"
+                      },
+                      {
+                          name: "List view",
+                          value: "ListMain"
+                      },
+                      {
+                          name: "Record view",
+                          value: "FormMain"
+                      },
+                      {
+                          name: "Graph",
+                          value: "graph"
+                      },
+                      {
+                          name: "TimeLine",
+                          value: "TimeLine"
+                      }
+                    ]
+                },
+                {
+                    name: "filter",
+                    title: "Data Filter",
+                    show_when: "true",
+                    type: "dropdown",
+                    required: true,
+                    dropdown_options: [
+                        {
+                            name: "Filter Clause",
+                            value: "filter"
+                        },
+                        {
+                            name: "Top X",
+                            value: "topx"
+                        },
+                        {
+                            name: "Other Page Component",
+                            value: "page"
+                        },
+                        {
+                            name: "xxx",
+                            value: "xxx"
+                        }
+                      ]
+                  }
             ]
         },
         {
@@ -525,7 +608,7 @@ module.exports = function(options) {
             action: "import",
             fields: [
                 {
-                    name: "app",
+                    name: "name",
                     title: "App Name",
                     show_when: "true",
                     type: "text"
@@ -596,7 +679,7 @@ module.exports = function(options) {
     exps.defaultData =   [
       {
         _id: "LoadApp001",
-        app: "Admin App",
+        name: "Admin App",
         metadata: [
           {
             form: {_id: exps.forms.App, primary: "App"},
@@ -610,7 +693,9 @@ module.exports = function(options) {
                 {form: {_id: exps.forms.UserApps}, crud: "crud"},
                 {form: {_id: exps.forms.App}, crud: "crud"},
                 {form: {_id: exps.forms.AppPerms}, crud: "crud"},
-                {form: {_id: exps.forms.ImportMeta}, crud: "crud"}
+                {form: {_id: exps.forms.AppPageComponent}, crud: "crud"},
+                {form: {_id: exps.forms.ImportMeta}, crud: "crud"},
+                {form: {_id: exps.forms.ImportMetaData}, crud: "crud"}
                 ]}
             ]
           }

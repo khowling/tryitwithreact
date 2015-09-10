@@ -667,6 +667,7 @@ module.exports = function(options) {
 
     exps.forms = meta.forms;
     // expose these from the static data
+    exps.defaultData = meta.defaultData;
 
 
     exps.getFormMeta = function (filterids) {
@@ -680,6 +681,10 @@ module.exports = function(options) {
         // apps that need to work with files
         retadminmeta.push(adminmeta[exps.forms.FileMeta.toString()]);
 
+        // Get out of Jail!!
+        //for (let admins in exps.forms) {
+        //  retadminmeta.push(adminmeta[exps.forms[admins].toString()]);
+        //}
 
         if (filterids) {
           let oids = [];
@@ -720,10 +725,5 @@ module.exports = function(options) {
       });
     }
 
-/*
-    exps.defaultData = function () {
-      return meta.defaultData;
-    }
-*/
     return exps;
 }

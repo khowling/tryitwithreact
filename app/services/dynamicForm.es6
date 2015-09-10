@@ -10,11 +10,9 @@ export default class DynamicForm {
       throw "DynamicForm() only allow to construct once";
     }
     this._host = server_url;
-    this._appMeta = [];
-    this._user = {};
-    this._currentApp = {};
     this.ROUTES = {dform: '/dform/', auth: '/auth/'};
     instance = this;
+    this.clearApp();
   }
 
   static get instance() {
@@ -62,9 +60,26 @@ export default class DynamicForm {
      });
   }
 
+  clearApp() {
+    this._appMeta = [];
+    this._user = {};
+    this._currentApp = {};
+  }
+
+  getMe() {
+    return this._callServer(this.ROUTES.auth + 'me');
+  }
+
+  logOut() {
+    return this._callServer(this.ROUTES.auth + 'logout').then(succ => {
+      this.clearApp();
+    });
+  }
+
   loadApp(appid) {
+    this.clearApp();
     return this._callServer(this.ROUTES.dform + 'loadApp/' + (appid && ("?appid=" + appid) || '')).then(val => {
-      this._appMeta = val.appMeta;
+      this._appMeta = val.appMeta || [];
       this._user = val.user || {};
       this._currentApp = val.app || {};
     });
@@ -132,15 +147,5 @@ export default class DynamicForm {
      console.log ('uploadFile() sending : ' + file.name + ', ' + file.type);
      xhr.send(file);
    });
-  }
-
-  getMe() {
-    return this._callServer(this.ROUTES.auth + 'me');
-  }
-
-  logOut() {
-    return this._callServer(this.ROUTES.auth + 'logout').then(succ => {
-      this._user = {};
-    });
   }
 }
