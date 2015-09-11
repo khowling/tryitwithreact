@@ -268,6 +268,9 @@ export class Field extends Component {
             field = (<span className="slds-form-element__static"/>);
           }
           break;
+        case "dropdown_options":
+          field = (<ListMain view={this.props.fielddef.child_form} value={{state: "ready", records: this.props.value || [{name:"empty", value:"empty"}]}} parent={{field: this.props.fielddef}}/>);
+          break;
         case "datetime":
           field = (<span className="slds-form-element__static">{this.props.value && new Date(this.props.value).toLocaleDateString() || ""}</span>);
           break;
@@ -562,10 +565,10 @@ export class FormMain extends Component {
 
     // if its a childform - add parent details to the save for mongo & nav back to parent
     if (this.props.parent) {
-      var [viewid, recordid, fieldid] = this.props.parent.split(":");
+      let {view, recordid, field} = this.props.parent;
       saveopt.parent = {
         parentid: recordid,
-        parentfieldid: fieldid
+        parentfieldid: field._id
       };
     }
 
@@ -601,10 +604,10 @@ export class FormMain extends Component {
         };
 
     if (this.props.parent) {
-      var [viewid, recordid, fieldid] = this.props.parent.split(":");
+      let {view, recordid, field} = this.props.parent;
       saveopt.parent = {
         parentid: recordid,
-        parentfieldid: fieldid
+        parentfieldid: field._id
       };
     }
 
@@ -759,10 +762,10 @@ export class ListMain extends Component {
             id: row._id
           };
       if (this.props.parent) {
-        var [viewid, recordid, fieldid] = this.props.parent.split(":");
+        let {view, recordid, field} = this.props.parent;
         saveopt.parent = {
           parentid: recordid,
-          parentfieldid: fieldid
+          parentfieldid: field._id
         };
       }
       console.log ('ListMain _delete : '+ JSON.stringify(saveopt));
@@ -830,9 +833,8 @@ export class ListMain extends Component {
 
   render() {
     console.log ('ListMain rendering ' + JSON.stringify(this.state.editrow));
-    var self = this,
-        state = this.state.value.state,
-        records = this.state.value.records,
+    let self = this,
+        {state, records} = this.state.value,
         df = DynamicForm.instance,
         metaview = df.getForm (this.props.view),
         nonchildformfields = metaview.fields.filter(m => m.type !== 'childform');
@@ -965,11 +967,10 @@ export class RecordPage extends Component {
   }
 
   render() {
-    var self = this,
-        status = self.state.value.status,
-        records = self.state.value.records;
+    let self = this,
+        {status, records} = self.state.value;
 
-    console.log ('Form: rendering state');
+    console.log ("Form: rendering state");
   /* Removed prop from FormMain - parent={this.props.urlparam.parent}  - will never happen?? */
     return (
         <div className="slds-grid slds-wrap">
@@ -985,7 +986,7 @@ export class RecordPage extends Component {
           <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
             {this.state.crud === "r"  && this.state.childformfields.map(function(field, i) { return (
               <div style={{padding: "0.5em"}}>
-                <ListMain parent={self.state.metaview._id+":"+(status === 'ready' && records._id || "new")+":"+field._id} view={field.child_form} value={{status: status, records: status === "ready" && records[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
+                <ListMain parent={{view: self.state.metaview._id, recordid: status == 'ready' && records._id || "new", field: field }} view={field.child_form} value={{status: status, records: status === "ready" && records[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
               </div>
             );})}
           </div>

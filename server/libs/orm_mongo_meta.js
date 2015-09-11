@@ -12,6 +12,7 @@ module.exports = function(options) {
         forms: {
             "formMetadata" : new ObjectID('000000000100'),
             "FormFieldMetadata": new ObjectID('000000000200'),
+            "DropDownOption": new ObjectID('000000000210'),
             "metaSearch": new ObjectID('000000000400'),
             "Users": new ObjectID('000000000600'),
             "AuthProviders": new ObjectID('000000000700'),
@@ -275,7 +276,23 @@ module.exports = function(options) {
                     name: "dropdown_options",
                     title: "Dropdown Options",
                     show_when: "record['type'] == 'dropdown'",
-                    type: "dropdown_options"
+                    type: "dropdown_options",
+                    child_form: exps.forms.DropDownOption,
+                }
+            ]
+        },
+        {
+            _id: exps.forms.DropDownOption,
+            name: "DropDown Option",
+            type: "childform",
+            fields: [
+                {
+                    name: "name",
+                    title: "Name"
+                },
+                {
+                    name: "value",
+                    title: "Value"
                 }
             ]
         },
@@ -691,6 +708,7 @@ module.exports = function(options) {
               {name: "Admin App", type: "deployed", appperms: [
                 {form: {_id: exps.forms.formMetadata}, crud: "crud"},
                 {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
+                {form: {_id: exps.forms.DropDownOption}, crud: "crud"},
                 {form: {_id: exps.forms.metaSearch}, crud: "crud"},
                 {form: {_id: exps.forms.Users}, crud: "crud"},
                 {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
