@@ -164,6 +164,10 @@ module.exports = function(options) {
                             name: "Dropdown",
                             value: "dropdown"
                         },
+                        {
+                            name: "DateTime",
+                            value: "datetime"
+                        }
                     ]
                 },
                 {
@@ -732,19 +736,17 @@ module.exports = function(options) {
     exps.findFieldById = function (meta, name) {
       try {
         var oname = new ObjectID(name);
-        //console.log ('findFieldById() searching for: "' + oname +'"');
-        for (var i = 0, ilen = meta.length; i < ilen; i += 1) {
-            var flds = meta[i].fields;
-            //console.log('findFieldById() checking the form   : ' + meta[i].name + '"');
-            for (var j = 0, jlen = flds.length; j < jlen; j += 1) {
-                //console.log('findFieldById() got the field : ' + flds[j].name + ' "' + flds[j]._id + '"');
-                if (flds[j]._id) {
-                    if (flds[j]._id.equals(oname)) {
-                        //console.log('findFieldById() returning : ' + meta[i].name + ' "' + flds[j].name + '"');
-                        return {form: meta[i], field: flds[j]};
-                    }
-                }
+        console.log ('findFieldById() searching for: "' + oname +'"');
+        for (let form of meta) {
+          //var flds = meta[i].fields;
+          console.log('findFieldById() checking the form: ' + form.name);
+          if (form.fields) for (let fld of form.fields) {
+            console.log('findFieldById() got the field : ' + fld.name + ' "' + fld._id + '"');
+            if (fld._id && fld._id.equals(oname)) {
+              console.log("findFieldById() found it");
+              return {form: form, field: fld};
             }
+          }
         }
       } catch (e) {
         console.log('findFieldById() err ' + JSON.stringify(e));

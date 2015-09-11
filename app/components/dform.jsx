@@ -47,7 +47,10 @@ export class Field extends Component {
   constructor(props) {
     console.log ('Field constructor');
     super(props);
-    this.state = { picupload:0, picselectexisting:false, picFileList: {state: "wait", records: []},  lookup: { visible: false, values: [], create: false, offercreate: false}, value: props.value};
+    this.state = { picupload:0, picselectexisting:false, picFileList: {state: "wait", records: []},
+                  lookup: { visible: false, values: [], create: false, offercreate: false},
+                  date: {visible: false, montharray: [] },
+                  value: props.value};
     this._selectedFile = this._selectedFile.bind(this);
   }
 
@@ -183,6 +186,41 @@ export class Field extends Component {
         this.props.onChange ({[this.props.fielddef.name]: fileid});
       });
   }
+  /*******************/
+  /* Date  Functions */
+  /*******************/
+  _showDate() {
+
+    let now = new Date(),
+        montharray = [],
+        daycnt = 0,
+        today = new Date().getDate(),
+        firstDoW = new Date(now.getFullYear(), now.getMonth(), 1).getDay(), // day of week [0-6]
+        lastDoM = new Date(now.getFullYear(), now.getMonth(), 0).getDate(); // day of month [1-31]
+
+    for (let wkidx of [0,1,2,3,4,5]) {
+      montharray[wkidx] = [];
+      for (let dayidx of [0,1,2,3,4,5,6]) {
+        if (wkidx == 0 && dayidx == firstDoW) daycnt = 1; // found 1st day of month, start the count up
+        montharray[wkidx][dayidx] = "";
+        if (daycnt >0 && daycnt < lastDoM)  montharray[wkidx][dayidx] = daycnt++;
+      }
+      if (daycnt >= lastDoM)  break;
+    }
+    this.setState ({date: {visible: true, today: today, montharray: montharray }})
+  }
+
+  _doneDate(yr,mth,day) {
+    if (yr) {
+      console.log ("Field _doneDate :"  + yr + ":" + mth + ":" + day);
+      this.setState ({value: new Date(yr,mth,day), date: {visible: false }}, () => {
+        if (this.props.onChange)
+          this.props.onChange ({[this.props.fielddef.name]: this.state.value});
+      });
+    } else {
+      this.setState ({date: {visible: false }});
+    }
+  }
 
   handleValueChange(event) {
     let newval = event.target.value;
@@ -229,6 +267,9 @@ export class Field extends Component {
           } else  {
             field = (<span className="slds-form-element__static"/>);
           }
+          break;
+        case "datetime":
+          field = (<span className="slds-form-element__static">{this.props.value && new Date(this.props.value).toLocaleDateString() || ""}</span>);
           break;
         case 'childform':
           let cform = MetaStore.getForm (this.props.fielddef.child_form);
@@ -314,6 +355,63 @@ export class Field extends Component {
                       </div>
                     </span>;
             break;
+        case "datetime":
+          field = <span>
+                  <div className="slds-form-element__control">
+                    <div className="slds-input-has-icon slds-input-has-icon--right">
+                      <SvgIcon spriteType="utility" spriteName="event" small={true} classOverride="slds-input__icon" />
+                      <input className="slds-input" type="text" placeholder="Pick a Date" value={this.state.value && new Date(this.state.value).toLocaleDateString() || ""} onFocus={this._showDate.bind(this)} />
+                    </div>
+                  </div>
+
+                  { this.state.date.visible &&
+                  <div className="slds-dropdown slds-dropdown--left slds-datepicker">
+                    <div className="slds-datepicker__filter slds-grid">
+                      <div className="slds-datepicker__filter--month slds-grid slds-grid--align-spread slds-size--3-of-4">
+                        <div className="slds-align-middle">
+                          <button className="slds-button slds-button--icon-container">
+                            <SvgIcon spriteType="utility" spriteName="left" small={true} classOverride="slds-input__icon" small={true}/>
+                            <span className="slds-assistive-text">Previous Month</span>
+                          </button>
+                        </div>
+                        <h2 id="month" className="slds-align-middle" aria-live="assertive" aria-atomic="true">June</h2>
+                        <div className="slds-align-middle">
+                          <button className="slds-button slds-button--icon-container">
+                            <SvgIcon spriteType="utility" spriteName="right" small={true} small={true}/>
+                            <span className="slds-assistive-text">Next Month</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div className="slds-picklist datepicker__filter--year slds-shrink-none">
+                        <button id="year" className="slds-button slds-button--neutral slds-picklist__label" aria-haspopup="true">2015
+                          <SvgIcon spriteType="utility" spriteName="down" small={true} classOverride="slds-input__icon" small={true}/>
+                        </button>
+                      </div>
+                    </div>
+                    <table className="datepicker__month" role="grid" aria-labelledby="month">
+                      <thead>
+                        <tr id="weekdays">
+                          { ["S", "M", "T", "W", "T", "F", "S"].map((day, i) =>{ return (
+                            <th ><abbr>{day}</abbr></th>
+                        )})}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        { this.state.date.montharray.map((wkarray, i) =>{ return (
+                            <tr>
+                            { wkarray.map((day, i) =>{ return (
+                              <td className={day.length == 0 &&  "slds-disabled-text" || (day == this.state.date.today && "slds-is-today" || "")}>
+                                <span className="slds-day" onClick={self._doneDate.bind(self, 2015, 6, day)}>{day}</span>
+                              </td>
+                            )})}
+                            </tr>
+                        )})}
+                      </tbody>
+                    </table>
+                  </div>
+                  }
+                </span>;
+          break;
         case 'childform':
             field = <div></div>;
             break;
