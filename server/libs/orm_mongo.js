@@ -21,8 +21,8 @@ module.exports = function(options) {
       return new Promise(function (resolve, reject)  {
         console.log ("find() staring, form: " + formparam + ", findone: ["+findone+"], ingnore lookups ["+ignoreLookups+"] query: " + JSON.stringify (query));
 
-        /* search form meta-data for 'lookup' fields to resolve (also search through 'childform' subforms) */
-        var findFieldsandLookups = function (FORM_DATA, form, parentField, lastresult) {
+        /* search form meta-data for 'reference' fields to resolve (also search through 'childform' subforms) */
+        var findFieldsandLookups = function (FORM_DATA, form, parentField, ignoreLookups, lastresult) {
             var result = lastresult || {findField: {}, subqarray: []};
             for (var f in form.fields) {
                 var field = form.fields[f];
@@ -31,10 +31,10 @@ module.exports = function(options) {
                     result.findField[field.name] = 1;
                 }
                 if (!ignoreLookups) {
-                    if (field.type === 'lookup') {
+                    if (field.type === 'reference') {
                         console.log('find() findFieldsandLookups: found a lookup field on [' + form.name + '] field : ' + field.name);
                         var searchform = meta.findFormById(FORM_DATA, field.search_form);
-                        if (searchform) {
+                        if (searchform && searchform.collection) {
                             var subqobj = {
                                 field: field.name,
                                 form: searchform
@@ -50,7 +50,7 @@ module.exports = function(options) {
                             return {error: 'find() Cannot find childform definitions on field ['+form.name+'.'+field.name+'] : ' + field.child_form};
                         } else {
                             console.log('find() findFieldsandLookups: found a childform, recurse onit! name :' + field.child_form + ' : ' + childform.name);
-                            result = findFieldsandLookups(FORM_DATA, childform, field.name, result);
+                            result = findFieldsandLookups(FORM_DATA, childform, field.name, ignoreLookups, result);
                             if (result.error) break;
                         }
                     }
@@ -67,7 +67,7 @@ module.exports = function(options) {
                 // for each data row
                 var doc = docs[didx];
                 for (var saidx in subqarray) {
-                    // for each 'lookup' field
+                    // for each 'reference' field
                     var subq_obj = subqarray[saidx];
                     // if in harvest mode, initialise lookupkeys array
                     if (!subq && !lookupkeys[subq_obj.form._id])  lookupkeys[subq_obj.form._id] = {form: subq_obj.form, keys: []};
@@ -90,7 +90,7 @@ module.exports = function(options) {
                               // update mode
                               doc[subq_obj.subdocfield][edidx][subq_obj.field] = {
                                 _id: lookupfieldval,
-                                primary: subq[lookupfieldval] || 'missing'};
+                                search_ref: subq[lookupfieldval] || {error:'missing'}};
                             }
                           }
                         }
@@ -108,7 +108,7 @@ module.exports = function(options) {
                           // update mode
                           doc[subq_obj.field] = {
                             _id: doc[subq_obj.field],
-                            primary: subq[doc[subq_obj.field]] || 'missing'};
+                            search_ref: subq[doc[subq_obj.field]] || {error:'missing'}};
                         }
                     }
                 }
@@ -124,9 +124,8 @@ module.exports = function(options) {
         /* run subquery */
         var runsubquery = function (FORM_DATA, form, objids, pfld) {
           return new Promise(function (resolve, reject)  {
-            var primaryfld = pfld || "name",
-                q = { _id: { $in: objids }},
-                flds = { [primaryfld]: 1 }; // Computed property names (ES6)
+            var q = { _id: { $in: objids }},
+                flds = findFieldsandLookups(FORM_DATA, form, null, true).findField;
             console.log('find() runsubquery() find  ' + form.collection + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(flds));
 
             db.collection(form.collection).find(q, flds).toArray(function (err, docs) {
@@ -135,20 +134,24 @@ module.exports = function(options) {
 
                   // if less results than expected and using 'formMeta' lookup to the formMetadata object, include the META_DATA, as there may be a reference.
                   if (objids.length > docs.length && form._id === meta.forms.metaSearch) {
-                    console.log ('finding in metasearch');
                     let metares = [];
                     for (let lid of objids) {
-                      //if (!docs.filter(r => r._id === lid))  // ES6 :(
-                      let gotit = false;
-                      for (let d of docs) {if (d._id === lid) gotit = true;};
-                      if  (!gotit) {
-                        let lform = meta.findFormById(FORM_DATA, lid);
-                        if (lform) docs.push ({_id: lform._id, name: lform.name});
+                      if (docs.filter(r => r._id === lid).length == 0)  { // ES6 :(
+                      //let gotit = false;
+                      //for (let d of docs) {if (d._id === lid) gotit = true;};
+                      //if  (!gotit) {
+                        console.log ('finding in metasearch: ' + lid);
+                        let lidform = meta.findFormById(FORM_DATA, lid);
+                        if (lidform) {
+                          let filteredform = {_id: lidform._id};
+                          for (let f in flds)
+                            filteredform[f] = lidform[f];
+                          docs.push (filteredform);
+                        }
                       }
                     }
                   }
-
-                  resolve({primaryfld: primaryfld, recs: docs});
+                  resolve(docs);
                 }
             });
           });
@@ -170,8 +173,8 @@ module.exports = function(options) {
                   console.log ('Got all suqqueries, now shape the data: ' + JSON.stringify(succVal));
                   let subq_res = {};
                   for (let subq of succVal) {
-                      for (let rec of subq.recs) {
-                        subq_res[rec._id] = rec[subq.primaryfld];
+                      for (let rec of subq) {
+                        subq_res[rec._id] = rec;
                       }
                   }
                   resolve(subq_res);
@@ -230,7 +233,7 @@ module.exports = function(options) {
               console.log("find() create the mongo query : " + JSON.stringify(mquery));
 
               //console.log('looking for lookup fields in ' + form.name);
-              var fieldsandlookups = findFieldsandLookups(FORM_DATA, form);
+              var fieldsandlookups = findFieldsandLookups(FORM_DATA, form, null, ignoreLookups);
               console.log('find() fieldsandlookups: ' + JSON.stringify(fieldsandlookups));
 
               if (fieldsandlookups.error) {
@@ -432,9 +435,18 @@ module.exports = function(options) {
 
                         if (!fldmeta)
                           return {error: "data contains fields not recognised : " + propname};
-                        if (fldmeta.type === "lookup") {
-                          if (fval && !fval._id) {error: "data contains lookup field with recognised _id: " + propname};
-                          tv[tprop] = fval && fval._id || null;
+                        if (fldmeta.type === "reference") {
+                          let sform = meta.findFormById(FORM_DATA, fldmeta.search_form);
+                          if (!sform) return {error: "data contains reference field without defined search_form: " + propname};
+                          if (sform.collection) {
+                            if (fval && !fval._id) return {error: "data contains reference field with recognised _id: " + propname};
+                            try {
+                              tv[tprop] = fval && new ObjectID(fval._id) || null;
+                            } catch (e) {  return {error: "data contains reference field with invalid _id: " + propname + "  : " + fval._id};}
+                          } else {
+                            if (fval && !fval.key) return {error: "data contains reference field with recognised key: " + propname};
+                            tv[tprop] = fval && fval.key || null;
+                          }
                         } else if (fldmeta.type === "childform") {
 
                           if (!allowchildform) {
@@ -462,7 +474,7 @@ module.exports = function(options) {
                                 let cfldmeta = cfldmetalist[cpropname];
                                 if (!cfldmeta)
                                   return {error: "data contains fields in child for not recognised : " + propname + "." + cpropname};
-                                if (cfldmeta.type === "lookup") {
+                                if (cfldmeta.type === "reference") {
                                   if (cval[cpropname] && !cval[cpropname]._id) {error: "data contains lookup field with recognised _id: " + propname};
                                   cval[cpropname] = cval[cpropname] && cval[cpropname]._id || null;
                                 }
@@ -680,11 +692,13 @@ module.exports = function(options) {
 
         // apps that need to work with files
         retadminmeta.push(adminmeta[exps.forms.FileMeta.toString()]);
+        // apps that need to work with icons
+        retadminmeta.push(adminmeta[exps.forms.iconSearch.toString()]);
 
         // Get out of Jail!!
-        //for (let admins in exps.forms) {
-        //  retadminmeta.push(adminmeta[exps.forms[admins].toString()]);
-        //}
+        if (false) for (let admins in exps.forms) {
+          retadminmeta.push(adminmeta[exps.forms[admins].toString()]);
+        }
 
         if (filterids) {
           let oids = [];

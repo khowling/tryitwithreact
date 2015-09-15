@@ -13,18 +13,29 @@ module.exports = function(options) {
             "formMetadata" : new ObjectID('000000000100'),
             "FormFieldMetadata": new ObjectID('000000000200'),
             "DropDownOption": new ObjectID('000000000210'),
+            "iconSearch": new ObjectID('000000000300'),
             "metaSearch": new ObjectID('000000000400'),
             "Users": new ObjectID('000000000600'),
             "AuthProviders": new ObjectID('000000000700'),
             "FileMeta": new ObjectID('000000000800'),
             "UserApps": new ObjectID('000000000900'),
             "App": new ObjectID('000000000a00'),
+            "AppSearch": new ObjectID('000000000a10'),
             "AppPerms": new ObjectID('000000000b00'),
             "AppPageComponent": new ObjectID('000000000e00'),
             "ImportMeta": new ObjectID('000000000c00'),
             "ImportMetaData": new ObjectID('000000000d00')
         }
     };
+
+    exps.ICONS = [
+      {key: "1", name: "Standard Account", icon: {type: "standard", name: "account"}},
+      {key: "2", name: "Endorsment", icon: {type: "standard", name: "endorsement"}},
+      {key: "3", name: "Coaching", icon: {type: "standard", name: "coaching"}},
+      {key: "4", name: "Thanks", icon: {type: "standard", name: "thanks"}},
+      {key: "5", name: "Calendar", icon: {type: "standard", name: "today"}},
+      {key: "6", name: "Report", icon: {type: "standard", name: "report"}}
+    ]
 
     exps.FORMMETA = [
         {
@@ -54,15 +65,15 @@ module.exports = function(options) {
                     dropdown_options: [
                         {
                             name: "Top Level Form",
-                            value: "top"
+                            key: "top"
                         },
                         {
                             name: "Child Form (embedded document)",
-                            value: "childform"
+                            key: "childform"
                         },
                         {
                             name: "Search Form (fields returned in a search)",
-                            value: "search"
+                            key: "search"
                         }
                     ]
                 },
@@ -70,9 +81,10 @@ module.exports = function(options) {
                     name: "icon",
                     show_when: "true",
                     title: "Form Icon",
-                    type: "text",
-                    placeholder: "Checkout http://zurb.com/playground/foundation-icon-fonts-3",
-                    required: false
+                    type: "reference",
+                    required: false,
+                    search_form: exps.forms.iconSearch
+
                 },
                 {
                     name: "collection",
@@ -93,7 +105,7 @@ module.exports = function(options) {
                     dropdown_options: [
                         {
                             name: "1 Column",
-                            value: "1col"
+                            key: "1col"
                         }
                     ]
                 },
@@ -139,35 +151,35 @@ module.exports = function(options) {
                     dropdown_options: [
                         {
                             name: "Text",
-                            value: "text"
+                            key: "text"
                         },
                         {
                             name: "Picture",
-                            value: "image"
+                            key: "image"
                         },
                         {
                             name: "Email",
-                            value: "email"
+                            key: "email"
                         },
                         {
                             name: "ChildForm",
-                            value: "childform"
+                            key: "childform"
                         },
                         {
-                            name: "Lookup",
-                            value: "lookup"
+                            name: "Reference",
+                            key: "reference"
                         },
                         {
                             name: "Textarea",
-                            value: "textarea"
+                            key: "textarea"
                         },
                         {
                             name: "Dropdown",
-                            value: "dropdown"
+                            key: "dropdown"
                         },
                         {
                             name: "DateTime",
-                            value: "datetime"
+                            key: "datetime"
                         }
                     ]
                 },
@@ -197,9 +209,9 @@ module.exports = function(options) {
                 {
                     name: "createnew_form",
                     title: "Lookup Create form",
-                    type: "lookup",
+                    type: "reference",
                     placeholder: "only for lookup fields",
-                    show_when: "record['type'] == 'lookup'",
+                    show_when: "record['type'] == 'reference'",
                     createnew_form: exps.forms.formMetadata,
                     createnew_defaults: '{"primary": "name", "others": {}}',
                     search_form: exps.forms.metaSearch,
@@ -210,16 +222,16 @@ module.exports = function(options) {
                     name: "createnew_defaults",
                     title: "Lookup Create New Defaults",
                     type: "text",
-                    show_when: "record['type'] == 'lookup'",
+                    show_when: "record['type'] == 'reference'",
                     placeholder: "{primary: 'name', others: {fieldname: 'val', fieldname: 'val'}}",
                     required: false
                 },
                 {
                     name: "search_form",
                     title: "Lookup Search Form",
-                    type: "lookup",
+                    type: "reference",
                     placeholder: "only for lookup fields",
-                    show_when: "record['type'] == 'lookup'",
+                    show_when: "record['type'] == 'reference'",
                     createnew_form: exps.forms.formMetadata,
                     createnew_defaults: '{"primary": "name", "others": {}}',
                     search_form: exps.forms.metaSearch,
@@ -229,7 +241,7 @@ module.exports = function(options) {
                 {
                     name: "child_form",
                     title: "Child Form",
-                    type: "lookup",
+                    type: "reference",
                     show_when: "record['type'] == 'childform'",
                     createnew_form: exps.forms.formMetadata,
                     createnew_defaults: '{"primary": "name", "others": { "type": "childform"}}',
@@ -247,11 +259,11 @@ module.exports = function(options) {
                     dropdown_options: [
                         {
                             name: "View",
-                            value: "view"
+                            key: "view"
                         },
                         {
                             name: "List",
-                            value: "list"
+                            key: "list"
                         }
                     ]
                 },
@@ -264,11 +276,11 @@ module.exports = function(options) {
                     dropdown_options: [
                         {
                             name: "Yes",
-                            value: true
+                            key: true
                         },
                         {
                             name: "No",
-                            value: false
+                            key: false
                         }
                     ]
                 },
@@ -288,12 +300,32 @@ module.exports = function(options) {
             fields: [
                 {
                     name: "name",
-                    title: "Name"
+                    title: "Name",
+                    type: "text"
                 },
                 {
-                    name: "value",
-                    title: "Value"
+                    name: "key",
+                    title: "key",
+                    type: "text",
                 }
+            ]
+        },
+        {
+            _id: exps.forms.iconSearch,
+            name: "iconSearch",
+            type: "metadata",
+            data: exps.ICONS,
+            fields: [
+              {
+                  name: "icon",
+                  title: "Icon",
+                  type: "icon",
+              },
+              {
+                  name: "name",
+                  title: "Name",
+                  type: "text",
+              }
             ]
         },
         {
@@ -304,7 +336,8 @@ module.exports = function(options) {
             fields: [
                 {
                     name: "name",
-                    title: "Name"
+                    title: "Name",
+                    type: "text",
                 }
             ]
         },
@@ -335,19 +368,19 @@ module.exports = function(options) {
                     dropdown_options: [
                         {
                             name: "New",
-                            value: "new"
+                            key: "new"
                         },
                         {
                             name: "User",
-                            value: "user"
+                            key: "user"
                         },
                         {
                             name: "Team Manager",
-                            value: "manager"
+                            key: "manager"
                         },
                         {
                             name: "Admin",
-                            value: "admin"
+                            key: "admin"
                         }
                     ]
                 },
@@ -399,15 +432,15 @@ module.exports = function(options) {
                     dropdown_options: [
                         {
                             name: "Facebook",
-                            value: "facebook"
+                            key: "facebook"
                         },
                         {
                             name: "Internal Password",
-                            value: "password"
+                            key: "password"
                         },
                         {
                             name: "Chatter",
-                            value: "chatter"
+                            key: "chatter"
                         }
                     ]
                 },
@@ -437,12 +470,31 @@ module.exports = function(options) {
               {
                   name: "app",
                   title: "App",
-                  type: "lookup",
-                  search_form: exps.forms.App,
+                  type: "reference",
+                  createnew_form: exps.forms.App,
+                  search_form: exps.forms.AppSearch,
                   required: true,
                   _id: new ObjectID('000000000901')
               }
             ]
+        },
+        {
+            _id: exps.forms.AppSearch,
+            name: "AppSearch",
+            collection: "app",
+            type: "search",
+            fields: [
+                {
+                    name: "name",
+                    title: "App Name",
+                    type: "text"
+                },
+                {
+                    name: "icon",
+                    title: "Form Icon",
+                    type: "text"
+                }
+              ]
         },
         {
             _id: exps.forms.App,
@@ -470,11 +522,11 @@ module.exports = function(options) {
                     dropdown_options: [
                         {
                             name: "Deployed",
-                            value: "deployed"
+                            key: "deployed"
                         },
                         {
                             name: "Sandbox",
-                            value: "sandbox"
+                            key: "sandbox"
                         }
                     ]
                 },
@@ -483,7 +535,6 @@ module.exports = function(options) {
                     show_when: "true",
                     title: "Form Icon",
                     type: "text",
-                    placeholder: "Checkout http://zurb.com/playground/foundation-icon-fonts-3",
                     required: false
                 },
                 {
@@ -519,7 +570,7 @@ module.exports = function(options) {
               {
                   name: "size",
                   title: "Form",
-                  type: "lookup",
+                  type: "reference",
                   search_form: exps.forms.metaSearch,
                   required: true,
                   _id: new ObjectID('000000000e01'),
@@ -533,23 +584,23 @@ module.exports = function(options) {
                   dropdown_options: [
                       {
                           name: "Tile view",
-                          value: "TileMain"
+                          key: "TileMain"
                       },
                       {
                           name: "List view",
-                          value: "ListMain"
+                          key: "ListMain"
                       },
                       {
                           name: "Record view",
-                          value: "FormMain"
+                          key: "FormMain"
                       },
                       {
                           name: "Graph",
-                          value: "graph"
+                          key: "graph"
                       },
                       {
                           name: "TimeLine",
-                          value: "TimeLine"
+                          key: "TimeLine"
                       }
                     ]
                 },
@@ -562,19 +613,19 @@ module.exports = function(options) {
                     dropdown_options: [
                         {
                             name: "Filter Clause",
-                            value: "filter"
+                            key: "filter"
                         },
                         {
                             name: "Top X",
-                            value: "topx"
+                            key: "topx"
                         },
                         {
                             name: "Other Page Component",
-                            value: "page"
+                            key: "page"
                         },
                         {
                             name: "xxx",
-                            value: "xxx"
+                            key: "xxx"
                         }
                       ]
                   }
@@ -588,7 +639,7 @@ module.exports = function(options) {
               {
                   name: "form",
                   title: "Form",
-                  type: "lookup",
+                  type: "reference",
                   search_form: exps.forms.metaSearch,
                   required: true,
                   _id: new ObjectID('000000000b01'),
@@ -603,19 +654,19 @@ module.exports = function(options) {
                   dropdown_options: [
                       {
                           name: "-R--",
-                          value: "r"
+                          key: "r"
                       },
                       {
                           name: "CR--",
-                          value: "cr"
+                          key: "cr"
                       },
                       {
                           name: "CRU-",
-                          value: "cru"
+                          key: "cru"
                       },
                       {
                           name: "CRUD",
-                          value: "crud"
+                          key: "crud"
                       }
                     ]
                 }
@@ -653,7 +704,7 @@ module.exports = function(options) {
                 {
                     name: "form",
                     title: "Form",
-                    type: "lookup",
+                    type: "reference",
                     search_form: exps.forms.formMetadata
                 },
                 {
@@ -703,7 +754,7 @@ module.exports = function(options) {
         name: "Admin App",
         metadata: [
           {
-            form: {_id: exps.forms.App, primary: "App"},
+            form: {_id: exps.forms.App, search_ref: {name: "App"}},
             load: [
               {name: "Admin App", type: "deployed", appperms: [
                 {form: {_id: exps.forms.formMetadata}, crud: "crud"},
@@ -714,6 +765,7 @@ module.exports = function(options) {
                 {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
                 {form: {_id: exps.forms.UserApps}, crud: "crud"},
                 {form: {_id: exps.forms.App}, crud: "crud"},
+                {form: {_id: exps.forms.AppSearch}, crud: "crud"},
                 {form: {_id: exps.forms.AppPerms}, crud: "crud"},
                 {form: {_id: exps.forms.AppPageComponent}, crud: "crud"},
                 {form: {_id: exps.forms.ImportMeta}, crud: "crud"},

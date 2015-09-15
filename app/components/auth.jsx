@@ -92,7 +92,7 @@ export class AuthState extends Component {
              <ul className="slds-dropdown__list" role="menu">
                { this.state.user.apps && this.state.user.apps.map(function(val, i) { return (
                <li className="slds-dropdown__item" style={{whiteSpace: "nowrap"}}>
-                   <a onClick={self._changeapp.bind(self, {newappid: val.app._id})} className="slds-truncate">{val.app.primary}</a>
+                   <a onClick={self._changeapp.bind(self, {newappid: val.app._id})} className="slds-truncate">{val.app.search_ref[Object.keys(val.app.search_ref)[1]]}</a>
                </li>
              );})}
                <li className="slds-dropdown__item" >
