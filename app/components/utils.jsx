@@ -12,10 +12,27 @@ export  class SvgIcon extends Component {
     let df = DynamicForm.instance;
 
     return (
-        <svg className={(this.props.classOverride  || "") + (this.props.spriteType === "utility" && " "  ||  " slds-icon ")  + (this.props.small && "slds-icon--small" || "") + (this.props.large && "slds-icon--large" || "") + " slds-icon-"+this.props.spriteType+"-"+this.props.spriteName}
+        <svg className={(this.props.classOverride  || "") + (this.props.spriteType === "utility" && " icon-utility "  ||  " slds-icon ")  + (this.props.small && "slds-icon--small" || "") + (this.props.large && "slds-icon--large" || "") + " slds-icon-" + this.props.spriteType+ "-" +this.props.spriteName.replace("_","-")}
           dangerouslySetInnerHTML={{__html: "<use xlink:href='/slds080/assets/icons/"+this.props.spriteType+"-sprite/svg/symbols.svg#"+this.props.spriteName+"' />"}}>
         </svg>
   )}
 }
-SvgIcon.propTypes = { spriteType: React.PropTypes.string, spriteName: React.PropTypes.string, small: React.PropTypes.bool, large: React.PropTypes.bool  };
-SvgIcon.defaultProps = { small: false, large: false };
+SvgIcon.propTypes = { spriteType: React.PropTypes.string.isRequired, spriteName: React.PropTypes.string.isRequired, small: React.PropTypes.bool, large: React.PropTypes.bool  };
+SvgIcon.defaultProps = { spriteType: "", spriteName: "", small: false, large: false };
+
+
+export class IconField extends Component {
+  render() {
+    let value = this.props.value,
+        df = DynamicForm.instance,
+        iconform = df.getFormByName("iconSearch"),
+        iconrow = iconform.data.find(x => x.key == value);
+
+    if (iconrow)
+      return <SvgIcon spriteType={iconrow.icon.type} spriteName={iconrow.icon.name} small={this.props.small} large={this.props.large}/>;
+    else
+      return <span></span>;
+  }
+}
+IconField.propTypes = {  small: React.PropTypes.bool, large: React.PropTypes.bool };
+IconField.defaultProps = { small: false, large:  false };

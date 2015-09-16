@@ -74,8 +74,9 @@
 
     /*  layout */
     html {
-      background-color: rgb(244, 246, 249);
+      //background-color: rgb(244, 246, 249);
     }
+
     .site-banner {
       position: fixed;
       top: 0;
@@ -94,6 +95,21 @@
     }
     svg.header-icons {
       fill: rgb(159, 170, 181);
+    }
+
+    /* icon */
+    .icon-utility {
+        cursor: pointer;
+        fill: #0070d2;
+        transition-property: transform;
+        transition-duration: 0.3s;
+        width: 1.2rem;
+        height: 1.2rem;
+    }
+    .icon-utility:hover, .icon-utility:focus, .icon-utility:active {
+      -webkit-transform: scale(1.1);
+      transform: scale(1.1);
+      fill: #005fb2;
     }
     /* form */
     div.field-seperator {

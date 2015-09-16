@@ -444,8 +444,8 @@ module.exports = function(options) {
                               tv[tprop] = fval && new ObjectID(fval._id) || null;
                             } catch (e) {  return {error: "data contains reference field with invalid _id: " + propname + "  : " + fval._id};}
                           } else {
-                            if (fval && !fval.key) return {error: "data contains reference field with recognised key: " + propname};
-                            tv[tprop] = fval && fval.key || null;
+                            //if (fval && !fval.key) return {error: "data contains reference field with recognised key: " + propname};
+                            tv[tprop] = fval && fval || null;
                           }
                         } else if (fldmeta.type === "childform") {
 
@@ -469,16 +469,27 @@ module.exports = function(options) {
                             cval._id =  new ObjectID(rv._id);
                             for (let cpropname in cval) {
 
-                                if (cpropname === "_id") continue;
 
-                                let cfldmeta = cfldmetalist[cpropname];
-                                if (!cfldmeta)
-                                  return {error: "data contains fields in child for not recognised : " + propname + "." + cpropname};
-                                if (cfldmeta.type === "reference") {
-                                  if (cval[cpropname] && !cval[cpropname]._id) {error: "data contains lookup field with recognised _id: " + propname};
-                                  cval[cpropname] = cval[cpropname] && cval[cpropname]._id || null;
+                              if (cpropname === "_id") continue;
+
+                              let cfldmeta = cfldmetalist[cpropname];
+                              if (!cfldmeta)
+                                return {error: "data contains fields in child for not recognised : " + propname + "." + cpropname};
+
+                              let cfval = cval[cpropname];
+                              if (cfldmeta.type === "reference") {
+                                let sform = meta.findFormById(FORM_DATA, cfldmeta.search_form);
+                                if (!sform) return {error: "data contains reference field without defined search_form: " + cpropname};
+                                if (sform.collection) {
+                                  if (cfval && !cfval._id) return {error: "data contains reference field with recognised _id: " + cpropname};
+                                  try {
+                                    cval[cpropname] = cfval && new ObjectID(cfval._id) || null;
+                                  } catch (e) {  return {error: "data contains reference field with invalid _id: " + cpropname + "  : " + cfval._id};}
+                                } else {
+                                  //if (cfval && !cfval.key) return {error: "data contains reference field with recognised key: " + cpropname};
+                                  cval[cpropname] = cfval && cfval || null;
                                 }
-
+                              }
                             }
                           }
                           tv[tprop] = fval;

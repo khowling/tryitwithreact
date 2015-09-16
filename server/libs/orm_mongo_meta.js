@@ -29,22 +29,102 @@ module.exports = function(options) {
     };
 
     exps.ICONS = [
-      {key: "1", name: "Standard Account", icon: {type: "standard", name: "account"}},
-      {key: "2", name: "Endorsment", icon: {type: "standard", name: "endorsement"}},
-      {key: "3", name: "Coaching", icon: {type: "standard", name: "coaching"}},
-      {key: "4", name: "Thanks", icon: {type: "standard", name: "thanks"}},
-      {key: "5", name: "Calendar", icon: {type: "standard", name: "today"}},
-      {key: "6", name: "Report", icon: {type: "standard", name: "report"}}
+      {key: "std1", name: "account", icon: {type: "standard", name: "account"}},
+{key: "std2", name: "announcement", icon: {type: "standard", name: "announcement"}},
+{key: "std3", name: "answer_best", icon: {type: "standard", name: "answer_best"}},
+{key: "std4", name: "answer_private", icon: {type: "standard", name: "answer_private"}},
+{key: "std5", name: "answer_public", icon: {type: "standard", name: "answer_public"}},
+{key: "std6", name: "approval", icon: {type: "standard", name: "approval"}},
+{key: "std7", name: "apps_admin", icon: {type: "standard", name: "apps_admin"}},
+{key: "std8", name: "apps", icon: {type: "standard", name: "apps"}},
+{key: "std9", name: "article", icon: {type: "standard", name: "article"}},
+{key: "std11", name: "avatar", icon: {type: "standard", name: "avatar"}},
+{key: "std12", name: "calibration", icon: {type: "standard", name: "calibration"}},
+{key: "std13", name: "call_history", icon: {type: "standard", name: "call_history"}},
+{key: "std14", name: "call", icon: {type: "standard", name: "call"}},
+{key: "std15", name: "campaign_members", icon: {type: "standard", name: "campaign_members"}},
+{key: "std16", name: "campaign", icon: {type: "standard", name: "campaign"}},
+{key: "std17", name: "canvas", icon: {type: "standard", name: "canvas"}},
+{key: "std18", name: "case_change_status", icon: {type: "standard", name: "case_change_status"}},
+{key: "std19", name: "case_comment", icon: {type: "standard", name: "case_comment"}},
+{key: "std20", name: "case_email", icon: {type: "standard", name: "case_email"}},
+{key: "std21", name: "case_log_a_call", icon: {type: "standard", name: "case_log_a_call"}},
+{key: "std22", name: "case_transcript", icon: {type: "standard", name: "case_transcript"}},
+{key: "std23", name: "case", icon: {type: "standard", name: "case"}},
+{key: "std24", name: "coaching", icon: {type: "standard", name: "coaching"}},
+{key: "std25", name: "connected_apps", icon: {type: "standard", name: "connected_apps"}},
+{key: "std26", name: "contact", icon: {type: "standard", name: "contact"}},
+{key: "std27", name: "contract", icon: {type: "standard", name: "contract"}},
+{key: "std28", name: "custom", icon: {type: "standard", name: "custom"}},
+{key: "std29", name: "dashboard", icon: {type: "standard", name: "dashboard"}},
+{key: "std30", name: "default", icon: {type: "standard", name: "default"}},
+{key: "std31", name: "document", icon: {type: "standard", name: "document"}},
+{key: "std32", name: "drafts", icon: {type: "standard", name: "drafts"}},
+{key: "std33", name: "email_chatter", icon: {type: "standard", name: "email_chatter"}},
+{key: "std34", name: "email", icon: {type: "standard", name: "email"}},
+{key: "std35", name: "empty", icon: {type: "standard", name: "empty"}},
+{key: "std36", name: "endorsement", icon: {type: "standard", name: "endorsement"}},
+{key: "std37", name: "event", icon: {type: "standard", name: "event"}},
+{key: "std38", name: "feed", icon: {type: "standard", name: "feed"}},
+{key: "std39", name: "feedback", icon: {type: "standard", name: "feedback"}},
+{key: "std40", name: "file", icon: {type: "standard", name: "file"}},
+{key: "std41", name: "flow", icon: {type: "standard", name: "flow"}},
+{key: "std43", name: "goals", icon: {type: "standard", name: "goals"}},
+{key: "std45", name: "groups", icon: {type: "standard", name: "groups"}},
+{key: "std46", name: "home", icon: {type: "standard", name: "home"}},
+{key: "std47", name: "insights", icon: {type: "standard", name: "insights"}},
+{key: "std48", name: "lead", icon: {type: "standard", name: "lead"}},
+{key: "std49", name: "link", icon: {type: "standard", name: "link"}},
+{key: "std50", name: "log_a_call", icon: {type: "standard", name: "log_a_call"}},
+{key: "std51", name: "marketing_actions", icon: {type: "standard", name: "marketing_actions"}},
+{key: "std52", name: "marketing_resources", icon: {type: "standard", name: "marketing_resources"}},
+{key: "std53", name: "metrics", icon: {type: "standard", name: "metrics"}},
+{key: "std54", name: "news", icon: {type: "standard", name: "news"}},
+{key: "std55", name: "note", icon: {type: "standard", name: "note"}},
+{key: "std56", name: "opportunity", icon: {type: "standard", name: "opportunity"}},
+{key: "std57", name: "orders", icon: {type: "standard", name: "orders"}},
+{key: "std58", name: "people", icon: {type: "standard", name: "people"}},
+{key: "std59", name: "performance", icon: {type: "standard", name: "performance"}},
+{key: "std60", name: "photo", icon: {type: "standard", name: "photo"}},
+{key: "std61", name: "poll", icon: {type: "standard", name: "poll"}},
+{key: "std62", name: "portal", icon: {type: "standard", name: "portal"}},
+{key: "std63", name: "post", icon: {type: "standard", name: "post"}},
+{key: "std64", name: "pricebook", icon: {type: "standard", name: "pricebook"}},
+{key: "std65", name: "process", icon: {type: "standard", name: "process"}},
+{key: "std66", name: "product", icon: {type: "standard", name: "product"}},
+{key: "std67", name: "question_best", icon: {type: "standard", name: "question_best"}},
+{key: "std68", name: "question_feed", icon: {type: "standard", name: "question_feed"}},
+{key: "std69", name: "quotes", icon: {type: "standard", name: "quotes"}},
+{key: "std70", name: "recent", icon: {type: "standard", name: "recent"}},
+{key: "std71", name: "record", icon: {type: "standard", name: "record"}},
+{key: "std72", name: "related_list", icon: {type: "standard", name: "related_list"}},
+{key: "std73", name: "report", icon: {type: "standard", name: "report"}},
+{key: "std74", name: "reward", icon: {type: "standard", name: "reward"}},
+{key: "std75", name: "scan_card", icon: {type: "standard", name: "scan_card"}},
+{key: "std76", name: "skill_entity", icon: {type: "standard", name: "skill_entity"}},
+{key: "std77", name: "social", icon: {type: "standard", name: "social"}},
+{key: "std78", name: "solution", icon: {type: "standard", name: "solution"}},
+{key: "std79", name: "sossession", icon: {type: "standard", name: "sossession"}},
+{key: "std80", name: "task", icon: {type: "standard", name: "task"}},
+{key: "std81", name: "task2", icon: {type: "standard", name: "task2"}},
+{key: "std82", name: "team_member", icon: {type: "standard", name: "team_member"}},
+{key: "std84", name: "thanks", icon: {type: "standard", name: "thanks"}},
+{key: "std85", name: "today", icon: {type: "standard", name: "today"}},
+{key: "std86", name: "topic", icon: {type: "standard", name: "topic"}},
+{key: "std87", name: "unmatched", icon: {type: "standard", name: "unmatched"}},
+{key: "std88", name: "user", icon: {type: "standard", name: "user"}}
+
     ]
 
     exps.FORMMETA = [
         {
             _id: exps.forms.formMetadata,
             name: "FormMetadata",
+            desc: "This is where you define and extend your application forms",
             collection: "formmeta",
             type: "top",
             layout: "1col",
-            icon: "page-edit",
+            icon: "std28",
             fields: [
 
                 {
@@ -54,6 +134,14 @@ module.exports = function(options) {
                     type: "text",
                     placeholder: "",
                     required: true
+                },
+                {
+                    name: "desc",
+                    show_when: "true",
+                    title: "Form Description",
+                    type: "textarea",
+                    placeholder: "Coplete Form Description",
+                    required: false
                 },
                 {
                     name: "type",
@@ -79,7 +167,7 @@ module.exports = function(options) {
                 },
                 {
                     name: "icon",
-                    show_when: "true",
+                    show_when: "record['type'] == 'search' || record['type'] == 'top'",
                     title: "Form Icon",
                     type: "reference",
                     required: false,
@@ -88,11 +176,11 @@ module.exports = function(options) {
                 },
                 {
                     name: "collection",
-                    show_when: "record['type'] == 'top'",
+                    show_when: "record['type'] == 'search' || record['type'] == 'top'",
                     title: "Mongo Collection name",
                     type: "text",
                     placeholder: "No Spaces please!",
-                    required: false
+                    required: "record['type'] == 'search' || record['type'] == 'top'"
                 },
 
                 {
@@ -276,11 +364,11 @@ module.exports = function(options) {
                     dropdown_options: [
                         {
                             name: "Yes",
-                            key: true
+                            key: "true"
                         },
                         {
                             name: "No",
-                            key: false
+                            key: "false"
                         }
                     ]
                 },
@@ -298,16 +386,16 @@ module.exports = function(options) {
             name: "DropDown Option",
             type: "childform",
             fields: [
-                {
-                    name: "name",
-                    title: "Name",
-                    type: "text"
-                },
-                {
-                    name: "key",
-                    title: "key",
-                    type: "text",
-                }
+              {
+                  name: "key",
+                  title: "key",
+                  type: "text",
+              },
+              {
+                  name: "name",
+                  title: "Label",
+                  type: "text"
+              }
             ]
         },
         {
@@ -331,6 +419,7 @@ module.exports = function(options) {
         {
             _id: exps.forms.metaSearch,
             name: "metaSearch",
+            icon: "std28",
             type: "search",
             collection: "formmeta",
             fields: [
@@ -344,10 +433,11 @@ module.exports = function(options) {
         {
             _id: exps.forms.Users,
             name: "Users",
+            desc: "This is all the users that can logon to your applications",
             collection: "user",
             type: "top",
             layout: "1col",
-            icon: "torsos-all",
+            icon: "std88",
             fields: [
 
                 {
@@ -482,6 +572,7 @@ module.exports = function(options) {
             _id: exps.forms.AppSearch,
             name: "AppSearch",
             collection: "app",
+            icon: "std8",
             type: "search",
             fields: [
                 {
@@ -499,10 +590,11 @@ module.exports = function(options) {
         {
             _id: exps.forms.App,
             name: "App",
+            desc: "Define your app permissions",
             collection: "app",
             type: "top",
             layout: "1col",
-            icon: "page-edit",
+            icon: "std8",
             fields: [
                 {
                     name: "name",
@@ -675,6 +767,8 @@ module.exports = function(options) {
         {
             _id: exps.forms.ImportMeta,
             name: "ImportMeta",
+            desc: "Import applications",
+            icon: "std43",
             type: "top",
             url: "/dform/defaultData",
             action: "import",

@@ -1,7 +1,5 @@
 'use strict;'
 
-import './index.html';
-import 'babel-core/polyfill';
 
 import React, {Component} from 'react';
 //import ReactDOM from 'react-dom';
@@ -11,9 +9,9 @@ import Router from './components/router.jsx'
 import {TileList}  from './components/tiles.jsx'
 import {ListPage, RecordPage} from './components/dform.jsx'
 import {Login, LogMeIn, AuthState} from './components/auth.jsx'
-
 import DynamicForm from './services/dynamicForm.es6';
-class App extends Component {
+
+export default class App extends Component {
 
    constructor (props) {
      super(props);
@@ -66,6 +64,7 @@ class App extends Component {
     } else if (chng.logout) {
       this.dynamicForm.logOut().then(succ => {
         //this.setState ({user: {}}, () => {
+        if (window)
           window.location.reload("#");
       //  });
       });
@@ -115,10 +114,3 @@ class App extends Component {
      );
    }
  }
- /*
- <MenuNav menuItems={this.appComponents.navMeta}/>
- { this.state.showSync &&
- <SyncProgress sfd={this.dynamicForm}/>
- }
- */
- React.render(React.createElement(App, {buildprops: buildprops}), document.getElementById('app'));

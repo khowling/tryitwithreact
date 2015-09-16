@@ -1,5 +1,6 @@
 'use strict';
 
+
 import React, {Component} from 'react';
 import DynamicForm from '../services/dynamicForm.es6';
 
@@ -26,10 +27,12 @@ export default class Router extends Component {
     }
 
     static navTo(comp, form, record, params, backiflist) {
-      if (Router.backUrl && backiflist && Router.backUrl.hash === "ListPage")
-        window.location.href = Router._encodeHash(Router.backUrl);
-      else
-        window.location.href = Router.URLfor(comp, form, record, params);
+      if (window) {
+        if (Router.backUrl && backiflist && (Router.backUrl.hash === "ListPage" || Router.backUrl.hash === DEFAULT_LANDING))
+          window.location.href = Router._encodeHash(Router.backUrl);
+        else
+          window.location.href = Router.URLfor(comp, form, record, params);
+      }
     }
 
     static _encodeHash (routeJson) {
@@ -87,23 +90,28 @@ export default class Router extends Component {
     }
 
     static setupRouterfunction (onPopState) {
-      if (true) { // use HTML5 history
-        if (window.addEventListener) {
-          window.addEventListener('popstate', onPopState, false);
+      if (window) {
+        if (true) { // use HTML5 history
+          if (window.addEventListener) {
+            window.addEventListener('popstate', onPopState, false);
+          } else {
+            window.attachEvent('popstate', onPopState);
+          }
         } else {
-          window.attachEvent('popstate', onPopState);
-        }
-      } else {
-        if (window.addEventListener) {
-          window.addEventListener('hashchange', onHashChange, false);
-        } else {
-          window.attachEvent('onhashchange', onHashChange);
+          if (window.addEventListener) {
+            window.addEventListener('hashchange', onHashChange, false);
+          } else {
+            window.attachEvent('onhashchange', onHashChange);
+          }
         }
       }
     }
 
     static decodeCurrentURI () {
-      return Router._decodeHash(decodeURI(window.location.href.split('#')[1]));
+      if (typeof window  !== 'undefined')
+        return Router._decodeHash(decodeURI(window.location.href.split('#')[1]));
+      else
+        return {};
     }
 
     static ensureAppInUrl (newappid) {
@@ -115,7 +123,7 @@ export default class Router extends Component {
         delete currentroute.params;
       }
       currentroute.appid = newappid;
-      window.history.replaceState("", "", Router._encodeHash(currentroute));
+      if (window) window.history.replaceState("", "", Router._encodeHash(currentroute));
     }
 
     constructor (props) {

@@ -26,7 +26,7 @@ module.exports = {
     entry:  [
          util.format('webpack-dev-server/client?http%s://%s:%d', https && 's' || '', host, port),
         'webpack/hot/dev-server',
-        './app.jsx'
+        './app_index.jsx'
     ],
     target: "web",
     output: {

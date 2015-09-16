@@ -8,7 +8,8 @@
     "devPort": 8000
    },
    "scripts": {
-     "start": "~/node-v4.0.0-linux-x64/bin/node dev-server ./webpack.config"
+     "start": "~/node-v4.0.0-linux-x64/bin/node dev-server ./webpack.config",
+     "test": "mocha app/test/components --compilers js:babel-core/register"
    },
   "dependencies": {
     "express": "*",
@@ -25,6 +26,7 @@
     "passport-forcedotcom": "*"
   },
   "devDependencies": {
+    "mocha": "*",
     "babel-runtime": "",
     "babel-core": "",
     "babel-loader": "",

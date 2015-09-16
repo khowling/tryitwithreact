@@ -6,7 +6,7 @@ import React, {Component} from 'react';
 import Router from './router.jsx';
 
 import ProgressBar from 'progressbar.js'
-import { SvgIcon } from './utils.jsx';
+import { SvgIcon, IconField } from './utils.jsx';
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
 import DynamicForm from '../services/dynamicForm.es6';
@@ -78,11 +78,11 @@ export class Field extends Component {
   }
 
   _formatReferenceValue(search_form, value) {
-    console.log ("Field _formatReferenceValue, form: " + search_form.name + "["+search_form.type+"], value: "+ value);
+    console.log ("Field _formatReferenceValue, form: " + search_form.name + "["+search_form.type+"], value: "+ JSON.stringify(value));
     if (search_form.type === "metadata") {
-      if (!value)  return null;
+      if (!value || typeof value !== "string")  return null;
       // client needs to do it
-     let search_ref = search_form.data.find(i => i.key === value);
+     let search_ref = search_form.data.find(i => i.key === value) || {};
      return {key: value, search_ref: search_ref};
     } else {
       // done by the server
@@ -124,10 +124,16 @@ export class Field extends Component {
   /********************/
   /* Lookup Functions */
   /********************/
+
+  _openCreate() {
+    this.setState({lookup: {create: true, visible: false, values: []}});
+  }
+
   _handleLookupKeypress(e) {
-    let df = DynamicForm.instance,
-        sform = this.state.search_form,
-        inval = e.target.value;
+    let inval = e.target.value,
+        df = DynamicForm.instance,
+        sform = this.state.search_form;
+
     if (sform.type === "metadata") {
       console.log ("its from meta : " + JSON.stringify(sform.data));
       this.setState({lookup: {visible: true, fields: sform.fields, values: sform.data, offercreate: false}});
@@ -163,13 +169,12 @@ export class Field extends Component {
       console.log ('Field _handleLookupSelectOption : ' + JSON.stringify(lookupval));
       this.setState ({value: lookupval, lookup: resetLookup}, () => {
         if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: lookupval});
+          if (sform.type === "metadata")
+            this.props.onChange ({[this.props.fielddef.name]: lookupval.key});
+          else
+            this.props.onChange ({[this.props.fielddef.name]: lookupval});
       });
     }
-  }
-
-  _openCreate() {
-    this.setState({lookup: {create: true, visible: true}})
   }
 
   _newLookupRecord(row) {
@@ -281,8 +286,6 @@ export class Field extends Component {
   }
   /****************************/
 
-
-
   handleValueChange(event) {
     let newval = event.target.value;
     console.log ('Field handleValueChange : ' + newval);
@@ -320,12 +323,18 @@ export class Field extends Component {
           break;
         case "reference":
           if (this.state.value) {
-            let inner = this.state.search_form.fields.map(function(fld, fldidx) { return (
-                          <Field fielddef={fld} value={self.state.value.search_ref[fld.name]}/>
-                        );});
+            let inner = <span>
+                          <IconField value={this.state.search_form.icon}/>
+                          { this.state.search_form.fields.map(function(fld, fldidx) { return (
+                            <Field fielddef={fld} value={self.state.value.search_ref[fld.name]}/>
+                          );})
+                          }
+                        </span>
             if (this.props.fielddef.createnew_form)
               field = (<span className="slds-pill">
-                          <a href={Router.URLfor("RecordPage", this.props.fielddef.createnew_form, this.state.value._id)} className="slds-pill__label">{ inner }</a>
+                          <a href={Router.URLfor("RecordPage", this.props.fielddef.createnew_form, this.state.value._id)} className="slds-pill__label">
+                            { inner }
+                          </a>
                         </span>);
             else
               field = (<span className="slds-pill">
@@ -393,11 +402,12 @@ export class Field extends Component {
         case "reference":
             field = <span>
                       <div className="slds-lookup__control slds-input-has-icon slds-input-has-icon--right">
-                        <a onClick={this._openCreate.bind(this)}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
+                        <a onClick={this._handleLookupKeypress.bind(this, {target: {}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
 
                         { this.state.value &&
                         <span className="slds-pill">
                           <a href={Router.URLfor("RecordPage", this.props.fielddef.createnew_form, this.state.value._id)} className="slds-pill__label">
+                            <IconField value={self.state.search_form.icon}/>
                             { self.state.search_form.fields.map(function(fld, fldidx) { return (
                               <Field fielddef={fld} value={self.state.value.search_ref[fld.name]}/>
                             );})}
@@ -408,36 +418,37 @@ export class Field extends Component {
                           </button>
                         </span>
                         }
-                        <input className="slds-input--bare" type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value && "disabled" || ""}/>
-                      </div>
+                        <input className="slds-input--bare" style={{visibility: this.state.value && "hidden" || "visible"}}  type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value && "disabled" || ""}/>
+
+                    </div>
 
                       <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible && 'visible' || 'hidden'}}>
                         { this.state.lookup.create &&
                           <Modal>
-                            <PageHeader formname={"Create new " + this.props.fielddef.name}/>
+                            <PageHeader view={this.props.fielddef.createnew_form}/>
                             <FormMain key={"model-"+this.props.fielddef.name} view={this.props.fielddef.createnew_form} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
                           </Modal>
-                        }
-                        { !this.state.lookup.create &&
-                        <ul className="slds-lookup__list" role="presentation">
+                        ||
+                          <ul className="slds-lookup__list" role="presentation">
 
-                          {this.state.lookup.values.map(function(row, i) { return (
-                          <li className="slds-lookup__item" role="presentation">
-                              <a onClick={self._handleLookupSelectOption.bind (self, row)} role="option">
-                                { self.state.search_form.fields.map(function(fld, fldidx) { return (
-                                  <Field fielddef={fld} value={row[fld.name]}/>
-                                );})}
-                              </a>
-                          </li>
-                          );})}
+                            {this.state.lookup.values.map(function(row, i) { return (
+                            <li className="slds-lookup__item" role="presentation">
+                                <a onClick={self._handleLookupSelectOption.bind (self, row)} role="option">
+                                  <IconField value={self.state.search_form.icon}/>
+                                  { self.state.search_form.fields.map(function(fld, fldidx) { return (
+                                    <Field fielddef={fld} value={row[fld.name]}/>
+                                  );})}
+                                </a>
+                            </li>
+                            );})}
 
-                          { this.state.lookup.offercreate && this.props.fielddef.createnew_form &&
-                          <li className="slds-lookup__item" role="presentation">
-                             <a onClick={this._openCreate.bind(this)} role="option">
-                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride=" "/>Create {df.getForm(this.props.fielddef.createnew_form).name + '"' + React.findDOMNode(this.refs.lookupinput).value + '"'}</a>
-                           </li>
-                          }
-                        </ul>
+                            { this.state.lookup.offercreate && this.props.fielddef.createnew_form &&
+                            <li className="slds-lookup__item" role="presentation">
+                               <a onClick={this._openCreate.bind(this)} role="option">
+                                 <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride=" "/>Create {df.getForm(this.props.fielddef.createnew_form).name + ' "' + React.findDOMNode(this.refs.lookupinput).value + '"'}</a>
+                             </li>
+                            }
+                          </ul>
                         }
                       </div>
                     </span>;
@@ -518,7 +529,7 @@ export class Field extends Component {
                       </div>
                       { this.state.picselectexisting &&
                         <Modal>
-                              <PageHeader formname="Select File"/>
+                              <PageHeader view={picview}/>
                               <ListMain view={picview} value={this.state.picFileList} selected={this._selectedFile}/>
                         </Modal>
                       }
@@ -542,8 +553,8 @@ export class Modal extends Component {
   render() {
     return (
     <div>
-      <div aria-hidden="false" role="dialog" className="slds-modal slds-modal--large slds-fade-in-open">
-        <div className="slds-modal__container">
+      <div aria-hidden="false" role="dialog" className="slds-modal slds-modal- -large slds-fade-in-open">
+        <div className="slds-modal__container"  style={{width: "95%"}}>
           <div className="slds-modal__content" style={{padding: "0"}}>
             {this.props.children}
           </div>
@@ -663,25 +674,27 @@ export class FormMain extends Component {
   }
 
   _delete(succfn) {
-    var self = this,
-        df = DynamicForm.instance,
-        saveopt = {
-          form: this.props.view,
-          id: this.state.value.record._id
+    if (window.confirm("Sure?")) {
+      var self = this,
+          df = DynamicForm.instance,
+          saveopt = {
+            form: this.props.view,
+            id: this.state.value.record._id
+          };
+
+      if (this.props.parent) {
+        let {view, recordid, field} = this.props.parent;
+        saveopt.parent = {
+          parentid: recordid,
+          parentfieldid: field._id
         };
+      }
 
-    if (this.props.parent) {
-      let {view, recordid, field} = this.props.parent;
-      saveopt.parent = {
-        parentid: recordid,
-        parentfieldid: field._id
-      };
+      console.log ('FormMain _delete : '+ JSON.stringify(saveopt));
+      df.delete (saveopt).then(succval => {
+        return succfn (succval);
+      });
     }
-
-    console.log ('FormMain _delete : '+ JSON.stringify(saveopt));
-    df.delete (saveopt).then(succval => {
-      return succfn (succval);
-    });
   }
 
   render() {
@@ -691,29 +704,30 @@ export class FormMain extends Component {
         metaview = this.state.metaview,
         nonchildformfields = this.state.nonchildformfields,
         formcontrol = this.state.formcontrol,
-        buttons = {};
+        headerButtons  = {}, saveButton, cancelButton;
 
     if (this.props.onComplete) {
-      buttons.cancelButton = () => this.props.onComplete(null);
+      cancelButton = () => this.props.onComplete(null);
       //notify parent screen
       if (this.state.edit) {
         // form in edit mode
-        buttons.saveButton = this._save.bind(this, succval => {
+        saveButton = this._save.bind(this, succval => {
           this.props.onComplete({_id: succval._id, search_ref: this.state.changedata});
         });
       } else {
-        buttons.editButton = () =>  this.setState ({edit: true});
-        buttons.deleteButton= this._delete.bind(this,  () =>  self.props.onFinished('delete', succVal));
+        headerButtons.cancelButton = cancelButton;
+        headerButtons.editButton = () =>  this.setState ({edit: true});
+        headerButtons.deleteButton= this._delete.bind(this,  () =>  self.props.onFinished('delete', succVal));
       }
     } else {
       if (this.state.edit) {
-        buttons.cancelButton = () => Router.navTo("RecordPage", metaview._id, record._id && record._id || null, null, true);
-        buttons.saveButton = this._save.bind(this, succval => {
+        cancelButton = () => Router.navTo(record._id && "RecordPage" || "ListPage", metaview._id, record._id && record._id || null, null, true);
+        saveButton = this._save.bind(this, succval => {
           Router.navTo("RecordPage", metaview._id, succval._id, false, true);
         });
       } else {
-        buttons.deleteButton = this._delete.bind(this, () =>   Router.navTo("ListPage", metaview._id));
-        buttons.editButton = () => Router.navTo("RecordPage", metaview._id, record._id, {e: true});
+        headerButtons.deleteButton = this._delete.bind(this, () =>   Router.navTo("ListPage", metaview._id));
+        headerButtons.editButton = () => Router.navTo("RecordPage", metaview._id, record._id, {e: true});
       }
     }
 
@@ -722,7 +736,7 @@ export class FormMain extends Component {
     <section>
         <div className="slds-form--stacked" style={{padding: "0.5em"}}>
           <div className="slds-grid slds-wrap">
-            { React.createElement (SectionHeader, Object.assign ({formName: metaview.name}, buttons)) }
+            { React.createElement (SectionHeader, Object.assign ({formName: metaview.name}, headerButtons)) }
             {nonchildformfields.map(function(field, i) {
               let fc = formcontrol.flds[field.name];
               if (fc.visible) return (
@@ -730,24 +744,33 @@ export class FormMain extends Component {
                 <div className={"slds-form-element " + (self.state.edit && "  " || " field-seperator ") + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
                     <label className="slds-form-element__label">{field.title}</label>
                     <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
-                      <span className={self.state.edit && "" || " slds-form-element__static"}>
+                      <span className={self.state.edit && " " || " slds-form-element__static"}>
                         <Field fielddef={field} value={record[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
                       </span>
                     </div>
                 </div>
               </div>
             );})}
+            { this.state.formcontrol.serverError &&
+              <div className="slds-col slds-col--padded slds-size--1-of-1"  style={{marginTop: "15px"}}>
+                <div className="slds-notify slds-notify--alert slds-theme--error " >
+                  <span className="slds-assistive-text">Error</span>
+                  <h2>
+                    <SvgIcon spriteType="utility" small={true} spriteName="ban" classOverride="slds-icon"/>
+                    <span >{this.state.formcontrol.serverError}</span>
+                  </h2>
+                </div>
+              </div>
+            }
+            { self.state.edit &&
+              <div className="slds-col slds-col--padded slds-size--1-of-1" style={{textAlign: "right", marginTop: "15px"}}>
+                <button className="slds-button slds-button--neutral" onClick={cancelButton}>Cancel</button>
+                <button className="slds-button slds-button--neutral slds-button--brand" onClick={saveButton}>Save</button>
+              </div>
+            }
           </div>
       </div>
-      { this.state.formcontrol.serverError &&
-        <div className="slds-notify slds-notify--alert slds-theme--error " >
-          <span className="slds-assistive-text">Error</span>
-          <h2>
-            <SvgIcon spriteType="utility" spriteName="ban"/>
-            <span >{this.state.formcontrol.serverError}</span>
-          </h2>
-        </div>
-      }
+
     </section>
     );
   }
@@ -807,7 +830,7 @@ export class ListPage extends Component {
       return (
         <div className="slds-grid slds-wrap">
           <div className="slds-col slds-size--1-of-1">
-          { this.props.urlparam && <PageHeader formName={this.state.metaview.name}/> }
+          { this.props.urlparam && <PageHeader view={this.state.metaview._id}/> }
           </div>
           <div className="slds-col slds-size--1-of-1">
             <ListMain value={this.state.value} view={this.state.metaview._id} onDataChange={this._dataChanged.bind(this)}/>
@@ -870,22 +893,23 @@ export class ListMain extends Component {
   }
 
   _ActionEdit (rowidx, view = false) {
+    let records = this.state.value.records;
     console.log ("ListMain _ActionEdit rowidx :" + rowidx + ", view : " + view);
     if (this.state.inline.enabled)
       if (rowidx >= 0)
-        this.setState({inline: Object.assign(this.state.inline, {editidx: rowidx, currentval: this.state.value.records[rowidx]})});
+        this.setState({inline: Object.assign(this.state.inline, {editidx: rowidx, currentval: records[rowidx]})});
       else {
-        let newarray = this.state.value.records.slice(0);
+        let newarray = records && records.slice(0) || [];
         newarray.push({});
         this.setState({value: {status: "ready", records: newarray}, inline: Object.assign(this.state.inline, {editidx: newarray.length-1, currentval: null})});
       }
     else if (this.props.parent)
       if (rowidx >= 0)
-        this.setState({editrow: {value: {status: "ready", record: this.state.value.records[rowidx]}, crud: view && "r" || "u"}});
+        this.setState({editrow: {value: {status: "ready", record: records[rowidx]}, crud: view && "r" || "u"}});
       else
         this.setState({editrow: {value: {status: "ready", record: {}}, crud: "c"}});
     else
-      Router.navTo("RecordPage", this.props.view, rowidx >= 0 && this.state.value.records[rowidx]._id,  !view && {"e": true} || {});
+      Router.navTo("RecordPage", this.props.view, rowidx >= 0 && records[rowidx]._id,  !view && {"e": true} || {});
   }
 
   _inLinefieldChange(val) {
@@ -976,14 +1000,18 @@ export class ListMain extends Component {
 
     return (
       <div className="">
-          { !this.state.editrow && header }
+          { !self.state.inline.enabled && header }
           <div className="box-body table-responsive no-padding">
             <div className="slds-scrollable--x">
               <table className="slds-table slds-table--bordered">
                 <thead>
                   <tr className="slds-text-heading--label">
                     <th className="slds-row-select" scope="col">
-                      <span className="slds-truncate">Actions</span>
+                      { self.state.inline.enabled &&
+                      <span className="slds-truncate"><a onClick={this._ActionEdit.bind(this, -1, false)} style={{marginRight: "5px"}}><SvgIcon spriteType="utility" spriteName="new" small={true}/></a>add</span>
+                      ||
+                      <span className="slds-truncate">del edit</span>
+                      }
                     </th>
                     {nonchildformfields.map(function(field, i) { return (
                       <th scope="col">
@@ -993,24 +1021,24 @@ export class ListMain extends Component {
                   </tr>
                 </thead>
                 <tbody>
-                  { records.map(function(row, i) { return (
+                  { records && records.map(function(row, i) { return (
                     <tr className="slds-hint-parent">
                         <td className="slds-row-select">
 
                           { self.props.selected &&
-                          <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
+                            <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
                           || (self.state.inline.enabled && self.state.inline.editidx == i) &&
-                              <div className="slds-button-group">
-                              <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)}>save </button>
-                              <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, false)}>cancel </button>
-                              </div>
-                               ||
-                               <div className="slds-button-group">
-                              <button className="slds-button slds-button--brand" onClick={self._ActionEdit.bind(self, i, false)} disabled={self.state.inline.editidx}>edit </button>
-                              <button className="slds-button slds-button--brand" onClick={self._ActionDelete.bind(self, i)}>del </button>
-                              </div>
-
+                            <div className="slds-button-group">
+                            <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)}>save </button>
+                            <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, false)}>cancel </button>
+                            </div>
+                          ||
+                             <div className="slds-button-group">
+                               <a onClick={self._ActionDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </a>
+                               <a onClick={self._ActionEdit.bind(self, i, false)} disabled={self.state.inline.editidx} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </a>
+                            </div>
                           }
+
                         </td>
                         {nonchildformfields.map(function(field) {
                             let listfield =  <Field key={metaview._id+"RL"+field._id} fielddef={field} value={row[field.name]} edit={i == self.state.inline.editidx} onChange={self._inLinefieldChange.bind(self)}/>;
@@ -1101,7 +1129,6 @@ export class RecordPage extends Component {
         p,
         appmeta = this.state.value.record;
 
-
     for (let meta of appmeta.metadata) {
       if (!p) {
         p = df.save ({form: meta.form._id, body: meta.load});
@@ -1130,8 +1157,8 @@ export class RecordPage extends Component {
     return (
         <div className="slds-grid slds-wrap">
           <div className="slds-col slds-size--1-of-1">
-          { this.props.urlparam && <PageHeader formName={this.state.metaview.name}/> }
-          <button onClick={this._importMeta.bind(this)}>import</button>
+          { this.props.urlparam && <PageHeader view={this.state.metaview._id}/> }
+
           </div>
           <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
 
@@ -1152,6 +1179,9 @@ export class RecordPage extends Component {
 
 export class PageHeader extends Component {
   render() {
+    let df = DynamicForm.instance,
+        view = df.getForm(this.props.view);
+    console.log ("Form " + view.name + ", icon :" + view.icon);
     return (
       <div className="slds-page-header ">
         <div className="slds-grid">
@@ -1159,12 +1189,12 @@ export class PageHeader extends Component {
 
             <div className="slds-media">
               <div className="slds-media__figure">
-                <SvgIcon classOverride="slds-icon" spriteType="utility" spriteName="people"/>
+                <IconField value={view.icon} large={true}/>
               </div>
               <div className="slds-media__body">
                 <p className="slds-text-heading--label">Record Type</p>
                 <div className="slds-grid">
-                  <h1 className="slds-text-heading--medium slds-m-right--small slds-truncate slds-align-middle">{this.props.formName}</h1>
+                  <h1 className="slds-text-heading--medium slds-m-right--small slds-truncate slds-align-middle">{view.name}</h1>
                 </div>
               </div>
             </div>
@@ -1222,41 +1252,38 @@ export class SectionHeader extends Component {
             <div className="slds-col slds-col--padded slds-has-flexi-truncate">
               <h3 className="slds-text-heading--small" style={{marginTop: "8px"}}>{this.props.formName}</h3>
             </div>
-            <div className="slds-col slds-col--padded slds-no-flex slds-align-bottom">
+            <div className="slds-col slds-col--padded slds-no-flex slds-align-top" style={{marginBottom: "4px"}}>
 
-              <div className="slds-button-group" style={{marginBottom: "3px"}}>
-                { typeof this.props.newButton !== "undefined" &&
-                <button onClick={this.props.newButton}  className="slds-button slds-button--small slds-button--brand" >
-                  new
-                </button>
-                }
-                { typeof this.props.editButton !== "undefined" &&
-                <button onClick={this.props.editButton}  className="slds-button slds-button--small slds-button--brand" >
-                  edit
-                </button>
-                }
-                { typeof this.props.deleteButton !== "undefined" &&
-                <button onClick={this.props.deleteButton}  className="slds-button slds-button--small slds-button--brand" >
-                  delete
-                </button>
-                }
-                { typeof this.props.cancelButton !== "undefined" &&
-                <button onClick={this.props.cancelButton}  className="slds-button slds-button--small slds-button--brand" >
-                  cancel
-                </button>
-                }
-                { typeof this.props.saveButton !== "undefined" &&
-                <button onClick={this.props.saveButton}  className="slds-button slds-button--small slds-button--brand" >
-                  save
-                </button>
-                }
-                { typeof this.props.closeButton !== "undefined" &&
-                <button onClick={this.props.closeButton}  className="slds-button slds-button--small slds-button--brand" >
-                  close
-                </button>
-                }
-              </div>
-
+              { typeof this.props.deleteButton !== "undefined" &&
+              <button onClick={this.props.deleteButton}  className="slds-button slds-button--small slds-button--neutral" >
+                delete
+              </button>
+              }
+              { typeof this.props.newButton !== "undefined" &&
+              <button onClick={this.props.newButton}  className="slds-button slds-button--small slds-button--brand" >
+                new
+              </button>
+              }
+              { typeof this.props.editButton !== "undefined" &&
+              <button onClick={this.props.editButton}  className="slds-button slds-button--small slds-button--brand" >
+                edit
+              </button>
+              }
+              { typeof this.props.cancelButton !== "undefined" &&
+              <button onClick={this.props.cancelButton}  className="slds-button slds-button--small slds-button--brand" >
+                cancel
+              </button>
+              }
+              { typeof this.props.saveButton !== "undefined" &&
+              <button onClick={this.props.saveButton}  className="slds-button slds-button--small slds-button--brand" >
+                save
+              </button>
+              }
+              { typeof this.props.closeButton !== "undefined" &&
+              <button onClick={this.props.closeButton}  className="slds-button slds-button--small slds-button--brand" >
+                close
+              </button>
+              }
             </div>
           </div>
       </div>
