@@ -17,21 +17,22 @@ export default class Router extends Component {
       return _backUrl;
     }
 
-    static URLfor(comp, form, record, params) {
+    static URLfor(appid, comp, form, record, params) {
       let df = DynamicForm.instance,
-          routeJson = {appid: df.app && df.app._id, params: {}};
+          effectiveappid = appid || df.app && df.app._id,
+          routeJson = {appid: effectiveappid, params: {}};
       if (comp) routeJson.hash = comp;
       if (form) routeJson.params.gid = form + (record && ("-"+record) || "");
       if (params) Object.assign (routeJson.params, params);
       return Router._encodeHash (routeJson);
     }
 
-    static navTo(comp, form, record, params, backiflist) {
+    static navTo(appid, comp, form, record, params, backiflist) {
       if (window) {
         if (Router.backUrl && backiflist && (Router.backUrl.hash === "ListPage" || Router.backUrl.hash === DEFAULT_LANDING))
           window.location.href = Router._encodeHash(Router.backUrl);
         else
-          window.location.href = Router.URLfor(comp, form, record, params);
+          window.location.href = Router.URLfor(appid, comp, form, record, params);
       }
     }
 
@@ -44,12 +45,12 @@ export default class Router extends Component {
           array.push(encodeURIComponent(key) + "=" + encodeURIComponent(params[key]));
         }
       }
-      console.log ("Router._encodeHash got params " + array.length + " : " + JSON.stringify(array));
+      //console.log ("Router._encodeHash got params " + array.length + " : " + JSON.stringify(array));
       return "#" + (appid && (appid+"/") || "") + (hash || DEFAULT_LANDING) + ((array.length > 0) &&  ("?" + array.join("&")) || "");
     }
 
     static _decodeHash (hashuri) {
-      console.log ('Router._decodeHash value : ' + hashuri);
+      //console.log ('Router._decodeHash value : ' + hashuri);
       let retval = {appid: null, hash: DEFAULT_LANDING, params: null},
           paramjson = {};
 
@@ -85,17 +86,25 @@ export default class Router extends Component {
           retval.params = paramjson;
         }
       }
-      console.log ('Router._decodeHash return value : ' + JSON.stringify(retval));
+      //console.log ('Router._decodeHash return value : ' + JSON.stringify(retval));
       return (retval);
     }
 
-    static setupRouterfunction (onPopState) {
+    static setupRouterfunction (onPopState, remove = false) {
       if (window) {
         if (true) { // use HTML5 history
           if (window.addEventListener) {
-            window.addEventListener('popstate', onPopState, false);
+            if (remove) {
+              console.log ('removing popstate');
+              window.removeEventListener('popstate', onPopState, false);
+            }
+            else
+              window.addEventListener('popstate', onPopState, false);
           } else {
-            window.attachEvent('popstate', onPopState);
+            if (remove)
+              window.detachEvent('popstate', onPopState);
+            else
+              window.attachEvent('popstate', onPopState);
           }
         } else {
           if (window.addEventListener) {
@@ -116,7 +125,6 @@ export default class Router extends Component {
 
     static ensureAppInUrl (newappid) {
       let currentroute = Router.decodeCurrentURI();
-      console.log ("current route " + JSON.stringify(currentroute) + "new app requeted: " + newappid);
       if (currentroute.appid && (currentroute.appid != newappid)) {
         console.log ("chaning apps, ensure the hash and params are wiped");
         delete currentroute.hash;
@@ -126,30 +134,52 @@ export default class Router extends Component {
       if (window) window.history.replaceState("", "", Router._encodeHash(currentroute));
     }
 
-    constructor (props) {
-      super (props);
-      console.log ('Router() Initialising...');
+    _chng_route_fn (popfn)  {
+      let df = DynamicForm.instance,
+          currentApp = df.app || {},
+          updateRouteFn = this.props.updateRoute,
+          newroute = Router.decodeCurrentURI();
 
-      let chng_route_fn = () => {
-        var newroute = Router.decodeCurrentURI();
-        console.log ('Router() url changed : ' + JSON.stringify(newroute));
-        if (props.updateRoute) props.updateRoute (newroute);
+      console.log ('Router: chng_route_fn ['+ this.props.currentApp._id +']  current appid: ' + currentApp._id);
+      if (currentApp._id === newroute.appid) {
+        console.log ('Router: chng_route_fn, same app, updating state with newroute: ' + JSON.stringify(newroute));
+        if (updateRouteFn) updateRouteFn (newroute);
         // Save current route before overriding for backURL
         if (this.state) Router.backUrl = this.state.newroute;
+        if (typeof popfn === "function")
+          this.setState({newroute: newroute, popfn: popfn});
+        else {
+          this.setState({newroute: newroute});
+        }
+      } else {
+        console.log ('Router: chng_route_fn, DIFFERENT app, update App & return : ' + JSON.stringify(newroute));
+        if (updateRouteFn) updateRouteFn (newroute);
+        return null;
+      }
+    }
 
-        return {newroute: newroute};
-      };
+   componentWillMount() {
+     console.log ("Router componentWillMount: " + this.props.currentApp._id);
+     // Register function on route changes
+     let popfn = this._chng_route_fn.bind(this);
+     Router.setupRouterfunction (popfn);
+     // Handle initial app load
+     this._chng_route_fn(popfn);
+   }
 
-      // Register function on route changes
-      Router.setupRouterfunction (() => {
-        this.setState (chng_route_fn());
-      });
-      // Handle initial app load
-      this.state = chng_route_fn();
+   componentWillUnmount() {
+     console.log ("Router componentWillUnmount: " + this.props.currentApp._id);
+     Router.setupRouterfunction (this.state.popfn, true);
+     console.log ("Router componentWillUnmount done");
+   }
+
+    constructor (props) {
+      super (props);
+      console.log ('Router: constructor for : ' + props.currentApp._id);
     }
 
     render() {
-      console.log ('Router() Rendering newroute: ' + JSON.stringify(this.state));
+      console.log ('Router: render newroute');
       let Routefactory = this.props.componentFactories[this.state.newroute.hash];
       if (Routefactory) {
           return Routefactory(
@@ -159,4 +189,9 @@ export default class Router extends Component {
           <div>404</div>
       )
     }
+}
+Router.propTypes = {
+  currentApp: React.PropTypes.shape({
+    _id: React.PropTypes.string.isRequired
+  })
 }

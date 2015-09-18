@@ -12,7 +12,7 @@ export  class SvgIcon extends Component {
     let df = DynamicForm.instance;
 
     return (
-        <svg className={(this.props.classOverride  || "") + (this.props.spriteType === "utility" && " icon-utility "  ||  " slds-icon ")  + (this.props.small && "slds-icon--small" || "") + (this.props.large && "slds-icon--large" || "") + " slds-icon-" + this.props.spriteType+ "-" +this.props.spriteName.replace("_","-")}
+        <svg className={(this.props.classOverride  || "") + (this.props.spriteType === "utility" && " icon-utility "  ||  " slds-icon ")  + (this.props.small && "slds-icon--small" || "") + (this.props.large && "slds-icon--large" || "") + " slds-icon-" + this.props.spriteType+ "-" +this.props.spriteName.replace(/_/g,"-")}
           dangerouslySetInnerHTML={{__html: "<use xlink:href='/slds080/assets/icons/"+this.props.spriteType+"-sprite/svg/symbols.svg#"+this.props.spriteName+"' />"}}>
         </svg>
   )}
@@ -36,3 +36,20 @@ export class IconField extends Component {
 }
 IconField.propTypes = {  small: React.PropTypes.bool, large: React.PropTypes.bool };
 IconField.defaultProps = { small: false, large:  false };
+
+
+export class Alert extends Component {
+
+  render () {
+    return (
+      <div className="slds-notify slds-notify--alert slds-theme--alert-texture" role="alert">
+       <span className="slds-assistive-text">Warning</span>
+
+       <h2>
+         <SvgIcon classOverride="slds-m-right--x-small" spriteType="action" spriteName="email"/>
+         {this.props.message}
+       </h2>
+     </div>
+    )
+  }
+}

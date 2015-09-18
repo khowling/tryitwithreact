@@ -4,21 +4,23 @@
 import React, {Component} from 'react';
 //import ReactDOM from 'react-dom';
 
-import { SvgIcon } from './components/utils.jsx';
-import Router from './components/router.jsx'
-import {TileList}  from './components/tiles.jsx'
-import {ListPage, RecordPage} from './components/dform.jsx'
-import {Login, LogMeIn, AuthState} from './components/auth.jsx'
+import { SvgIcon, Alert }           from './components/utils.jsx';
+import Router                       from './components/router.jsx';
+import {TileList}                   from './components/tiles.jsx';
+import {ListPage, RecordPage}       from './components/dform.jsx';
+import {TimeLine}                   from './components/timeline.jsx';
+import {Login, LogMeIn, AuthState}  from './components/auth.jsx';
+
 import DynamicForm from './services/dynamicForm.es6';
 
 export default class App extends Component {
 
    constructor (props) {
      super(props);
-     console.log ('call createFact ' );
-     this.appComponents = App.createFactories (TileList, ListPage, RecordPage, Login, LogMeIn);
+     console.log ('App: constructor');
+     this.appComponents = App.createFactories (TileList, ListPage, RecordPage, TimeLine, Login, LogMeIn);
      this.dynamicForm = new DynamicForm(props.buildprops.server_url);
-     this.state = { formdata: [], booted: false, bootmsg: "not booted"};
+     this.state = { booted: false, booterr: false,  bootmsg: "not booted", user: null, currentApp: null};
    }
 
    static createFactories (...comps) {
@@ -29,7 +31,7 @@ export default class App extends Component {
     //   console.log ('import mods : ' + mods);
        if (typeof mods === "function" ) {
          //if (mods.navProps) {
-           console.log ('creating factory : ' + mods.name);
+           console.log ('App: creating factory : ' + mods.name);
            factories[mods.name] = React.createFactory(mods);
            navMeta.push (mods.navProps);
          //}
@@ -40,28 +42,26 @@ export default class App extends Component {
 
    _loadApp(appid) {
      let loadappid = appid;
-     this.setState ({ booted: false, bootmsg: 'loading app'});
-
      this.dynamicForm.loadApp(loadappid).then ((val) => {
-       console.log ("App  No App specified, so updating url with default app : " + this.dynamicForm.app._id);
-       Router.ensureAppInUrl (this.dynamicForm.app._id);
-       this.setState ({ booted: true, bootmsg: null, user: this.dynamicForm.user, currentApp: this.dynamicForm.app});
+       if (this.dynamicForm.app) {
+         console.log ("App: _loadApp, loaded with the app id : " + this.dynamicForm.app._id);
+         Router.ensureAppInUrl (this.dynamicForm.app._id);
+       }
+       this.setState ({ booted: true, booterr: false, bootmsg: null, user: this.dynamicForm.user, currentApp: this.dynamicForm.app});
      }, (error) => {
-         this.setState ({ bootmsg: 'error loading app : ' + error});
+         this.setState ({ booterr: true, bootmsg: 'Error loading app : ' + JSON.parse(error).message});
      });
    }
 
    componentWillMount() {
     var urlappid = Router.decodeCurrentURI().appid;
-    console.log ("App componentWillMount: setting up services: " + urlappid);
+    console.log ("App: componentWillMount: setting up services for requested app id : " + urlappid);
     this._loadApp(urlappid);
   }
 
   _authChange(chng) {
     console.log ('App:  router noitified authChange: ' + JSON.stringify(chng));
-    if (chng.newappid) {
-      this._loadApp(chng.newappid);
-    } else if (chng.logout) {
+    if (chng.logout) {
       this.dynamicForm.logOut().then(succ => {
         //this.setState ({user: {}}, () => {
         if (window)
@@ -71,14 +71,17 @@ export default class App extends Component {
     }
   }
 
-  routeUpdated () {
-    console.log ('App:  router noitified App route updated');
+  routeUpdated (newroute) {
+    console.log ('App: router noitified App route updated');
+    if (newroute.appid !== this.state.currentApp._id) {
+      console.log ('App: new app requested, need to reload the new app');
+      this.setState ({ booted: false, booterr: false, bootmsg: 'loading app'}, () =>  this._loadApp(newroute.appid));
+    }
   }
 
    render () {
-     console.log ('APP rendering: ' + this.state.bootmsg);
-     if (this.state.booted) {
-       return (
+     console.log ("App: render");
+     if (this.state.booted)  return (
          <div className="slds">
 
              <section className="site-banner">
@@ -104,13 +107,31 @@ export default class App extends Component {
             <div style={{height: "3.5rem"}}></div>
 
             <div className="container">
-              <Router componentFactories={this.appComponents.factories} updateRoute={this.routeUpdated}/>
+              { this.state.currentApp &&
+              <Router key={this.state.currentApp._id} componentFactories={this.appComponents.factories} currentApp={this.state.currentApp} updateRoute={this.routeUpdated.bind(this)}/>
+              }
             </div>
 
          </div>
-       )
-     } else return (
-       <div>{this.state.bootmsg}</div>
+       );
+     else if (this.state.booterr) return (
+         <Alert message={"Looks like your user is not correctly configured, please email the system ower with this message" + this.state.bootmsg}/>
+       );
+     else return (
+       <div className="slds">
+
+           <section className="site-banner">
+             <div className="slds-container--center slds-container--medium"></div>
+          </section>
+           <div style={{height: "3.5rem"}}></div>
+
+           <div className="container">
+             {this.state.bootmsg}
+             <div className="slds-spinner--small">
+              <img src="http://localhost:3000/assets/images/spinners/slds_spinner.gif" alt="Loading..." />
+            </div>
+          </div>
+      </div>
      );
    }
  }

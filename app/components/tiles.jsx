@@ -38,8 +38,8 @@ export class Tile extends Component {
               <hr className="hr hr--pink"/>
               <p>{meta.desc}</p>
               <div className="slds-button-group">
-                <a className="slds-button slds-button--neutral" href={Router.URLfor("ListPage", meta._id)}>list</a>
-                <a className="slds-button slds-button--neutral" href={Router.URLfor("RecordPage", meta._id)}>new</a>
+                <a className="slds-button slds-button--neutral" href={Router.URLfor(null, "ListPage", meta._id)}>list</a>
+                <a className="slds-button slds-button--neutral" href={Router.URLfor(null, "RecordPage", meta._id)}>new</a>
               </div>
             </div>
           </li>

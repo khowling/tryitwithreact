@@ -110,26 +110,36 @@ module.exports = function(options) {
 
     router.get('/loadApp', function(req, res) {
       let urlappid = req.query["appid"],
-          app = null,
+          appid = null,
           errfn = function (errval) {
                 res.status(400).send(errval);
             };
 
-      console.log ("/formdata: starting, requested app:  urlappid=" + urlappid);
+      console.log ("/formdata: starting, requested app:  urlappid=" + urlappid + ", user: " + JSON.stringify(req.user));
 
       if (req.user) {
         let userapps = req.user.apps  || [];
-        if (urlappid)
-          app = userapps.find(ua => ua.app._id == urlappid).app;
-        else
-          app = userapps[0] && userapps[0].app;
+        if (urlappid) {
+          // app requested, so provide it.
+          let app = userapps.find(ua => ua.app._id == urlappid);
+          appid = app && app.app._id || userapps[0] && userapps[0].app._id;
+        }  else {
+          // no app requested, so get the default  app..
+          let app = userapps.find(ua => ua.app.default == "yes");
+          appid = app && app.app._id || userapps[0] && userapps[0].app._id;
+        }
       } else {
-        // not logged on
+        // not logged on, get the default app, unless requested.
+        if (urlappid)
+          // app requested, so provide it.
+          appid = urlappid;
+        else
+          appid = "55f986e0db910aa2333226f3";
       }
       //res.setHeader('Content-Type', 'application/json');
-      if (app) {
-        console.log ("/formdata: user logged on and authorised for the apps : " + app.name);
-        orm.find(orm.forms.App, { id: app._id}, true, true).then((apprec) => {
+      if (appid) {
+        console.log ("/formdata: user logged on and authorised for the apps : " + appid);
+        orm.find(orm.forms.App, { id: appid}, true, true).then((apprec) => {
             let objectids = [];
             if (apprec && apprec.appperms) for (let perm of apprec.appperms) {
               console.log ("/formdata: adding form app ["+apprec.name+"]: " + perm.form);

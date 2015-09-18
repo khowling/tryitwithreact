@@ -2,6 +2,7 @@
 
 import React, {Component} from 'react';
 
+import Router from './router.jsx'
 import {RecordList, Form} from './dform.jsx'
 import { SvgIcon } from './utils.jsx';
 
@@ -82,7 +83,7 @@ export class AuthState extends Component {
 
   render () {
     let self = this;
-    if (this.state.user._id)
+    if (this.state.user)
       return (
         <div className="slds-dropdown-trigger" aria-haspopup="true">
             <div className="slds-button slds-button--neutral">
@@ -91,8 +92,8 @@ export class AuthState extends Component {
             <div className="slds-dropdown slds-dropdown--nubbin-top slds-dropdown--menu" style={{left: "35%"}}>
              <ul className="slds-dropdown__list" role="menu">
                { this.state.user.apps && this.state.user.apps.map(function(val, i) { return (
-               <li className="slds-dropdown__item" style={{whiteSpace: "nowrap"}}>
-                   <a onClick={self._changeapp.bind(self, {newappid: val.app._id})} className="slds-truncate">{val.app.search_ref[Object.keys(val.app.search_ref)[1]]}</a>
+               <li key={i} className="slds-dropdown__item" style={{whiteSpace: "nowrap"}}>
+                   <a href={Router.URLfor(val.app._id)} className="slds-truncate">{val.app.search_ref[Object.keys(val.app.search_ref)[1]]}</a>
                </li>
              );})}
                <li className="slds-dropdown__item" >

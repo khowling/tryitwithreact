@@ -50,6 +50,7 @@
     "react": "*",
     "react-dom": "*",
     "source-map-support": "*",
-    "progressbar.js": "*"
+    "progressbar.js": "*",
+    "velocity-animate": "*"
   }
 }

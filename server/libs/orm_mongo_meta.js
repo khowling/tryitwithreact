@@ -576,14 +576,44 @@ module.exports = function(options) {
             type: "search",
             fields: [
                 {
-                    name: "name",
-                    title: "App Name",
-                    type: "text"
+                  name: "name",
+                  title: "App Name",
+                  type: "text"
                 },
                 {
-                    name: "icon",
-                    title: "Form Icon",
-                    type: "text"
+                  name: "icon",
+                  title: "Form Icon",
+                  type: "text"
+                },
+                {
+                  name: "public",
+                  title: "Public Access",
+                  type: "dropdown",
+                  dropdown_options: [
+                      {
+                          name: "Yes",
+                          key: "yes"
+                      },
+                      {
+                          name: "No",
+                          key: "no"
+                      }
+                  ]
+                },
+                {
+                  name: "default",
+                  title: "Default App",
+                  type: "dropdown",
+                  dropdown_options: [
+                      {
+                          name: "Yes",
+                          key: "yes"
+                      },
+                      {
+                          name: "No",
+                          key: "no"
+                      }
+                  ]
                 }
               ]
         },
@@ -619,6 +649,42 @@ module.exports = function(options) {
                         {
                             name: "Sandbox",
                             key: "sandbox"
+                        }
+                    ]
+                },
+                {
+                    name: "public",
+                    title: "Public Access",
+                    show_when: "true",
+                    type: "dropdown",
+                    required: true,
+                    default_value: "no",
+                    dropdown_options: [
+                        {
+                            name: "Yes",
+                            key: "yes"
+                        },
+                        {
+                            name: "No",
+                            key: "no"
+                        }
+                    ]
+                },
+                {
+                    name: "default",
+                    title: "Default App",
+                    show_when: "true",
+                    type: "dropdown",
+                    required: true,
+                    default_value: "no",
+                    dropdown_options: [
+                        {
+                            name: "Yes",
+                            key: "yes"
+                        },
+                        {
+                            name: "No",
+                            key: "no"
                         }
                     ]
                 },
@@ -850,7 +916,7 @@ module.exports = function(options) {
           {
             form: {_id: exps.forms.App, search_ref: {name: "App"}},
             load: [
-              {name: "Admin App", type: "deployed", appperms: [
+              {name: "Admin App", type: "deployed", public: "yes", default: "yes", appperms: [
                 {form: {_id: exps.forms.formMetadata}, crud: "crud"},
                 {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
                 {form: {_id: exps.forms.DropDownOption}, crud: "crud"},

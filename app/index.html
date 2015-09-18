@@ -100,7 +100,8 @@
     /* icon */
     .icon-utility {
         cursor: pointer;
-        fill: #0070d2;
+        //fill: #0070d2;
+        fill: #54698d;
         transition-property: transform;
         transition-duration: 0.3s;
         width: 1.2rem;
@@ -110,6 +111,15 @@
       -webkit-transform: scale(1.1);
       transform: scale(1.1);
       fill: #005fb2;
+    }
+    /* shrink table rows, because reference fields make it to large */
+    .slds-table th, .slds-table td {
+        padding: 0.2rem;
+        white-space: nowrap;
+    }
+    td.slds-row-select {
+        padding: 0.5rem;
+        white-space: nowrap;
     }
     /* form */
     div.field-seperator {
