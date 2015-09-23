@@ -31,10 +31,12 @@ module.exports = function(options) {
                     result.findField[field.name] = 1;
                 }
                 if (!ignoreLookups) {
-                    if (field.type === 'reference') {
+                    if (field.type === 'icon-lookup') {
+                      //???
+                    } else if (field.type === 'reference') {
                         console.log('find() findFieldsandLookups: found a lookup field on [' + form.name + '] field : ' + field.name);
                         var searchform = meta.findFormById(FORM_DATA, field.search_form);
-                        if (searchform && searchform.collection) {
+                        if (searchform) {// && searchform.collection) {
                             var subqobj = {
                                 field: field.name,
                                 form: searchform
@@ -61,59 +63,44 @@ module.exports = function(options) {
 
         /* Harvest lookup ids from primary document for foriegn key lookup */
         /* if subq is specified, update the docs with the lookup values */
+        /* RETURNS: {'form_id': {form: <JSON form>, keys: ['id', 'id']}} */
         var processlookupids = function (subqarray, docs, subq) {
-            var lookupkeys = {};
-            for (var didx in docs) {
-                // for each data row
-                var doc = docs[didx];
-                for (var saidx in subqarray) {
-                    // for each 'reference' field
-                    var subq_obj = subqarray[saidx];
+            var lookupkeys = {},
+                processFn = (obj, subq_obj, lookupkeys, subq) => {
+                  let lookupfieldval = obj[subq_obj.field];
+
+                  if (lookupfieldval) {
+                    if (!subq) { // harvest mode
+                      try {
+                        let keyval = (subq_obj.form.type === "metadata") && lookupfieldval || new ObjectID(lookupfieldval);
+                        lookupkeys[subq_obj.form._id].keys.push(keyval);
+                      } catch (e) {
+                        console.log (e + ' Warning : lookup value not in format of ObjectId:  field : ' + subq_obj.field + ', val: ' + JSON.stringify(lookupfieldval));
+                      }
+                    } else { // update mode
+                      obj[subq_obj.field] = {
+                        _id: lookupfieldval,
+                        search_ref: subq[subq_obj.form._id][lookupfieldval] || {error:'missing'}};
+                    }
+                  }
+                };
+
+            for (var doc of docs) { // for each data row
+                for (var subq_obj of subqarray) { // for each 'reference' field from 'findFieldsandLookups'
                     // if in harvest mode, initialise lookupkeys array
                     if (!subq && !lookupkeys[subq_obj.form._id])  lookupkeys[subq_obj.form._id] = {form: subq_obj.form, keys: []};
 
                     if (subq_obj.subdocfield) {
                         // if field is in an embedded-document,
                         for (var edidx in doc[subq_obj.subdocfield]) {
-                          // loop round records and pull out id of lookup fields into lookupkeys
-                          var lookupfieldval = doc[subq_obj.subdocfield][edidx][subq_obj.field];
-                          //console.log ("find() processlookupids " + subq_obj.field + ":" + subq_obj.collection + " = " + JSON.stringify(lookupfieldval));
-                          if (lookupfieldval) {
-                            if (!subq) {
-                              // harvest mode
-                              try {
-                                lookupkeys[subq_obj.form._id].keys.push(new ObjectID(lookupfieldval));
-                              } catch (e) {
-                                console.log ('Warning : lookup value not in format of ObjectId: ' + doc._id + ', field : ' + subq_obj.field + ', val: ' + JSON.stringify(lookupfieldval));
-                              }
-                            } else {
-                              // update mode
-                              doc[subq_obj.subdocfield][edidx][subq_obj.field] = {
-                                _id: lookupfieldval,
-                                search_ref: subq[lookupfieldval] || {error:'missing'}};
-                            }
-                          }
+                          processFn(doc[subq_obj.subdocfield][edidx], subq_obj, lookupkeys, subq);
                         }
                     } else {
                       // if field is NOT in an embedded-document, just add id to lookupkeys
-                      if (doc[subq_obj.field])
-                        if (!subq) {
-                          // harvest mode
-                          try {
-                            lookupkeys[subq_obj.form._id].keys.push(new ObjectID(doc[subq_obj.field]));
-                          } catch (e) {
-                            console.log ('Warning : lookup value not in format of ObjectId: ' + doc._id + ', field : ' + subq_obj.field + ', val: ' + JSON.stringify(doc[subq_obj.field]));
-                          }
-                        } else {
-                          // update mode
-                          doc[subq_obj.field] = {
-                            _id: doc[subq_obj.field],
-                            search_ref: subq[doc[subq_obj.field]] || {error:'missing'}};
-                        }
+                      processFn(doc, subq_obj, lookupkeys, subq);
                     }
                 }
             }
-            // Map<collection, List<ids>.
             if (!subq) {
               return lookupkeys;
             } else {
@@ -131,7 +118,6 @@ module.exports = function(options) {
             db.collection(form.collection).find(q, flds).toArray(function (err, docs) {
                 if (err) reject(err);
                 else {
-
                   // if less results than expected and using 'formMeta' lookup to the formMetadata object, include the META_DATA, as there may be a reference.
                   if (objids.length > docs.length && form._id === meta.forms.metaSearch) {
                     let metares = [];
@@ -151,7 +137,7 @@ module.exports = function(options) {
                       }
                     }
                   }
-                  resolve(docs);
+                  resolve({formid: form._id, records: docs});
                 }
             });
           });
@@ -160,6 +146,7 @@ module.exports = function(options) {
         /* flow control - run sub queries in parrallel & call alldonefn(docs) when done! */
         var runallsubqueries = function (FORM_DATA, subqarray, lookupkeys) {
           return new Promise(function (resolve, reject)  {
+            let subq_res = {};
             if (Object.keys(lookupkeys).length == 0) {
               resolve();
             } else {
@@ -167,15 +154,27 @@ module.exports = function(options) {
               for (var scoll in lookupkeys) {
                   let form = lookupkeys[scoll].form,
                       keys = lookupkeys[scoll].keys;
-                  promises.push(runsubquery (FORM_DATA, form, keys));
+
+                  if (form.type === "metadata") {
+                    console.log ('find() runallsubqueries, metadata searchform, use form to resolve lookups : ' + form.name);
+                    subq_res[form._id] = {};
+                    if (form.data) for (let key of keys) {
+                      let val = form.data.find(i => i._id === key);
+                      console.log ('find() runallsubqueries, metadata searchform, setting ['+form._id+']['+key+'] : ' + JSON.stringify(val));
+                      if (val) subq_res[form._id][key] =  val;
+                    }
+                  } else {
+                    promises.push(runsubquery (FORM_DATA, form, keys));
+                  }
               }
               Promise.all(promises).then(function (succVal) {
                   console.log ('Got all suqqueries, now shape the data: ' + JSON.stringify(succVal));
-                  let subq_res = {};
+
                   for (let subq of succVal) {
-                      for (let rec of subq) {
-                        subq_res[rec._id] = rec;
-                      }
+                    subq_res[subq.formid] = {};
+                    for (let rec of subq.records) {
+                      subq_res[subq.formid][rec._id] = rec;
+                    }
                   }
                   resolve(subq_res);
                 }).catch(function (reason) {
@@ -244,6 +243,8 @@ module.exports = function(options) {
                     if (err ) {
                       console.log('find() find ERROR :  ' + err);
                       reject (err);
+                    } else if (findone && doc == null) {
+                      reject("Cannot find record");
                     } else {
                         console.log("find() got documents succfull") // ' + JSON.stringify(doc));
 
@@ -360,7 +361,7 @@ module.exports = function(options) {
     };
 
 
-    exps.save = function (formparam, parentfieldid,parentid, userdoc) {
+    exps.save = function (formparam, parentfieldid,parentid, userdoc, userid) {
         return new Promise( function(resolve, reject)  {
           exps.getFormMeta().then(function(FORM_DATA) {
             var form = meta.findFormById(FORM_DATA, formparam),
@@ -404,103 +405,121 @@ module.exports = function(options) {
                         setval = [];
 
                   // create formfield object keyed on fieldname
+                  let typecheckFn = (fldmetalist, propname, fval) => {
+                    let fldmeta = fldmetalist[propname];
+
+                    if (!fldmeta) {
+                      if (propname === "_id" ||  propname === "_createDate" || propname === "_createdBy" || propname === "_updateDate" || propname === "_updatedBy")
+                        return {};
+                      else
+                        return {error: "data contains fields not recognised, please reload your app/browser : " + propname};
+                    } else if (fldmeta.type === "text" || fldmeta.type === "textarea" || fldmeta.type === "dropdown" || fldmeta.type === "email") {
+                      if (fval && typeof fval !== 'string') return {error: "data contains value of incorrect type : " + propname};
+                      return {validated_value: fval || null};
+                    } else if (fldmeta.type === "datetime") {
+                      if (fval) try {
+                        return {validated_value: new Date(fval)}
+                      } catch (e) { return {error: "data contains value of incorrect type : " + propname}; }
+                      else
+                        return {validated_value:  null};
+                    } else if (fldmeta.type === "image") {
+                      if (fval) try {
+                        return {validated_value: new ObjectID(fval)};
+                      } catch (e) {  return {error: "data contains image field with invalid _id: " + propname + "  : " + fval};}
+                      else
+                        return {validated_value:  null};
+                    } else  if (fldmeta.type === "reference") {
+                      let sform = meta.findFormById(FORM_DATA, fldmeta.search_form);
+                      if (!sform) return {error: "data contains reference field without defined search_form: " + propname};
+                      if (sform.collection) {
+                        if (fval && !fval._id) return {error: "data contains reference field with recognised _id: " + propname};
+                        try {
+                          return {validated_value: fval && new ObjectID(fval._id) || null};
+                        } catch (e) {  return {error: "data contains reference field with invalid _id: " + propname + "  : " + fval._id};}
+                      } else {
+                        //if (fval && !fval.key) return {error: "data contains reference field with recognised key: " + propname};
+                        return {validated_value: fval && fval || null};
+                      }
+                    } else if (fldmeta.type === "childform") {
+                      if (!Array.isArray(fval))
+                        return {error: "data contains childform field, but data is not array: " + propname};
+                      else
+                        return {childform_field: fldmeta, childform_array: fval};
+                    }
+                  };
+
                   let fldmetalist = {};
                   for (let f of formFields) {
                     fldmetalist[f.name] = f;
                   }
+                  console.log ("Save: validateSetFields, looping through save records: " + reqval.length);
+                  for (let rv of reqval) { // for each data record
+                    let tv = {};  // target validated object
 
-                  // for each data record
-                  for (var rqidx in reqval) {
-                    var rv = reqval[rqidx],
-                        tv = {};
 
                     if (isInsert) {
                       if (rv._id) return {error: "Insert request, data already contains key (_id) : " + rv._id};
                       // generate new ID.
                       tv._id = new ObjectID();
+                      tv._createDate = new Date();
+                      tv._createdBy = userid;
                     } else { // update
                       // if updating, data doesn't need new _id.
                       if (!rv._id) return {error: "Update request, data doesnt contain key (_id)"};
+                      tv._updateDate = new Date();
+                      tv._updatedBy = userid;
                     }
+                    console.log ("Save: validateSetFields, looping through record propities");
+                    for (let propname in rv) { // for each property in data object
+                      let fval = rv[propname], // store the requrested property value
+                          tprop = embedField && embedfield+'.$.'+propname || propname;  // format the target property name for mongo
 
-                    // for each data record prop
-                    for (let propname in rv) {
-                        console.log ('Finding ' + propname +' in ' + JSON.stringify (formFields));
-
-                        if (propname === "_id") continue;
-
-                        let fldmeta = fldmetalist[propname],
-                            fval = rv[propname],
-                            tprop = embedField && embedfield+'.$.'+propname || propname;
-
-                        if (!fldmeta)
-                          return {error: "data contains fields not recognised : " + propname};
-                        if (fldmeta.type === "reference") {
-                          let sform = meta.findFormById(FORM_DATA, fldmeta.search_form);
-                          if (!sform) return {error: "data contains reference field without defined search_form: " + propname};
-                          if (sform.collection) {
-                            if (fval && !fval._id) return {error: "data contains reference field with recognised _id: " + propname};
-                            try {
-                              tv[tprop] = fval && new ObjectID(fval._id) || null;
-                            } catch (e) {  return {error: "data contains reference field with invalid _id: " + propname + "  : " + fval._id};}
-                          } else {
-                            //if (fval && !fval.key) return {error: "data contains reference field with recognised key: " + propname};
-                            tv[tprop] = fval && fval || null;
-                          }
-                        } else if (fldmeta.type === "childform") {
+                      console.log ("Save: validateSetFields, validating field: " + propname);
+                      let tcres = typecheckFn (fldmetalist, propname, fval);
+                      if ('error' in tcres)
+                        return tcres;
+                      else if ('validated_value' in tcres)
+                        tv[tprop] = tcres.validated_value;
+                      else if ('childform_array' in tcres) {
 
                           if (!allowchildform) {
                             continue; // just ignore the childform data!
                             return {error: "data contains childform field, not allowed in this mode: " + propname};
                           }
 
-                          // NEED TO VALIDATE CHILD FORM DATA!
-                          if (!Array.isArray(fval)) return {error: "data contains childform field, but data is not array: " + propname};
-                          let cform = meta.findFormById(FORM_DATA, fldmeta.child_form);
-
+                          let ctav = [];  // child  target array validated
                           // create formfield object keyed on fieldname
+                          let cform = meta.findFormById(FORM_DATA, tcres.childform_field.child_form);
+                          if (!cform) return {error: "data contains childform field, but no child_form defined for the field: " + propname};
                           let cfldmetalist = {};
                           for (let f of cform.fields) {
                             cfldmetalist[f.name] = f;
                           }
 
-                          for (let cval of fval) {
+                          for (let cval of tcres.childform_array) {
+                            let ctv = {};  // target validated object
+
                             if (cval._id) return {error: "data contains childform field, and data array contains existing _id: " + propname};
-                            cval._id =  new ObjectID(rv._id);
+                            ctv._id =  new ObjectID();
+
                             for (let cpropname in cval) {
-
-
-                              if (cpropname === "_id") continue;
-
-                              let cfldmeta = cfldmetalist[cpropname];
-                              if (!cfldmeta)
-                                return {error: "data contains fields in child for not recognised : " + propname + "." + cpropname};
-
-                              let cfval = cval[cpropname];
-                              if (cfldmeta.type === "reference") {
-                                let sform = meta.findFormById(FORM_DATA, cfldmeta.search_form);
-                                if (!sform) return {error: "data contains reference field without defined search_form: " + cpropname};
-                                if (sform.collection) {
-                                  if (cfval && !cfval._id) return {error: "data contains reference field with recognised _id: " + cpropname};
-                                  try {
-                                    cval[cpropname] = cfval && new ObjectID(cfval._id) || null;
-                                  } catch (e) {  return {error: "data contains reference field with invalid _id: " + cpropname + "  : " + cfval._id};}
-                                } else {
-                                  //if (cfval && !cfval.key) return {error: "data contains reference field with recognised key: " + cpropname};
-                                  cval[cpropname] = cfval && cfval || null;
-                                }
-                              }
+                              let cfval = cval[cpropname]; // store the requrested property value
+                              console.log ("Save: validateSetFields, validating childform field: " + cpropname);
+                              let ctcres = typecheckFn (cfldmetalist, cpropname, cfval);
+                              if ('error' in ctcres)
+                                return ctcres;
+                              else if ('validated_value' in ctcres)
+                                ctv[cpropname] = ctcres.validated_value;
                             }
+                            ctav.push(ctv);
                           }
-                          tv[tprop] = fval;
-                        } else {
                           tv[tprop] = fval;
                         }
                     }
                     setval.push(tv);
                   }
                   return {data: isarray && setval || setval[0]};
-                }
+                };
 
                 if (!isEmbedded) {
                     //console.log('/db/'+coll+'  saving or updating a top-level document :' + userdoc._id);

@@ -88,10 +88,7 @@ export default class App extends Component {
                <div className="slds-container--center slds-container--medium">
                   <div className="slds-grid">
                     <div className="slds-col slds-has-flexi-truncate">
-                      <h1>
-                        <a href={Router.URLfor()}><SvgIcon classOverride="slds-button__icon slds-button__icon--large" spriteType="utility" spriteName="apps"/></a>
-                        <small></small>
-                      </h1>
+                        <a href={Router.URLfor()}><SvgIcon classOverride="icon-utility" large={true} spriteType="utility" spriteName="apps"/></a>
                     </div>
 
                     <div className="slds-col slds-no-flex slds-align-bottom">

@@ -12,7 +12,7 @@ export  class SvgIcon extends Component {
     let df = DynamicForm.instance;
 
     return (
-        <svg className={(this.props.classOverride  || "") + (this.props.spriteType === "utility" && " icon-utility "  ||  " slds-icon ")  + (this.props.small && "slds-icon--small" || "") + (this.props.large && "slds-icon--large" || "") + " slds-icon-" + this.props.spriteType+ "-" +this.props.spriteName.replace(/_/g,"-")}
+        <svg className={(this.props.classOverride  || "") + ((this.props.spriteType === "utility" && !this.props.classOverride) && " icon-utility "  ||  " slds-icon ")  + (this.props.small && "slds-icon--small" || "") + (this.props.large && "slds-icon--large" || "") + " slds-icon-" + this.props.spriteType+ "-" +this.props.spriteName.replace(/_/g,"-")}
           dangerouslySetInnerHTML={{__html: "<use xlink:href='/slds080/assets/icons/"+this.props.spriteType+"-sprite/svg/symbols.svg#"+this.props.spriteName+"' />"}}>
         </svg>
   )}
@@ -26,7 +26,7 @@ export class IconField extends Component {
     let value = this.props.value,
         df = DynamicForm.instance,
         iconform = df.getFormByName("iconSearch"),
-        iconrow = iconform.data.find(x => x.key == value);
+        iconrow = iconform.data.find(x => x._id == value);
 
     if (iconrow)
       return <SvgIcon spriteType={iconrow.icon.type} spriteName={iconrow.icon.name} small={this.props.small} large={this.props.large}/>;
@@ -42,14 +42,16 @@ export class Alert extends Component {
 
   render () {
     return (
-      <div className="slds-notify slds-notify--alert slds-theme--alert-texture" role="alert">
-       <span className="slds-assistive-text">Warning</span>
-
+      <div className={"slds-notify slds-notify--alert slds-theme--"+this.props.type+" -texture"}>
+       <span className="slds-assistive-text">{this.props.type}</span>
        <h2>
-         <SvgIcon classOverride="slds-m-right--x-small" spriteType="action" spriteName="email"/>
-         {this.props.message}
+         <SvgIcon spriteType="utility" small={true} spriteName="ban" classOverride="slds-icon"/>
+         <span>{this.props.message}</span>
        </h2>
      </div>
+
     )
   }
 }
+Alert.propTypes = {message: React.PropTypes.string.isRequired, type: React.PropTypes.string };
+Alert.defaultProps = { type: "alert"};

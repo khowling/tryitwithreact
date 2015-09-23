@@ -56,11 +56,15 @@ module.exports = function(options) {
             parentfieldid = req.query.parentfieldid,
             parentid = req.query.parentid;
 
-        orm.delete (formparam, recid, parentfieldid, parentid, function success(j) {
-            res.json(j);
-        }, function error(e) {
-            res.status(400).send(e);
-        });
+        if (!req.user)
+          res.status(400).send("Permission Denied");
+        else {
+          orm.delete (formparam, recid, parentfieldid, parentid, function success(j) {
+              res.json(j);
+          }, function error(e) {
+              res.status(400).send(e);
+          });
+        }
     });
 
 
@@ -70,12 +74,20 @@ module.exports = function(options) {
     	    parentid = req.query.parentid,
     		//userdoc = JSON.parse(JSON.stringify(req.body).replace(/<DOLLAR>/g,'$'));
     	    userdoc = req.body;
-      orm.save (formparam, parentfieldid,parentid, userdoc).then(function success(j) {
-        console.log ('save() : responding : ' + JSON.stringify(j));
-        res.json(j);
-      }, function error(e) {
-        res.status(400).send(e);
-      });
+
+      if (!req.user)
+        res.status(400).send("Permission Denied");
+      else {
+        orm.save (formparam, parentfieldid,parentid, userdoc, req.user._id).then(function success(j) {
+          console.log ('save() : responding : ' + JSON.stringify(j));
+          res.json(j);
+        }, function error(e) {
+          res.status(400).send(e);
+        }).catch(function error(e) {
+          console.log ("catch err : " + e);
+          res.status(400).send(e);
+        });
+      }
     });
 
 
@@ -93,12 +105,14 @@ module.exports = function(options) {
     });
 
     // upload file into mongo, with help from formidable
-    router.put ('/file/:filename'
-         //, ensureAuthenticated
-        , function(req,res) {
-            var filename = req.params["filename"];
-            orm.putfile(req, res, filename);
-        });
+    router.put ('/file/:filename', function(req,res) {
+      if (!req.user)
+        res.status(400).send("Permission Denied");
+      else {
+        var filename = req.params["filename"];
+        orm.putfile(req, res, filename);
+      }
+    });
 
     router.get('/filelist', function (req,res) {
       orm.listfiles( function success(j) {
