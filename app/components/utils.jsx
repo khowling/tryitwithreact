@@ -26,7 +26,7 @@ export class IconField extends Component {
     let value = this.props.value,
         df = DynamicForm.instance,
         iconform = df.getFormByName("iconSearch"),
-        iconrow = iconform.data.find(x => x._id == value);
+        iconrow = iconform._data.find(x => x._id == value);
 
     if (iconrow)
       return <SvgIcon spriteType={iconrow.icon.type} spriteName={iconrow.icon.name} small={this.props.small} large={this.props.large}/>;
@@ -55,3 +55,21 @@ export class Alert extends Component {
 }
 Alert.propTypes = {message: React.PropTypes.string.isRequired, type: React.PropTypes.string };
 Alert.defaultProps = { type: "alert"};
+
+export class UpdatedBy extends Component {
+
+  render () {
+    let df = DynamicForm.instance,
+        img_src = this.props.user.picture && df.host+"/dform/file/"+this.props.user.picture || "http://placehold.it/120x120";
+
+    return (
+      <span className="slds-pill">
+        <a href="#" className="slds-pill__label">
+          <span className="slds-avatar slds-avatar--circle slds-avatar--x-small">
+            <img src={img_src} alt="" />
+          </span>{this.props.user.name}, {new Date(this.props.date).toLocaleDateString()}
+        </a>
+      </span>
+    )
+  }
+}

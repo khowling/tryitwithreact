@@ -6,7 +6,7 @@ import React, {Component} from 'react';
 import Router from './router.jsx';
 
 import ProgressBar from 'progressbar.js'
-import { SvgIcon, IconField, Alert } from './utils.jsx';
+import { SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
 import DynamicForm from '../services/dynamicForm.es6';
@@ -93,9 +93,9 @@ export class Field extends Component {
         df = DynamicForm.instance,
         sform = df.getForm(this.props.fielddef.search_form);
 
-    if (sform.type === "metadata") {
-      console.log ("its from meta : " + JSON.stringify(sform.data));
-      this.setState({lookup: {visible: true, fields: sform.fields, values: sform.data, offercreate: false}});
+    if (sform.store === "metadata") {
+      console.log ("its from meta : " + JSON.stringify(sform._data));
+      this.setState({lookup: {visible: true, fields: sform.fields, values: sform._data, offercreate: false}});
     } else {
       console.log ('_handleLookupKeypress: ' + inval);
       this.setState({lookup: {visible: true, values:[], create: false}}, () => {
@@ -123,7 +123,7 @@ export class Field extends Component {
       console.log ('Field _handleLookupSelectOption : ' + JSON.stringify(lookupval));
       this.setState ({value: lookupval, lookup: resetLookup}, () => {
         if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: data._id});
+          this.props.onChange ({[this.props.fielddef.name]: {_id: data._id}});
       });
     }
   }
@@ -593,8 +593,7 @@ export class FormMain extends Component {
   // Called form the Field
   _fieldChange(d) {
     let changedata = Object.assign({}, this.state.changedata, d),
-        fullobject = Object.assign({}, this.state.value.record , changedata),
-        newState  = {changedata: changedata, formcontrol: this._formControlState (this.state.nonchildformfields, fullobject, this.state.formcontrol)};
+        newState  = {changedata: changedata, formcontrol: this._formControlState (this.state.nonchildformfields, Object.assign({}, this.state.value.record , changedata), this.state.formcontrol)};
     console.log ('FormMain _fieldChange setState: ' + JSON.stringify(newState));
     this.setState(newState);
 
@@ -605,7 +604,7 @@ export class FormMain extends Component {
         df = DynamicForm.instance,
         saveopt = {
           form: this.props.view,
-          body: this.state.value.record._id && Object.assign(this.state.value.record, this.state.changedata) || this.state.changedata
+          body: this.state.value.record._id && Object.assign({_id: this.state.value.record._id}, this.state.changedata) || this.state.changedata
         };
     // if its a childform - add parent details to the save for mongo & nav back to parent
     if (this.props.parent) {
@@ -702,6 +701,16 @@ export class FormMain extends Component {
                 </div>
               </div>
             );})}
+            {(record._updatedBy && !self.state.edit) &&
+              <div  className="slds-col slds-col--padded slds-size--2-of-2 slds-medium-size--2-of-2 slds-x-small-size--1-of-1">
+                <div className="slds-form-element field-seperator ">
+                  <label className="slds-form-element__label">Last Updated</label>
+                  <div className="slds-form-element__control"  style={{marginLeft: "15px"}}>
+                    <UpdatedBy user={record._updatedBy.search_ref} date={record._updateDate}/>
+                  </div>
+                </div>
+              </div>
+            }
             { this.state.formcontrol.serverError &&
               <div className="slds-col slds-col--padded slds-size--1-of-1"  style={{marginTop: "15px"}}>
                 <Alert type="error" message={this.state.formcontrol.serverError}/>

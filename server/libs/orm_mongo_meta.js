@@ -12,15 +12,16 @@ module.exports = function(options) {
         forms: {
             "formMetadata" : new ObjectID('000000000100'),
             "FormFieldMetadata": new ObjectID('000000000200'),
-            "DropDownOption": new ObjectID('000000000210'),
+            "DropDownOption": new ObjectID('000000000250'),
             "iconSearch": new ObjectID('000000000300'),
             "metaSearch": new ObjectID('000000000400'),
             "Users": new ObjectID('000000000600'),
+            "UserSearch": new ObjectID('000000000650'),
             "AuthProviders": new ObjectID('000000000700'),
             "FileMeta": new ObjectID('000000000800'),
             "UserApps": new ObjectID('000000000900'),
             "App": new ObjectID('000000000a00'),
-            "AppSearch": new ObjectID('000000000a10'),
+            "AppSearch": new ObjectID('000000000a50'),
             "AppPerms": new ObjectID('000000000b00'),
             "AppPageComponent": new ObjectID('000000000e00'),
             "ImportMeta": new ObjectID('000000000c00'),
@@ -122,7 +123,7 @@ module.exports = function(options) {
             name: "FormMetadata",
             desc: "This is where you define and extend your application forms",
             collection: "formmeta",
-            type: "top",
+            store: "mongo",
             layout: "1col",
             icon: "std28",
             fields: [
@@ -144,30 +145,37 @@ module.exports = function(options) {
                     required: false
                 },
                 {
-                    name: "type",
-                    title: "Form Type",
+                    name: "store",
+                    title: "Storage Type",
                     show_when: "true",
                     type: "dropdown",
                     required: true,
-                    default_value: "top",
+                    default_value: "mongo",
                     dropdown_options: [
                         {
-                            name: "Top Level Form",
-                            key: "top"
+                            name: "Mongo",
+                            key: "mongo"
                         },
                         {
-                            name: "Child Form (embedded document)",
-                            key: "childform"
+                            name: "From Parent (can only be used as childform)",
+                            key: "fromparent"
                         },
                         {
-                            name: "Search Form (fields returned in a search)",
-                            key: "search"
+                            name: "Metadata",
+                            key: "metadata"
+                        },
+                        {
+                            name: "Rest API",
+                            key: "rest"
+                        },
+                        {
+                            name: "Salesforce Rest API",
+                            key: "sfdc"
                         }
                     ]
                 },
                 {
                     name: "icon",
-                    show_when: "record['type'] == 'search' || record['type'] == 'top'",
                     title: "Form Icon",
                     type: "reference",
                     required: false,
@@ -176,26 +184,19 @@ module.exports = function(options) {
                 },
                 {
                     name: "collection",
-                    show_when: "record['type'] == 'search' || record['type'] == 'top'",
                     title: "Mongo Collection name",
                     type: "text",
+                    show_when: "record['store'] == 'mongo'",
                     placeholder: "No Spaces please!",
-                    required: "record['type'] == 'search' || record['type'] == 'top'"
+                    required: "record['store'] == 'mongo'"
                 },
-
                 {
-                    name: "layout",
-                    title: "Form Layout",
-                    type: "dropdown",
-                    show_when: "true",
-                    required: true,
-                    default_value: "1col",
-                    dropdown_options: [
-                        {
-                            name: "1 Column",
-                            key: "1col"
-                        }
-                    ]
+                    name: "url",
+                    title: "REST Endpoint",
+                    type: "text",
+                    show_when: "record['store'] == 'rest'",
+                    placeholder: "No Spaces please!",
+                    required: "record['store'] == 'rest'"
                 },
                 {
                     name: "fields",
@@ -211,7 +212,7 @@ module.exports = function(options) {
         {
             _id: exps.forms.FormFieldMetadata,
             name: "FormFieldMetadata",
-            type: "childform",
+            store: "fromparent",
             fields: [
                 {
                     name: "title",
@@ -384,7 +385,7 @@ module.exports = function(options) {
         {
             _id: exps.forms.DropDownOption,
             name: "DropDown Option",
-            type: "childform",
+            store: "fromparent",
             fields: [
               {
                   name: "key",
@@ -401,8 +402,7 @@ module.exports = function(options) {
         {
             _id: exps.forms.iconSearch,
             name: "iconSearch",
-            type: "metadata",
-            data: exps.ICONS,
+            store: "metadata",
             fields: [
               {
                   name: "icon",
@@ -414,13 +414,14 @@ module.exports = function(options) {
                   title: "Name",
                   type: "text",
               }
-            ]
+            ],
+            _data: exps.ICONS,
         },
         {
             _id: exps.forms.metaSearch,
             name: "metaSearch",
             icon: "std28",
-            type: "search",
+            store: "mongo",
             collection: "formmeta",
             fields: [
               {
@@ -440,7 +441,7 @@ module.exports = function(options) {
             name: "Users",
             desc: "This is all the users that can logon to your applications",
             collection: "user",
-            type: "top",
+            store: "mongo",
             layout: "1col",
             icon: "std88",
             fields: [
@@ -513,9 +514,29 @@ module.exports = function(options) {
             ]
         },
         {
+          _id: exps.forms.UserSearch,
+          name: "UserSearch",
+          collection: "user",
+          store: "mongo",
+          icon: "std88",
+          fields: [
+              {
+                  name: "name",
+                  show_when: "true",
+                  title: "Full Name",
+                  type: "text",
+              },
+              {
+                  name: "picture",
+                  title: "Picture",
+                  type: "image"
+              }
+            ]
+        },
+        {
             _id: exps.forms.AuthProviders,
             name: "AuthProviders",
-            type: "childform",
+            store: "fromparent",
             fields: [
 
                 {
@@ -560,7 +581,7 @@ module.exports = function(options) {
         {
             _id: exps.forms.UserApps,
             name: "User Apps",
-            type: "childform",
+            store: "fromparent",
             fields: [
               {
                   name: "app",
@@ -578,7 +599,7 @@ module.exports = function(options) {
             name: "AppSearch",
             collection: "app",
             icon: "std8",
-            type: "search",
+            store: "mongo",
             fields: [
                 {
                   name: "name",
@@ -627,7 +648,7 @@ module.exports = function(options) {
             name: "App",
             desc: "Define your app permissions",
             collection: "app",
-            type: "top",
+            store: "mongo",
             layout: "1col",
             icon: "std8",
             fields: [
@@ -645,7 +666,6 @@ module.exports = function(options) {
                     show_when: "true",
                     type: "dropdown",
                     required: true,
-                    default_value: "top",
                     dropdown_options: [
                         {
                             name: "Deployed",
@@ -722,7 +742,7 @@ module.exports = function(options) {
         {
             _id: exps.forms.AppPageComponent,
             name: "App Page Component",
-            type: "childform",
+            store: "fromparent",
             fields: [
               {
                   name: "title",
@@ -731,7 +751,7 @@ module.exports = function(options) {
                   required: true
               },
               {
-                  name: "size",
+                  name: "form",
                   title: "Form",
                   type: "reference",
                   search_form: exps.forms.metaSearch,
@@ -791,13 +811,31 @@ module.exports = function(options) {
                             key: "xxx"
                         }
                       ]
+                  },
+                  {
+                      name: "columns",
+                      title: "# of Columns",
+                      type: "dropdown",
+                      show_when: "true",
+                      required: true,
+                      default_value: "1col",
+                      dropdown_options: [
+                          {
+                              name: "1 Column",
+                              key: "1col"
+                          },
+                          {
+                              name: "2 Column",
+                              key: "2col"
+                          }
+                      ]
                   }
             ]
         },
         {
             _id: exps.forms.AppPerms,
             name: "App Meta",
-            type: "childform",
+            store: "fromparent",
             fields: [
               {
                   name: "form",
@@ -840,7 +878,7 @@ module.exports = function(options) {
             name: "ImportMeta",
             desc: "Import applications",
             icon: "std43",
-            type: "top",
+            store: "rest",
             url: "/dform/defaultData",
             action: "import",
             fields: [
@@ -864,7 +902,7 @@ module.exports = function(options) {
         {
             _id: exps.forms.ImportMetaData,
             name: "FormFieldMetadata",
-            type: "childform",
+            store: "fromparent",
             fields: [
                 {
                     name: "form",

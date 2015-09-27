@@ -129,7 +129,7 @@ module.exports = function(options) {
                 res.status(400).send(errval);
             };
 
-      console.log ("/formdata: starting, requested app:  urlappid=" + urlappid + ", user: " + JSON.stringify(req.user));
+      console.log ("/loadApp: starting, requested app:  urlappid=" + urlappid + ", user: " + JSON.stringify(req.user));
 
       if (req.user) {
         let userapps = req.user.apps  || [];

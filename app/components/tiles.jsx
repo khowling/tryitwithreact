@@ -53,11 +53,11 @@ export class TileList extends Component {
             metaview = df.getForm ();
         console.log ('TileList render : ' + metaview.length);
         return (
-            <ul className="slds-list--horizontal slds-has-cards">
-                  {metaview.map(function(row, i) { if (row.type === 'top') return (
-                      <Tile key={row._id} meta={row}/>
-                  );})}
-            </ul>
+              <ul className="slds-wrap slds-list--horizontal slds-has-cards">
+                    {metaview.map(function(row, i) {  return (
+                        <Tile key={row._id} meta={row}/>
+                    );})}
+              </ul>
         )
     }
 }

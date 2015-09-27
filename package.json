@@ -23,7 +23,8 @@
     "passport": "*",
     "passport-local": "*",
     "passport-facebook": "*",
-    "passport-forcedotcom": "*"
+    "passport-forcedotcom": "*",
+    "lwip": "*"
   },
   "devDependencies": {
     "mocha": "*",
