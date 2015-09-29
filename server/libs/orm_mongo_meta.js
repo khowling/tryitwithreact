@@ -179,7 +179,7 @@ module.exports = function(options) {
                     title: "Form Icon",
                     type: "reference",
                     required: false,
-                    search_form: exps.forms.iconSearch
+                    search_form: { _id: exps.forms.iconSearch}
 
                 },
                 {
@@ -204,7 +204,7 @@ module.exports = function(options) {
                     show_when: "true",
                     type: "childform",
                     layout: "list",
-                    child_form: exps.forms.FormFieldMetadata,
+                    child_form: { _id: exps.forms.FormFieldMetadata},
                     _id: new ObjectID('000000000106')
                 }
             ]
@@ -301,9 +301,9 @@ module.exports = function(options) {
                     type: "reference",
                     placeholder: "only for lookup fields",
                     show_when: "record['type'] == 'reference'",
-                    createnew_form: exps.forms.formMetadata,
+                    createnew_form: { _id: exps.forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": {}}',
-                    search_form: exps.forms.metaSearch,
+                    search_form: { _id: exps.forms.metaSearch},
                     required: false,
                     _id: new ObjectID('000000000207'),
                 },
@@ -321,9 +321,9 @@ module.exports = function(options) {
                     type: "reference",
                     placeholder: "only for lookup fields",
                     show_when: "record['type'] == 'reference'",
-                    createnew_form: exps.forms.formMetadata,
+                    createnew_form: { _id: exps.forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": {}}',
-                    search_form: exps.forms.metaSearch,
+                    search_form: { _id: exps.forms.metaSearch},
                     required: false,
                     _id: new ObjectID('000000000209'),
                 },
@@ -332,9 +332,9 @@ module.exports = function(options) {
                     title: "Child Form",
                     type: "reference",
                     show_when: "record['type'] == 'childform'",
-                    createnew_form: exps.forms.formMetadata,
+                    createnew_form: { _id: exps.forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": { "type": "childform"}}',
-                    search_form: exps.forms.metaSearch,
+                    search_form: { _id: exps.forms.metaSearch},
                     required: false,
                     _id: new ObjectID('000000000210'),
                 },
@@ -500,15 +500,15 @@ module.exports = function(options) {
                     title: "Auth Providers",
                     show_when: "true",
                     type: "childform",
-                    child_form: exps.forms.AuthProviders,
+                    child_form: { _id: exps.forms.AuthProviders},
                     _id: new ObjectID('000000000604')
                 },
                 {
                     name: "apps",
                     title: "Apps",
                     type: "childform",
-                    createnew_form: exps.forms.UserApps,
-                    child_form: exps.forms.UserApps,
+                    createnew_form: { _id: exps.forms.UserApps},
+                    child_form: { _id: exps.forms.UserApps},
                     _id: new ObjectID('000000000601'),
                 }
             ]
@@ -587,8 +587,8 @@ module.exports = function(options) {
                   name: "app",
                   title: "App",
                   type: "reference",
-                  createnew_form: exps.forms.App,
-                  search_form: exps.forms.AppSearch,
+                  createnew_form: { _id: exps.forms.App},
+                  search_form: { _id: exps.forms.AppSearch},
                   required: true,
                   _id: new ObjectID('000000000901')
               }
@@ -726,15 +726,15 @@ module.exports = function(options) {
                     show_when: "true",
                     type: "childform",
                     layout: "list",
-                    child_form: exps.forms.AppPerms,
+                    child_form: { _id: exps.forms.AppPerms},
                     _id: new ObjectID('000000000a01')
                 },
                 {
                     name: "landingpage",
                     title: "Landing Page",
                     type: "childform",
-                    createnew_form: exps.forms.AppPageComponent,
-                    child_form: exps.forms.AppPageComponent,
+                    createnew_form: { _id: exps.forms.AppPageComponent},
+                    child_form: { _id: exps.forms.AppPageComponent},
                     _id: new ObjectID('000000000a02'),
                 }
             ]
@@ -754,7 +754,7 @@ module.exports = function(options) {
                   name: "form",
                   title: "Form",
                   type: "reference",
-                  search_form: exps.forms.metaSearch,
+                  search_form: { _id: exps.forms.metaSearch},
                   required: true,
                   _id: new ObjectID('000000000e01'),
               },
@@ -841,7 +841,7 @@ module.exports = function(options) {
                   name: "form",
                   title: "Form",
                   type: "reference",
-                  search_form: exps.forms.metaSearch,
+                  search_form: { _id: exps.forms.metaSearch},
                   required: true,
                   _id: new ObjectID('000000000b01'),
               },
@@ -894,7 +894,7 @@ module.exports = function(options) {
                     show_when: "true",
                     type: "childform",
                     layout: "list",
-                    child_form: exps.forms.ImportMetaData,
+                    child_form: { _id: exps.forms.ImportMetaData},
                     _id: new ObjectID('000000000d01')
                 }
             ]
@@ -908,7 +908,7 @@ module.exports = function(options) {
                     name: "form",
                     title: "Form",
                     type: "reference",
-                    search_form: exps.forms.formMetadata
+                    search_form: { _id: exps.forms.formMetadata}
                 },
                 {
                     name: "load",

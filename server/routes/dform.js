@@ -157,7 +157,7 @@ module.exports = function(options) {
             let objectids = [];
             if (apprec && apprec.appperms) for (let perm of apprec.appperms) {
               console.log ("/formdata: adding form app ["+apprec.name+"]: " + perm.form);
-              objectids.push(perm.form); //.add[perm.form];
+              objectids.push(perm.form._id); //.add[perm.form];
               //perm.crud
             }
             orm.getFormMeta(objectids).then (function (sucval) {

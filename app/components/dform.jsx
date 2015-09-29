@@ -50,22 +50,22 @@ export class Field extends Component {
   }
 */
   shouldComponentUpdate(nextProps, nextState) {
-    console.log ('Field shouldComponentupdate props: ' + JSON.stringify(nextProps));
-    console.log ('Field shouldComponentupdate state: ' + JSON.stringify(nextState));
-    if (nextState) {
-      return true;
-    } else {
+    let shouldUpdate = true;
+    //console.log ('Field shouldComponentupdate props: ' + JSON.stringify(nextProps));
+     // state: ' + JSON.stringify(nextState));
+
+      // Field is updating itsself, always update
+    if (!nextState) {
       if (this.props.fielddef.type === "reference") {
         if (nextProps.value && this.props.edit) {
-          console.log ('Field shouldComponentupdate : NO');
-          return false;
+          shouldUpdate =  false;
         }
       } else if (nextProps.value && nextProps.value === this.props.value) {
-        console.log ('Field shouldComponentupdate : NO');
-        return false;
+        shouldUpdate =  false;
       }
     }
-    return true;
+    console.log ('Field shouldComponentupdate : ' + shouldUpdate);
+    return shouldUpdate;
   }
 
   componentDidMount() {
@@ -91,7 +91,7 @@ export class Field extends Component {
   _handleLookupKeypress(e) {
     let inval = e.target.value,
         df = DynamicForm.instance,
-        sform = df.getForm(this.props.fielddef.search_form);
+        sform = this.props.fielddef.search_form && df.getForm(this.props.fielddef.search_form._id);
 
     if (sform.store === "metadata") {
       console.log ("its from meta : " + JSON.stringify(sform._data));
@@ -99,7 +99,8 @@ export class Field extends Component {
     } else {
       console.log ('_handleLookupKeypress: ' + inval);
       this.setState({lookup: {visible: true, values:[], create: false}}, () => {
-        df.search(this.props.fielddef.search_form, inval).then(succVal => {
+        df.search(sform._id, inval).then(succVal => {
+          //if (this.props.fielddef.search_form === "303030303030303030343030") {}
           this.setState({lookup: {visible: true, fields: sform.fields, values: succVal, offercreate: true}});
         })
       });
@@ -114,13 +115,14 @@ export class Field extends Component {
     React.findDOMNode(this.refs.lookupinput).value = "";
 
     if (!data) {
+      console.log ('Field _handleLookupSelectOption, clear field state, then update parent ['+this.props.fielddef.name+']');
       this.setState ({value: null, lookup: resetLookup}, () => {
         if (this.props.onChange)
           this.props.onChange ({[this.props.fielddef.name]: null});
       });
     } else {
       lookupval ={_id: data._id, search_ref: data} ;
-      console.log ('Field _handleLookupSelectOption : ' + JSON.stringify(lookupval));
+      console.log ('Field _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
       this.setState ({value: lookupval, lookup: resetLookup}, () => {
         if (this.props.onChange)
           this.props.onChange ({[this.props.fielddef.name]: {_id: data._id}});
@@ -275,8 +277,14 @@ export class Field extends Component {
         case "reference":
           if (this.state.value) {
             //    { //  }
-            let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form);
+            let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id);
+
             if (sform) {
+              // this is here for the "metadata" - inline edit screen!
+              if (this.state.value._id && sform.store === "metadata") {
+                this.state.value.search_ref = sform._data.find(x => x._id === this.state.value._id);
+              }
+
               let inner = <span>
                         <IconField value={sform.icon} small={true}/>
                         { sform.fields.map(function(fld, fldidx) {return (
@@ -295,14 +303,15 @@ export class Field extends Component {
                             <span className="slds-pill__label">{ inner }</span>
                           </span>);
             } else
-              field = <Alert type="error" message="Missing Metadata"/>;
+              field = <Alert type="error" message={"Missing Metadata: " + this.props.fielddef.search_form}/>;
 
           } else  {
             field = (<span/>);
           }
           break;
         case "dropdown_options":
-          field = (<ListMain view={this.props.fielddef.child_form} value={{state: "ready", records: this.props.value}} parent={{field: this.props.fielddef}} viewonly={true}/>);
+          let cform = this.props.fielddef.child_form && df.getForm(this.props.fielddef.child_form._id);
+          field = (<ListMain view={cform} value={{status: "ready", records: this.props.value}} parent={{field: this.props.fielddef}} viewonly={true}/>);
           break;
         case "datetime":
           field = (<span>{this.props.value && new Date(this.props.value).toLocaleDateString() || ""}</span>);
@@ -319,8 +328,9 @@ export class Field extends Component {
             field = (<span/>);
           break;
         case 'image':
-          field = (<div className="pictureAndText">
-                    <img style={{height: "200px"}}  src={img_src} alt="message user image"/>
+          let marginBott = !this.props.inlist && {marginBottom: "4px;"} || {};
+          field = (<div className={this.props.inlist && "slds-avatar slds-avatar--circle slds-avatar--x-small"} style={marginBott}>
+                    <img style={{maxHeight: "150px"}} src={img_src} alt="message user image"/>
                   </div>);
           break;
         default:
@@ -350,14 +360,16 @@ export class Field extends Component {
             break;
         case "icon":
         case "reference":
-          let sform = df.getForm (this.props.fielddef.search_form);
-          field = <span>
+          let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id),
+              cform = this.props.fielddef.createnew_form && df.getForm (this.props.fielddef.createnew_form._id);
+          if (sform)
+            field = <span>
                     <div className="slds-lookup__control slds-input-has-icon slds-input-has-icon--right">
                       <a onClick={this._handleLookupKeypress.bind(this, {target: {}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
 
                       { this.state.value &&
                       <span className="slds-pill">
-                        <a href={Router.URLfor(null, "RecordPage", this.props.fielddef.createnew_form, this.state.value._id)} className="slds-pill__label">
+                        <a href={cform && Router.URLfor(null, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
                           <IconField value={sform.icon} small={true}/>
                           { sform.fields.map(function(fld, fldidx) { return (
                             <Field fielddef={fld} value={self.state.value.search_ref[fld.name]}/>
@@ -376,8 +388,8 @@ export class Field extends Component {
                     <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible && 'visible' || 'hidden'}}>
                       { this.state.lookup.create &&
                         <Modal>
-                          <PageHeader view={this.props.fielddef.createnew_form}/>
-                          <FormMain key={"model-"+this.props.fielddef.name} view={this.props.fielddef.createnew_form} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
+                          <PageHeader view={cform}/>
+                          <FormMain key={"model-"+this.props.fielddef.name} view={cform} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
                         </Modal>
                       ||
                         <ul className="slds-lookup__list" role="presentation">
@@ -393,16 +405,19 @@ export class Field extends Component {
                           </li>
                           );})}
 
-                          { this.state.lookup.offercreate && this.props.fielddef.createnew_form &&
+                          { this.state.lookup.offercreate && cform &&
                           <li className="slds-lookup__item" role="presentation">
                              <a onClick={this._openCreate.bind(this)} role="option">
-                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride=" "/>Create {df.getForm(this.props.fielddef.createnew_form).name + ' "' + React.findDOMNode(this.refs.lookupinput).value + '"'}</a>
+                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride=" "/>Create {cform.name + ' "' + React.findDOMNode(this.refs.lookupinput).value + '"'}</a>
                            </li>
                           }
                         </ul>
                       }
                     </div>
                   </span>;
+            else {
+              field = <Alert type="error" message={"no search_form " + this.props.fielddef.search_form}/>;
+            }
             break;
         case "datetime":
           field = <span>
@@ -465,7 +480,7 @@ export class Field extends Component {
             field = <div></div>;
             break;
         case 'image':
-            let picview = df.getFormByName('FileMeta')._id;
+            let picview = df.getFormByName('FileMeta');
             field = <div>
                       <input type="file" ref="imageinput" name="file" style={{display: "none"}} accept="image/*" onChange={this._fileuploadhtml5.bind(this)} />
                       <div className="pic-with-text" style={{backgroundImage: "url("+img_src+")"}}>
@@ -488,7 +503,8 @@ export class Field extends Component {
                     </div>;
             break;
         case 'dropdown_options':
-          field = (<ListMain view={this.props.fielddef.child_form} value={{state: "ready", records: this.state.value }} parent={{field: this.props.fielddef}} onDataChange={this._inlineDataChange.bind(this)}/>);
+          let cform1 = this.props.fielddef.child_form && df.getForm(this.props.fielddef.child_form._id);
+          field = (<ListMain view={cform1} value={{status: "ready", records: this.state.value }} parent={{field: this.props.fielddef}} onDataChange={this._inlineDataChange.bind(this)}/>);
           break;
         default:
             field = <div>Unknown fieldtype {this.props.fielddef.type}</div>;
@@ -522,12 +538,10 @@ export class FormMain extends Component {
   constructor(props) {
     super(props);
     let df = DynamicForm.instance,
-        metaview = df.getForm (props.view),
-        nonchildformfields = metaview.fields.filter(m => m.type !== 'childform'),
+        nonchildformfields = props.view.fields.filter(m => m.type !== 'childform'),
         value = props.crud == "c" && {state: "ready",  record: {}} || (props.value || {state: "wait",  record: {}});
 
     this.state =  {
-      metaview: metaview,
       nonchildformfields: nonchildformfields,
       value: value, // this is the original data from the props
       changedata: {}, // keep all data changes in the state
@@ -538,26 +552,26 @@ export class FormMain extends Component {
   }
 
   shouldComponentUpdate(nextProps, nextState) {
-    console.log ("FormMain shouldComponentUpdate");
+    let shouldUpdate = false;
     if (nextProps.value != this.props.value ||
         nextState.formcontrol && nextState.formcontrol.change) {
-        console.log ("FormMain shouldComponentUpdate: yes");
-        return true;
+        shouldUpdate =  true;
     }
-    return false;
+    console.log ("FormMain shouldComponentUpdate (only if props.value or state.formcontrol changes) : " + shouldUpdate);
+    return shouldUpdate;
   }
 
   // form control - visibility and validity
   // TODO : Needs to be MUCH better, not calling eval many times!
   _formControlState (fields, val, currentState) {
-    console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
+    //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
     let cnrt = {flds:{},invalid: false, change: false};
     for (let fld of fields) {
       let record = val,
           visible = true;
 
       if (fld.show_when) {
-          console.log ("evaluating: " + fld.show_when)
+          //console.log ("evaluating: " + fld.show_when)
           visible = eval(fld.show_when);
       }
 
@@ -579,31 +593,37 @@ export class FormMain extends Component {
       if (fctrl.invalid) cnrt.invalid = true;
       cnrt.flds[fld.name] = fctrl;
     }
-    console.log ("FormMain _formControlState result : " + JSON.stringify(cnrt));
+    //console.log ("FormMain _formControlState result : " + JSON.stringify(cnrt));
     return cnrt;
   }
 
   // form data is ready from parent
   componentWillReceiveProps (nextProps) {
+    console.log ("FormMain componentWillReceiveProps");
     if (nextProps.value) {
-      this.setState ({value: nextProps.value, formcontrol: this._formControlState (this.state.nonchildformfields, nextProps.value.record)});
+      this.setState ({
+        changedata: {},
+        manageData: false,
+        inlineData: null,
+        serverError: null,
+        value: nextProps.value,
+        formcontrol: this._formControlState (this.state.nonchildformfields, nextProps.value.record)});
     }
   }
 
   // Called form the Field
   _fieldChange(d) {
+    console.log ('FormMain _fieldChange got field update, update Form state.changedata & formcontrol, val : ' + JSON.stringify(d));
     let changedata = Object.assign({}, this.state.changedata, d),
         newState  = {changedata: changedata, formcontrol: this._formControlState (this.state.nonchildformfields, Object.assign({}, this.state.value.record , changedata), this.state.formcontrol)};
-    console.log ('FormMain _fieldChange setState: ' + JSON.stringify(newState));
     this.setState(newState);
-
   }
 
   _save(succfn) {
     let self = this,
         df = DynamicForm.instance,
         saveopt = {
-          form: this.props.view,
+          form: this.props.view._id,
           body: this.state.value.record._id && Object.assign({_id: this.state.value.record._id}, this.state.changedata) || this.state.changedata
         };
     // if its a childform - add parent details to the save for mongo & nav back to parent
@@ -628,7 +648,7 @@ export class FormMain extends Component {
       var self = this,
           df = DynamicForm.instance,
           saveopt = {
-            form: this.props.view,
+            form: this.props.view._id,
             id: this.state.value.record._id
           };
 
@@ -647,11 +667,44 @@ export class FormMain extends Component {
     }
   }
 
+  /************************/
+  /*  manage inline data */
+  _manageData() {
+    this.setState({manageData: true,  inlineData:  this.state.value.record._data || []});
+  }
+  _inlineDataChange(val) {
+    console.log ("FormMain: _inlineDataChange : got update from List : " + JSON.stringify(val));
+    this._saveInlineData = val;
+  }
+  _inlineDataFinished(save) {
+    let updateState = {changedata: {}, manageData: false,  inlineData: null, serverError: null};
+    if (save) {
+      let df = DynamicForm.instance,
+          saveopt = {
+            form: this.props.view._id,
+            body: Object.assign({_id: this.state.value.record._id}, {"_data": this._saveInlineData})
+          };
+
+      console.log ('FormMain _inlineDataFinished : '+ JSON.stringify(saveopt));
+      df.save (saveopt).then(succval => {
+        console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
+        if (this.props.onDataChange) {
+          // this will re-load the data at the parent, and in turn send new props
+          this.props.onDataChange();
+        }
+      }, errval => {
+        this.setState({serverError: JSON.stringify(errval)});
+      });
+    } else {
+      this.setState(updateState);
+    }
+  }
+
   render() {
 
     var self = this,
         {state, record} = this.state.value,
-        metaview = this.state.metaview,
+        offerdata = !this.state.edit && this.props.view._id == "303030303030303030313030" && record.store === "metadata",
         nonchildformfields = this.state.nonchildformfields,
         formcontrol = this.state.formcontrol,
         headerButtons  = {}, saveButton, cancelButton;
@@ -671,22 +724,23 @@ export class FormMain extends Component {
       }
     } else {
       if (this.state.edit) {
-        cancelButton = () => Router.navTo(null, record._id && "RecordPage" || "ListPage", metaview._id, record._id && record._id || null, null, true);
+        cancelButton = () => Router.navTo(null, record._id && "RecordPage" || "ListPage", this.props.view._id, record._id && record._id || null, null, true);
         saveButton = this._save.bind(this, succval => {
-          Router.navTo(null, "RecordPage", metaview._id, succval._id, false, true);
+          Router.navTo(null, "RecordPage", this.props.view._id, succval._id, false, true);
         });
       } else {
-        headerButtons.deleteButton = this._delete.bind(this, () =>   Router.navTo(null, "ListPage", metaview._id));
-        headerButtons.editButton = () => Router.navTo(null,"RecordPage", metaview._id, record._id, {e: true});
+        headerButtons.deleteButton = this._delete.bind(this, () =>   Router.navTo(null, "ListPage", this.props.view._id));
+        headerButtons.editButton = () => Router.navTo(null,"RecordPage", this.props.view._id, record._id, {e: true});
       }
     }
 
-    console.log ('FormMain render ' + metaview.name + ', state : ' + JSON.stringify(this.state));
+    console.log ('FormMain render ' + this.props.view.name + ', state : ' + JSON.stringify(this.state));
     return (
     <section>
         <div className="slds-form--stacked" style={{padding: "0.5em"}}>
           <div className="slds-grid slds-wrap">
-            { React.createElement (SectionHeader, Object.assign ({formName: metaview.name}, headerButtons)) }
+            { React.createElement (SectionHeader, Object.assign ({view: this.props.view}, headerButtons)) }
+
             {nonchildformfields.map(function(field, i) {
               let fc = formcontrol.flds[field.name];
               if (fc.visible) return (
@@ -695,7 +749,11 @@ export class FormMain extends Component {
                     <label className="slds-form-element__label">{field.title}</label>
                     <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
                       <span className={(self.state.edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
-                        <Field fielddef={field} value={record[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
+                          { (!self.state.edit && offerdata && field.name === "store") &&
+                           <a className="slds-button slds-button--neutral slds-button--brand" onClick={self._manageData.bind(self)}>edit data</a>
+                          ||
+                          <Field fielddef={field} value={record[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
+                          }
                       </span>
                     </div>
                 </div>
@@ -722,6 +780,18 @@ export class FormMain extends Component {
                 <button className="slds-button slds-button--neutral slds-button--brand" onClick={saveButton}>Save</button>
               </div>
             }
+            { this.state.manageData &&
+              <Modal>
+                <PageHeader view={this.state.value.record}/>
+                <SectionHeader view={this.state.value.record} saveButton={this._inlineDataFinished.bind(this, true)} cancelButton={this._inlineDataFinished.bind(this, null)}/>
+                <ListMain view={this.state.value.record} value={{status: "ready", records: this.state.inlineData}}  onDataChange={this._inlineDataChange.bind(this)}/>
+                { this.state.serverError  &&
+                  <div className="slds-col slds-col--padded slds-size--1-of-1"  style={{marginTop: "15px"}}>
+                    <Alert type="error" message={this.state.serverError}/>
+                  </div>
+                }
+              </Modal>
+            }
           </div>
       </div>
 
@@ -732,7 +802,10 @@ export class FormMain extends Component {
 FormMain.propTypes = {
   // Core
   crud: React.PropTypes.string.isRequired,
-  view: React.PropTypes.string.isRequired,
+  view: React.PropTypes.shape({
+    store: React.PropTypes.string.isRequired,
+    fields: React.PropTypes.array.isRequired
+  }),
   value: React.PropTypes.shape({
     status: React.PropTypes.string.isRequired,
     record: React.PropTypes.object
@@ -770,11 +843,14 @@ export class ListPage extends Component {
     _dataChanged() {
       let df = DynamicForm.instance;
       console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.state.metaview._id));
-      if (this.state.metaview.collection)
-        df.query (this.state.metaview._id).then(succRes =>
-          this.setState({value: {status: "ready", records: succRes}})
+      if (this.state.metaview.store === "mongo")
+        df.query (this.state.metaview._id).then(
+          succRes => this.setState({value: {status: "ready", records: succRes}}),
+          errRes  => this.setState({value: {status: "error", message: errRes }})
         );
-      else if (this.state.metaview.url)
+      else if (this.state.metaview.store === "mongo") {
+        this.setState({value: {status: "ready", records: this.state.metaview._data || []}});
+      } else if (this.state.metaview.url)
         df._callServer(this.state.metaview.url).then(succRes =>
           this.setState({value: {status: "ready", records: succRes}})
         );
@@ -786,9 +862,16 @@ export class ListPage extends Component {
           <div className="slds-col slds-size--1-of-1">
           { this.props.urlparam && <PageHeader view={this.state.metaview._id}/> }
           </div>
+          { this.state.value.status === "error" &&
+            <div className="slds-col slds-size--1-of-1">
+              <Alert message={this.state.value.message}/>
+            </div>
+          }
+          { this.state.value.status != "error" &&
           <div className="slds-col slds-size--1-of-1">
-            <ListMain value={this.state.value} view={this.state.metaview._id} onDataChange={this._dataChanged.bind(this)}/>
+            <ListMain value={this.state.value} view={this.state.metaview} onDataChange={this._dataChanged.bind(this)}/>
           </div>
+          }
         </div>
       );
     }
@@ -799,15 +882,11 @@ export class ListMain extends Component {
   constructor(props) {
     super(props);
     console.log ('ListMain InitialState : ' + JSON.stringify(props.value));
-    let df = DynamicForm.instance,
-        metaview = df.getForm (props.view);
+
     this.state = {
-      metaview: metaview,
-      nonchildformfields: metaview.fields.filter(m => m.type !== 'childform' && m.type !== 'dropdown_options'),
-      inline: {enabled: props.parent && props.parent.field.type === "dropdown_options" || false, editidx: null, editval: {}},
+      inline: {enabled: props.view.store === "metadata", editidx: null, editval: {}}, // {enabled: props.parent && props.parent.field.type === "dropdown_options" || false, editidx: null, editval: {}},
       value: props.value,
       editrow: false,
-
     };
   }
 
@@ -825,7 +904,7 @@ export class ListMain extends Component {
       if (window.confirm("Sure?")) {
         let df = DynamicForm.instance,
             saveopt = {
-              form: this.props.view,
+              form: this.props.view._id,
               id: row._id
             };
         if (this.props.parent) {
@@ -863,11 +942,11 @@ export class ListMain extends Component {
       else
         this.setState({editrow: {value: {status: "ready", record: {}}, crud: "c"}});
     else
-      Router.navTo(null, "RecordPage", this.props.view, rowidx >= 0 && records[rowidx]._id,  !view && {"e": true} || {});
+      Router.navTo(null, "RecordPage", this.props.view._id, rowidx >= 0 && records[rowidx]._id,  !view && {"e": true} || {});
   }
 
   _inLinefieldChange(val) {
-    console.log ("_inLinefieldChange : " + JSON.stringify(val));
+    console.log ("ListMain _inLinefieldChange : " + JSON.stringify(val));
     this.setState({inline: Object.assign(this.state.inline, {editval: Object.assign(this.state.inline.editval, val)})});
   }
   _inLineSave(saveit) {
@@ -880,6 +959,7 @@ export class ListMain extends Component {
       } else {
         newarray[this.state.inline.editidx] = this.state.inline.editval;
       }
+      console.log ("ListMain _inLineSave : inform parent of new data, newarray:" +JSON.stringify(newarray));
       this.setState({value: {status: "ready", records: newarray}, inline: {enabled: true, editidx: null, editval: {}, currentval: null}}, () => {
         if (this.props.onDataChange) {
           this.props.onDataChange(newarray);
@@ -944,9 +1024,9 @@ export class ListMain extends Component {
     console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
     let self = this,
         {status, records} = this.state.value,
-        {metaview, nonchildformfields} = this.state;
+        nonchildformfields = this.props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'dropdown_options');
 
-    let header = React.createElement (SectionHeader, Object.assign ({key: +metaview._id, formName: metaview.name}, this.props.selected && {
+    let header = React.createElement (SectionHeader, Object.assign ({key: +this.props.view._id, view: this.props.view}, this.props.selected && {
           closeButton: this._handleSelect.bind(this, null)
         } || {
           newButton: this._ActionEdit.bind(this, -1, false)
@@ -999,14 +1079,14 @@ export class ListMain extends Component {
                         </td>
                         }
                         {nonchildformfields.map(function(field, fidx) {
-                            let listfield =  <Field fielddef={field} value={row[field.name]} edit={i == self.state.inline.editidx} onChange={self._inLinefieldChange.bind(self)}/>;
+                            let listfield =  <Field fielddef={field} value={row[field.name]} edit={i == self.state.inline.editidx} onChange={self._inLinefieldChange.bind(self)} inlist={true}/>;
                             if (field.name === "name" && !self.state.inline.enabled) {
                               if (self.props.parent )
                                 return (
                                 <td key={fidx}><a style={{color: "#0070d2", cursor: "pointer"}} onClick={self._ActionEdit.bind(self, i, true)}>{listfield}</a></td>);
                               else
                                 return (
-                                <td key={fidx}><a href={Router.URLfor(null, "RecordPage", metaview._id, row._id)}>{listfield}</a></td>);
+                                <td key={fidx}><a href={Router.URLfor(null, "RecordPage", self.props.view._id, row._id)}>{listfield}</a></td>);
                             } else {
                               return (<td key={fidx}>{listfield}</td>);
                             }
@@ -1019,7 +1099,7 @@ export class ListMain extends Component {
           </div>
           { this.state.editrow &&
             <Modal>
-              <FormMain  value={this.state.editrow.value} view={metaview._id} crud={this.state.editrow.crud} parent={this.props.parent} onComplete={this._onFinished.bind(this)}/>
+              <FormMain  value={this.state.editrow.value} view={this.props.view} crud={this.state.editrow.crud} parent={this.props.parent} onComplete={this._onFinished.bind(this)}/>
             </Modal>
           }
       </div>
@@ -1028,7 +1108,11 @@ export class ListMain extends Component {
 }
 ListMain.propTypes = {
   // Core
-  view: React.PropTypes.string.isRequired,
+  //view: React.PropTypes.string.isRequired,
+  view: React.PropTypes.shape({
+    store: React.PropTypes.string.isRequired,
+    fields: React.PropTypes.array.isRequired
+  }),
   value: React.PropTypes.shape({
     status: React.PropTypes.string.isRequired,
     records: React.PropTypes.array.isRequired
@@ -1112,7 +1196,8 @@ export class RecordPage extends Component {
   }
 
   render() {
-    let self = this,
+    let df = DynamicForm.instance,
+        self = this,
         {status, record} = this.state.value;
 
     console.log ("Form: rendering state");
@@ -1130,14 +1215,16 @@ export class RecordPage extends Component {
           }
           { this.state.value.status !== "error" &&
             <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
-                <FormMain key={this.state.metaview._id} value={this.state.value} view={this.state.metaview._id}  crud={this.state.crud}/>
+                <FormMain key={this.state.metaview._id} value={this.state.value} view={this.state.metaview}  crud={this.state.crud} onDataChange={self._dataChanged.bind(self)}/>
             </div>
           }
           { this.state.value.status !== "error" &&
             <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
-              {this.state.crud === "r"  && this.state.childformfields.map(function(field, i) { return (
+              {this.state.crud === "r"  && this.state.childformfields.map(function(field, i) {
+                let cform = field.child_form && df.getForm(field.child_form._id);
+                return (
                 <div style={{padding: "0.5em"}}>
-                  <ListMain parent={{view: self.state.metaview._id, recordid: status == 'ready' && record._id || "new", field: field }} view={field.child_form} value={{status: status, records: status === "ready" && record[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
+                  <ListMain parent={{view: self.state.metaview._id, recordid: status == 'ready' && record._id || "new", field: field }} view={cform} value={{status: status, records: status === "ready" && record[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
                 </div>
               );})}
             </div>
@@ -1150,8 +1237,9 @@ export class RecordPage extends Component {
 export class PageHeader extends Component {
   render() {
     let df = DynamicForm.instance,
-        view = df.getForm(this.props.view);
-    console.log ("Form " + view.name + ", icon :" + view.icon);
+        isformmeta = this.props.view == "303030303030303030313030";
+
+    console.log ("Form " + this.props.view.name + ", icon :" + this.props.view.icon);
     return (
       <div className="slds-page-header ">
         <div className="slds-grid">
@@ -1159,23 +1247,25 @@ export class PageHeader extends Component {
 
             <div className="slds-media">
               <div className="slds-media__figure">
-                <a  href={ Router.URLfor(null, "ListPage", view._id)}>
-                <IconField value={view.icon} large={true}/>
+                <a  href={ Router.URLfor(null, "ListPage", this.props.view._id)}>
+                <IconField value={this.props.view.icon} large={true}/>
                 </a>
               </div>
               <div className="slds-media__body">
                 <p className="slds-text-heading--label">Record Type</p>
                 <div className="slds-grid">
-                  <h1 className="slds-text-heading--medium slds-m-right--small slds-truncate slds-align-middle">{view.name}</h1>
+                  <h1 className="slds-text-heading--medium slds-m-right--small slds-truncate slds-align-middle">{this.props.view.name}</h1>
                 </div>
               </div>
             </div>
           </div>
           <div className="slds-col slds-no-flex slds-align-bottom">
             <div className="slds-grid">
-                  <a className="slds-button slds-button--icon-more slds-shrink-none slds-m-left--large" href={ Router.URLfor("55f87e3e65a3434223b2ed20", "RecordPage", "303030303030303030313030", view._id)}>
-                    <SvgIcon spriteType="utility" spriteName="settings" small={true} classOverride="slds-button__icon icon-utility"/>
-                  </a>
+              { !isformmeta &&
+              <a className="slds-button slds-button--icon-more slds-shrink-none slds-m-left--large" href={ Router.URLfor("55f87e3e65a3434223b2ed20", "RecordPage", "303030303030303030313030", this.props.view._id)}>
+                <SvgIcon spriteType="utility" spriteName="settings" small={true} classOverride="slds-button__icon icon-utility"/>
+              </a>
+              }
             </div>
           </div>
         </div>
@@ -1191,7 +1281,7 @@ export class SectionHeader extends Component {
       <div className="slds-col slds-col--padded slds-size--1-of-1 ">
           <div className="slds-grid form-seperator">
             <div className="slds-col slds-col--padded slds-has-flexi-truncate">
-              <h3 className="slds-text-heading--small" style={{marginTop: "8px"}}>{this.props.formName}</h3>
+              <h3 className="slds-text-heading--small" style={{marginTop: "8px"}}>{this.props.view.name}</h3>
             </div>
             <div className="slds-col slds-col--padded slds-no-flex slds-align-top" style={{marginBottom: "4px"}}>
 

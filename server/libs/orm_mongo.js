@@ -29,6 +29,7 @@ module.exports = function(options) {
               result.findField["_createDate"] = 1;
               result.findField["_updatedBy"] = 1;
               result.findField["_updateDate"] = 1;
+              result.findField["_data"] = 1;
             }
             if (!ignoreLookups && getsystemfields) {
               let subqobj = {
@@ -46,31 +47,27 @@ module.exports = function(options) {
                     // only add top level fields to the find
                     result.findField[field.name] = 1;
                 }
-                if (!ignoreLookups) {
-                    if (field.type === 'icon-lookup') {
-                      //???
-                    } else if (field.type === 'reference') {
-                        console.log('find() findFieldsandLookups: found a lookup field on [' + form.name + '] field : ' + field.name);
-                        let searchform = meta.findFormById(FORM_DATA, field.search_form);
-                        if (searchform) {
-                            let subqobj = {
-                                field: field.name,
-                                form: searchform
-                            };
-                            if (parentField) {
-                                subqobj.subdocfield = parentField;
-                            }
-                            result.subqarray.push(subqobj);
-                        }
-                    } else if (field.type === 'childform') {
-                        var childform = meta.findFormById(FORM_DATA, field.child_form);
-                        if (!childform) {
-                            return {error: 'find() Cannot find childform definitions on field ['+form.name+'.'+field.name+'] : ' + field.child_form};
-                        } else {
-                            console.log('find() findFieldsandLookups: found a childform, recurse onit! name :' + field.child_form + ' : ' + childform.name);
-                            result = findFieldsandLookups(FORM_DATA, childform, field.name, ignoreLookups, getsystemfields,  result);
-                            if (result.error) break;
-                        }
+
+                if (field.type === 'icon-lookup') {
+                  //???
+                } else if (field.type === 'reference') {
+                    console.log('find() findFieldsandLookups: found a lookup field on [' + form.name + '] field : ' + field.name);
+                    let searchform = field.search_form && meta.findFormById(FORM_DATA, field.search_form._id);
+                    let subqobj = {field: field.name};
+                    if (!ignoreLookups && searchform)
+                      subqobj.form = searchform
+                    if (parentField)
+                      subqobj.subdocfield = parentField;
+                    result.subqarray.push(subqobj);
+
+                } else if (field.type === 'childform') {
+                    var childform = field.child_form && meta.findFormById(FORM_DATA, field.child_form._id);
+                    if (!childform) {
+                        return {error: 'find() Cannot find childform definitions on field ['+form.name+'.'+field.name+'] : ' + JSON.stringify(field.child_form)};
+                    } else {
+                        console.log('find() findFieldsandLookups: found a childform, recurse onit! name :' + field.child_form._id + ' : ' + childform.name);
+                        result = findFieldsandLookups(FORM_DATA, childform, field.name, ignoreLookups, getsystemfields,  result);
+                        if (result.error) break;
                     }
                 }
             }
@@ -81,41 +78,45 @@ module.exports = function(options) {
         /* if subq is specified, update the docs with the lookup values */
         /* RETURNS: {'form_id': {form: <JSON form>, keys: ['id', 'id']}} */
         var processlookupids = function (subqarray, docs, subq) {
-            var lookupkeys = {},
-                processFn = (obj, subq_obj, lookupkeys, subq) => {
-                  let lookupfieldval = obj[subq_obj.field];
+            let harvest = !subq,
+                processFn = (obj, subqobj, lookupkeys, subq) => {
+                  let harvest = !subq,
+                      lookupfieldval = obj[subqobj.field];
 
                   if (lookupfieldval) {
-                    if (!subq) { // harvest mode
+                    if (harvest) { // harvest mode
                       try {
                         let keyval = lookupfieldval;
-                        console.log ("find() processlookupids, need to find ["+subq_obj.form.name+"]["+subq_obj.field.name+"] val: " + lookupfieldval);
-                        if (subq_obj.form.store === "mongo") keyval = new ObjectID(lookupfieldval);
-                        lookupkeys[subq_obj.form._id].keys.push(keyval);
+                        console.log ("find() processlookupids (harvest), need to find ["+subqobj.form.name+"]["+subqobj.field+"] val: " + lookupfieldval);
+                        if (subqobj.form.store === "mongo") keyval = new ObjectID(lookupfieldval);
+                        lookupkeys[subqobj.form._id].keys.push(keyval);
                       } catch (e) {
-                        console.log (e + ' Warning : lookup value not in format of ObjectId:  field : ' + subq_obj.field + ', val: ' + JSON.stringify(lookupfieldval));
+                        console.log (e + ' Warning : lookup value not in format of ObjectId:  field : ' + subqobj.field + ', val: ' + JSON.stringify(lookupfieldval));
                       }
                     } else { // update mode
-                      obj[subq_obj.field] = {
-                        _id: lookupfieldval,
-                        search_ref: subq[subq_obj.form._id][lookupfieldval] || {error:'missing'}};
+                      console.log ("find() processlookupids (update), setting ["+subqobj.field+"] val: " + lookupfieldval);
+                      obj[subqobj.field] = {  _id: lookupfieldval };
+                      if (subqobj.form)
+                          obj[subqobj.field].search_ref = subq[subqobj.form._id][lookupfieldval] || {error:'missing'};
                     }
                   }
                 };
 
+            var lookupkeys = {};
             for (var doc of docs) { // for each data row
-                for (var subq_obj of subqarray) { // for each 'reference' field from 'findFieldsandLookups'
+                for (var subqobj of subqarray) { // for each 'reference' field from 'findFieldsandLookups'
+                    if (harvest && !subqobj.form) continue; // no recorded search form, so dont run subquery
                     // if in harvest mode, initialise lookupkeys array
-                    if (!subq && !lookupkeys[subq_obj.form._id])  lookupkeys[subq_obj.form._id] = {form: subq_obj.form, keys: []};
+                    if (harvest && !lookupkeys[subqobj.form._id])  lookupkeys[subqobj.form._id] = {form: subqobj.form, keys: []};
 
-                    if (subq_obj.subdocfield) {
+                    if (subqobj.subdocfield) {
                         // if field is in an embedded-document,
-                        for (var edidx in doc[subq_obj.subdocfield]) {
-                          processFn(doc[subq_obj.subdocfield][edidx], subq_obj, lookupkeys, subq);
+                        for (var edidx in doc[subqobj.subdocfield]) {
+                          processFn(doc[subqobj.subdocfield][edidx], subqobj, lookupkeys, subq);
                         }
                     } else {
                       // if field is NOT in an embedded-document, just add id to lookupkeys
-                      processFn(doc, subq_obj, lookupkeys, subq);
+                      processFn(doc, subqobj, lookupkeys, subq);
                     }
                 }
             }
@@ -176,7 +177,7 @@ module.exports = function(options) {
                   if (form.store === "metadata") {
                     console.log ('find() runallsubqueries, metadata searchform, use form to resolve lookups : ' + form.name);
                     subq_res[form._id] = {};
-                    if (form.data) for (let key of keys) {
+                    if (form._data) for (let key of keys) {
                       let val = form._data.find(i => i._id === key);
                       console.log ('find() runallsubqueries, metadata searchform, setting ['+form._id+']['+key+'] : ' + JSON.stringify(val));
                       if (val) subq_res[form._id][key] =  val;
@@ -205,14 +206,15 @@ module.exports = function(options) {
           });
         }
 
-        exps.getFormMeta().then(function(FORM_DATA) {
+        exps.getFormMeta(formparam).then(function(FORM_DATA) {
+            console.log("find() FORM_DATA ["+formparam+"] #=" + FORM_DATA.length);
             let form = meta.findFormById(FORM_DATA, formparam);
 
             if (!form  || !form.collection) {
-              reject ("find() form not Found or no defined collection : " + formparam);
+              return reject ("find() form not Found or no defined collection : " + formparam);
             } else {
 
-              console.log("find() create the mongo query");
+              //console.log("find() create the mongo query");
               let mquery = {};
               if (query) {
                 if (typeof query === "object") {
@@ -267,10 +269,22 @@ module.exports = function(options) {
                     } else if (findone && doc == null) {
                       reject("Cannot find record");
                     } else {
+
                         console.log("find() got documents succfull") // ' + JSON.stringify(doc));
 
+                        // finding all forms, so return our hardwired also
+                        console.log ('debug: ' + form._id + " === " + exps.forms["metaSearch"]);
+                        if (Object.is(form._id,exps.forms["metaSearch"])) {
+                          if (!findone) {
+                            doc = doc.concat( FORM_DATA) ;
+                          }
+                        }
+
                         if (ignoreLookups) {
-                            resolve(doc);
+                          console.log ('resolve: ' );
+                          // need to call processlookupids in update mode to format the reference fields
+                          processlookupids (fieldsandlookups.subqarray, findone && [doc] || doc, []);
+                          return resolve(doc);
                         } else {
                             var lookupkeys = processlookupids(fieldsandlookups.subqarray, findone && [doc] || doc);
                             console.log("find() got query for foriegn key lookup "); // + JSON.stringify(lookupkeys));
@@ -280,13 +294,13 @@ module.exports = function(options) {
                                 console.log("find() runallsubqueries success, now processlookupids, recs:" + (findone && "1" || doc.length));
                                 processlookupids (fieldsandlookups.subqarray, findone && [doc] || doc, succVal);
                               }
-                              resolve(doc);
+                              return resolve(doc);
                             }, function (errVal) {
                               console.log("find() runallsubqueries error " + errVal);
-                              reject(errVal)
+                              return reject(errVal)
                             }).catch(function error(e) {
                               console.log ("catch err : " + e);
-                              reject(e);
+                              return reject(e);
                             });
                         }
                     }
@@ -411,7 +425,7 @@ module.exports = function(options) {
 
                     if (!parentmeta) {
                         return reject ('save() Cannot find parent form field for this childform: ' + parentfieldid);
-                    } else if (!(new ObjectID (form._id)).equals(parentmeta.field.child_form)) {
+                    } else if (!(new ObjectID (form._id)).equals(parentmeta.field.child_form._id)) {
                         return reject ('save() childform cannot be saved to parent (check your schema child_form): ' + parentfieldid);
                     } else {
                         coll = parentmeta.form.collection;
@@ -423,19 +437,29 @@ module.exports = function(options) {
                 console.log('save() collection: '+coll+' userdoc: ' + JSON.stringify(userdoc));
                 // build the field set based on metadata - NOT the passed in JSON!
                 // 'allowchildform'  if its a INSERT of a TOP LEVEL form, allow a childform to be passed in (used by auth.js)
-                var validateSetFields = function (isInsert, formFields, dataval, embedField, allowchildform) {
+                var validateSetFields = function (isInsert, form, dataval, embedField, allowchildform) {
                   var isarray = Array.isArray(dataval),
                         reqval = isarray && dataval || [dataval],
                         setval = [];
 
                   // create formfield object keyed on fieldname
-                  let typecheckFn = (fldmetalist, propname, fval) => {
-                    let fldmeta = fldmetalist[propname];
+                  let typecheckFn = (fldsByPropname, propname, fval) => {
+                    let fldmeta = fldsByPropname[propname];
 
                     if (!fldmeta) {
                       if (propname === "_id" ||  propname === "_createDate" || propname === "_createdBy" || propname === "_updateDate" || propname === "_updatedBy")
                         return {};
-                      else
+                      else if (propname === "_data") {
+                        console.log ('debug:  ' + form.store + ':: ' +  embedField);
+                        if (!embedField) {
+                          if (fval && !Array.isArray(fval)) {
+                            return {error: "data contains value of incorrect type : " + propname};
+                          } else
+                            return {validated_value: fval || null};
+                        } else {
+                          return {error: "data contains _data field, needs to be a store='metadata' definition at and not a childform : " + propname};
+                        }
+                      } else
                         return {error: "data contains fields not recognised, please reload your app/browser : " + propname};
                     } else if (fldmeta.type === "text" || fldmeta.type === "textarea" || fldmeta.type === "dropdown" || fldmeta.type === "email") {
                       if (fval && typeof fval !== 'string') return {error: "data contains value of incorrect type : " + propname};
@@ -453,7 +477,7 @@ module.exports = function(options) {
                       else
                         return {validated_value:  null};
                     } else  if (fldmeta.type === "reference") {
-                      let sform = meta.findFormById(FORM_DATA, fldmeta.search_form);
+                      let sform = fldmeta.search_form && meta.findFormById(FORM_DATA, fldmeta.search_form._id);
                       if (!sform) return {error: "data contains reference field without defined search_form: " + propname};
                       if (fval && !fval._id) return {error: "data contains reference field with recognised _id: " + propname};
                       if (sform.store === "mongo") {
@@ -471,9 +495,9 @@ module.exports = function(options) {
                     }
                   };
 
-                  let fldmetalist = {};
-                  for (let f of formFields) {
-                    fldmetalist[f.name] = f;
+                  let fldsByPropname = {};
+                  for (let f of form.fields) {
+                    fldsByPropname[f.name] = f;
                   }
                   console.log ("Save: validateSetFields, looping through save records: " + reqval.length);
                   for (let rv of reqval) { // for each data record
@@ -500,7 +524,7 @@ module.exports = function(options) {
                           tprop = embedField && embedfield+'.$.'+propname || propname;  // format the target property name for mongo
 
                       console.log ("Save: validateSetFields, validating field: " + propname);
-                      let tcres = typecheckFn (fldmetalist, propname, fval);
+                      let tcres = typecheckFn (fldsByPropname, propname, fval);
                       if ('error' in tcres)
                         return tcres;
                       else if ('validated_value' in tcres)
@@ -514,11 +538,11 @@ module.exports = function(options) {
 
                           let ctav = [];  // child  target array validated
                           // create formfield object keyed on fieldname
-                          let cform = meta.findFormById(FORM_DATA, tcres.childform_field.child_form);
+                          let cform = tcres.childform_field.child_form && meta.findFormById(FORM_DATA, tcres.childform_field.child_form._id);
                           if (!cform) return {error: "data contains childform field, but no child_form defined for the field: " + propname};
-                          let cfldmetalist = {};
+                          let cfldsByPropname = {};
                           for (let f of cform.fields) {
-                            cfldmetalist[f.name] = f;
+                            cfldsByPropname[f.name] = f;
                           }
 
                           for (let cval of tcres.childform_array) {
@@ -530,7 +554,7 @@ module.exports = function(options) {
                             for (let cpropname in cval) {
                               let cfval = cval[cpropname]; // store the requrested property value
                               console.log ("Save: validateSetFields, validating childform field: " + cpropname);
-                              let ctcres = typecheckFn (cfldmetalist, cpropname, cfval);
+                              let ctcres = typecheckFn (cfldsByPropname, cpropname, cfval);
                               if ('error' in ctcres)
                                 return ctcres;
                               else if ('validated_value' in ctcres)
@@ -558,7 +582,7 @@ module.exports = function(options) {
                     } catch (e) {
                       return reject  ("save() _id not acceptable format : " + userdoc._id);
                     }
-                    let validatedUpdates = validateSetFields(isInsert, form.fields, userdoc, null);
+                    let validatedUpdates = validateSetFields(isInsert, form, userdoc, null);
                     if (validatedUpdates.error)
                       return reject (validatedUpdates.error);
                     else
@@ -576,7 +600,7 @@ module.exports = function(options) {
                   } else {
                     //console.log('/db/'+coll+'  insert toplevel document, use individual fields');
                     let insert,
-                        validatedUpdates = validateSetFields(isInsert, form.fields, userdoc, null, true);
+                        validatedUpdates = validateSetFields(isInsert, form, userdoc, null, true);
                     if (validatedUpdates.error)
                       return reject (validatedUpdates.error);
                     else
@@ -621,7 +645,7 @@ module.exports = function(options) {
                       return reject ("save() _id not acceptable format : " + userdoc._id);
                     }
                   //query[embedfield] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
-                    let validatedUpdates = validateSetFields(isInsert, form.fields, userdoc, embedfield);
+                    let validatedUpdates = validateSetFields(isInsert, form, userdoc, embedfield);
                     if (validatedUpdates.error)
                       return reject (validatedUpdates.error);
                     else {
@@ -630,7 +654,7 @@ module.exports = function(options) {
 
                   } else {  // its $push'ing a new embedded entry
 
-                    let validatedUpdates = validateSetFields(isInsert, form.fields, userdoc, null);
+                    let validatedUpdates = validateSetFields(isInsert, form, userdoc, null);
                     if (validatedUpdates.error)
                       return reject (validatedUpdates.error);
                     else {
@@ -653,6 +677,12 @@ module.exports = function(options) {
         }, function (err) {
             reject ('save() Cannot find form definitions ' + err);
         });
+      }, err => {
+        console.log ("catch err : " + err);
+        reject ('save() error: ' + err);
+      }).catch(err => {
+        console.log ("catch err : " + err);
+        reject ('save() error: ' + err);
       });
     };
 
@@ -738,41 +768,59 @@ module.exports = function(options) {
 
 
     exps.getFormMeta = function (filterids) {
-      // filterids:  not specified, return all
-      // if specified, use as a query filter
+
       return new Promise(function (resolve, reject)  {
-        console.log("getFormMeta() filterids : " + JSON.stringify(filterids));
-        let adminmeta = meta.adminMetabyId(),
-            retadminmeta = [];
-
-        // apps that need to work with files
-        retadminmeta.push(adminmeta[exps.forms.FileMeta.toString()]);
-        // apps that need to work with icons
-        retadminmeta.push(adminmeta[exps.forms.iconSearch.toString()]);
-
-        // Get out of Jail!!
-        if (false) for (let admins in exps.forms) {
-          retadminmeta.push(adminmeta[exps.forms[admins].toString()]);
-        }
+        let returnMeta = [],
+            query = null;
 
         if (filterids) {
-          let oids = [];
-          for (let strid of filterids) {
-            let aview = adminmeta[strid];
-            if (aview) {
-              retadminmeta.push(aview);
+
+          if (!Array.isArray(filterids) && meta.FORMMETA.find(meta => meta._id.toString() == filterids)) {
+            console.log ("getFormMeta() passed in a single form that is resolved to a hardwired metadata,  return all hardcoded metadata : " + filterids);
+            returnMeta = meta.FORMMETA;
+          } else {
+            if (!Array.isArray(filterids)) {
+              console.log ("getFormMeta() passed in a single form that is resolved to a user metadata,  return everything (for now) : " + filterids);
+              returnMeta = meta.FORMMETA;
+              query = {};
             } else {
-              oids.push(new ObjectID(strid));
+                console.log("getFormMeta() passed in array filterids, just return requested metadata : " + JSON.stringify(filterids));
+
+                let adminmeta = meta.adminMetabyId(),
+                    retadminmeta = new Set();
+
+                retadminmeta.add(adminmeta[exps.forms.FileMeta.toString()]); // apps that need to work with files
+                retadminmeta.add(adminmeta[exps.forms.iconSearch.toString()]); // apps that need to work with icons
+                if (false) for (let admins in exps.forms) { // Get out of Jail!!
+                  retadminmeta.add(adminmeta[exps.forms[admins].toString()]);
+                }
+
+                let oids = new Set();
+                for (let strid of filterids) {
+                  let aview = adminmeta[strid];
+
+                  if (aview) {
+                    retadminmeta.add(aview);
+                  } else {
+                    oids.add(new ObjectID(strid));
+                  }
+                }
+                returnMeta = Array.from(retadminmeta);
+                if (oids.size > 0) {
+                  query = {q: { _id: { $in: Array.from(oids) }}};
+                }
             }
           }
-          if (oids.length == 0) {
-            resolve (retadminmeta);
+
+          if (!query) {
+            console.log("getFormMeta() resolved just in admin metadata");
+            resolve (returnMeta);
           } else {
-            db.collection('formmeta').find(oids.length >0 && { _id: { $in: oids }} || {}).toArray(function (err, docs) {
-              console.log("getFormMeta: got user-based form meta data [err: "+err+"]: " + docs.length);
-              if (err) reject (err);
-              else resolve(retadminmeta.concat(docs)); //retmeta.concat(docs));
-            });
+              exps.find(exps.forms.formMetadata, query, false, true).then( docs => {
+            //db.collection('formmeta').find(oids.length >0 && { _id: { $in: oids }} || {}).toArray(function (err, docs)
+                  console.log("getFormMeta: got user-based form meta data #=" + docs.length);
+                  resolve(returnMeta.concat(docs)); //retmeta.concat(docs));
+                }, err => reject ("reject: " + err)).catch((err) => reject ("err:" + err));
           }
           /*exps.find(exps.forms["formMetadata"], filterids && {id: filterids}, false, true).then(function(sucval) {
               console.log('getFormMeta: got user-based form meta data : ' + sucval.length);
@@ -785,13 +833,14 @@ module.exports = function(options) {
         } else {
           //reject("getFormMeta needs a list of forms to return");
           // TODO: just return everything :(  I need to fix this.
-          db.collection('formmeta').find({}).toArray(function (err, docs) {
-            console.log("getFormMeta: got user-based form meta data [err: "+err+"]: " + docs.length);
-            if (err) reject (err);
-            else resolve(docs.concat(meta.FORMMETA)); //retmeta.concat(docs));
-          });
+          //db.collection('formmeta').find({}).toArray(function (err, docs) {
+          console.log("getFormMeta() get everything TODO - not good");
+          exps.find(exps.forms.formMetadata, {}, false, true).then( docs => {
+            console.log("getFormMeta: got user-based form meta data : " + docs.length);
+            resolve(docs.concat(meta.FORMMETA));
+          }, err => reject ("reject: " + err)).catch((err) => reject ("err:" + err));
         }
-      });
+      }).catch(err => console.log ("getFormMeta : error : " + err));
     }
 
     return exps;
