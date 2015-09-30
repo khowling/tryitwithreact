@@ -103,6 +103,6 @@ export class AuthState extends Component {
            </div>
          </div>);
     else
-      return <div><a href='#Login'>Login</a></div>;
+      return <div><a href='#Login'>Login</a> ({this.state.app.name})</div>;
   }
 }

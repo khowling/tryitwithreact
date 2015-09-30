@@ -130,26 +130,27 @@ module.exports = function(options) {
         /* run subquery */
         var runsubquery = function (FORM_DATA, form, objids, pfld) {
           return new Promise(function (resolve, reject)  {
-            var q = { _id: { $in: objids }},
-                flds = findFieldsandLookups(FORM_DATA, form, null, true, false).findField;
-            console.log('find() runsubquery() find  ' + form.collection + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(flds));
+            let q = { _id: { $in: objids }},
+                fieldsandlookups = findFieldsandLookups(FORM_DATA, form, null, true, false);
 
-            db.collection(form.collection).find(q, flds).toArray(function (err, docs) {
+            console.log('find() runsubquery() find  ' + form.collection + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(fieldsandlookups.findField));
+
+            db.collection(form.collection).find(q, fieldsandlookups.findField).toArray(function (err, docs) {
                 if (err) reject(err);
                 else {
                   // if less results than expected and using 'formMeta' lookup to the formMetadata object, include the META_DATA, as there may be a reference.
+                  // need to call processlookupids in update mode to format the reference fields
+                  processlookupids (fieldsandlookups.subqarray, docs, []);
+
                   if (objids.length > docs.length && form._id === meta.forms.metaSearch) {
                     let metares = [];
                     for (let lid of objids) {
-                      if (docs.filter(r => r._id === lid).length == 0)  { // ES6 :(
-                      //let gotit = false;
-                      //for (let d of docs) {if (d._id === lid) gotit = true;};
-                      //if  (!gotit) {
+                      if (docs.filter(r => r._id === lid).length == 0)  {
                         console.log ('finding in metasearch: ' + lid);
                         let lidform = meta.findFormById(FORM_DATA, lid);
                         if (lidform) {
                           let filteredform = {_id: lidform._id};
-                          for (let f in flds)
+                          for (let f in fieldsandlookups.findField)
                             filteredform[f] = lidform[f];
                           docs.push (filteredform);
                         }
@@ -328,7 +329,7 @@ module.exports = function(options) {
 
     exps.delete = function(formparam, recid, parentfieldid, parentid, success, error ) {
 
-        exps.getFormMeta().then(function(FORM_DATA) {
+        exps.getFormMeta(formparam).then(function(FORM_DATA) {
             var form = meta.findFormById(FORM_DATA, formparam),
                 isEmbedded = (parentfieldid && parentid);
 
@@ -348,7 +349,7 @@ module.exports = function(options) {
 
                     if (!parentmeta) {
                         error ('delete() Cannot find parent form field for this childform: ' + parentfieldid);
-                    } else if (!(new ObjectID(form._id)).equals(parentmeta.field.child_form)) {
+                    } else if (!(new ObjectID(form._id)).equals(parentmeta.field.child_form._id)) {
                         error ('delete() childform cannot be saved to parent (check your schema child_form): ' + parentfieldid);
                     } else {
                         coll = parentmeta.form.collection;
@@ -369,6 +370,7 @@ module.exports = function(options) {
                 };
 
                 if (isEmbedded) {
+                  //console.log('delete() query parentid : ' + parentid + ' recid : ' + recid);
                   var query = {_id: new ObjectID(parentid)};
                   var update = { $pull: {} }
                   update["$pull"][embedfield] = { _id: new ObjectID(recid) };
@@ -395,6 +397,8 @@ module.exports = function(options) {
             }
         }, function (err) {
             error ('delete() cannot find form definitions ' + err);
+        }).catch(function (err) {
+            error ('find() catch error ' + err);
         });
     };
 

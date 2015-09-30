@@ -261,6 +261,29 @@ export class Field extends Component {
       console.log ('Field img_src: ' + img_src);
     }
 
+    // function to generate reference search form (for seleced value in edit and view modes, and list values)
+    let referenceForm = (sform, rec) => {
+      let gotimageicon = false,
+          retform = sform.fields.map(function(fld, fldidx) {
+            let visible = true;
+            if (fld.show_when) visible = eval(fld.show_when);
+            if (visible) {
+              let fldval = rec[fld.name];
+              if (fld.name === "_id") ;
+              else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id ) {
+                if (fldval) {
+                  gotimageicon = true;
+                  return (<IconField value={fldval} small={true}/>);
+                }
+              } else
+                return (<Field fielddef={fld} value={fldval} inlist={true}/>);
+            }
+          });
+      if (!gotimageicon && sform.icon)
+          retform = <span><IconField value={sform.icon} small={true}/>{retform}</span>;
+      return retform;
+    }
+
     if (!this.props.edit) switch (this.props.fielddef.type) {
         case 'text':
         case 'email':
@@ -276,31 +299,22 @@ export class Field extends Component {
           break;
         case "reference":
           if (this.state.value) {
-            //    { //  }
             let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id);
-
             if (sform) {
               // this is here for the "metadata" - inline edit screen!
               if (this.state.value._id && sform.store === "metadata") {
                 this.state.value.search_ref = sform._data.find(x => x._id === this.state.value._id);
               }
 
-              let inner = <span>
-                        <IconField value={sform.icon} small={true}/>
-                        { sform.fields.map(function(fld, fldidx) {return (
-                          <Field key={fldidx} fielddef={fld} value={self.state.value.search_ref[fld.name]}/>
-                        );})}
-                      </span>;
-
               if (this.props.fielddef.createnew_form)
                 field = (<span className="slds-pill">
-                            <a href={Router.URLfor(null,"RecordPage", this.props.fielddef.createnew_form, this.state.value._id)} className="slds-pill__label">
-                              { inner }
+                            <a href={Router.URLfor(null,"RecordPage", this.props.fielddef.createnew_form._id, this.state.value._id)} className="slds-pill__label">
+                              { referenceForm(sform, self.state.value.search_ref) }
                             </a>
                           </span>);
               else
                 field = (<span className="slds-pill">
-                            <span className="slds-pill__label">{ inner }</span>
+                            <span className="slds-pill__label">{ referenceForm(sform, self.state.value.search_ref) }</span>
                           </span>);
             } else
               field = <Alert type="error" message={"Missing Metadata: " + this.props.fielddef.search_form}/>;
@@ -362,7 +376,9 @@ export class Field extends Component {
         case "reference":
           let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id),
               cform = this.props.fielddef.createnew_form && df.getForm (this.props.fielddef.createnew_form._id);
-          if (sform)
+
+          if (sform) {
+
             field = <span>
                     <div className="slds-lookup__control slds-input-has-icon slds-input-has-icon--right">
                       <a onClick={this._handleLookupKeypress.bind(this, {target: {}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
@@ -370,10 +386,7 @@ export class Field extends Component {
                       { this.state.value &&
                       <span className="slds-pill">
                         <a href={cform && Router.URLfor(null, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
-                          <IconField value={sform.icon} small={true}/>
-                          { sform.fields.map(function(fld, fldidx) { return (
-                            <Field fielddef={fld} value={self.state.value.search_ref[fld.name]}/>
-                          );})}
+                          { referenceForm(sform, self.state.value.search_ref) }
                         </a>
                         <button onClick={self._handleLookupSelectOption.bind (self, null)} className="slds-button slds-button--icon-bare">
                           <SvgIcon spriteType="utility" spriteName="close" small={true} classOverride="slds-button__icon icon-utility"/>
@@ -397,10 +410,7 @@ export class Field extends Component {
                           {this.state.lookup.values.map(function(row, i) { return (
                           <li key={i} className="slds-lookup__item" role="presentation">
                               <a onClick={self._handleLookupSelectOption.bind (self, row)} role="option">
-                                <IconField value={sform.icon} small={true}/>
-                                { sform.fields.map(function(fld, fldidx) { return (
-                                  <Field key={i+":"+fldidx} fielddef={fld} value={row[fld.name]}/>
-                                );})}
+                                { referenceForm(sform, row) }
                               </a>
                           </li>
                           );})}
@@ -415,7 +425,7 @@ export class Field extends Component {
                       }
                     </div>
                   </span>;
-            else {
+            } else {
               field = <Alert type="error" message={"no search_form " + this.props.fielddef.search_form}/>;
             }
             break;
@@ -860,7 +870,7 @@ export class ListPage extends Component {
       return (
         <div className="slds-grid slds-wrap">
           <div className="slds-col slds-size--1-of-1">
-          { this.props.urlparam && <PageHeader view={this.state.metaview._id}/> }
+          { this.props.urlparam && <PageHeader view={this.state.metaview}/> }
           </div>
           { this.state.value.status === "error" &&
             <div className="slds-col slds-size--1-of-1">
@@ -1205,7 +1215,7 @@ export class RecordPage extends Component {
     return (
         <div className="slds-grid slds-wrap">
             <div className="slds-col slds-size--1-of-1">
-              { this.props.urlparam && <PageHeader view={this.state.metaview._id}/> }
+              { this.props.urlparam && <PageHeader view={this.state.metaview}/> }
             </div>
 
           { this.state.value.status === "error" &&

@@ -125,12 +125,11 @@ module.exports = function(options) {
             collection: "formmeta",
             store: "mongo",
             layout: "1col",
-            icon: "std28",
+            icon: {_id:"std28"},
             fields: [
 
                 {
                     name: "name",
-                    show_when: "true",
                     title: "Form Name",
                     type: "text",
                     placeholder: "",
@@ -138,7 +137,6 @@ module.exports = function(options) {
                 },
                 {
                     name: "desc",
-                    show_when: "true",
                     title: "Form Description",
                     type: "textarea",
                     placeholder: "Coplete Form Description",
@@ -147,7 +145,6 @@ module.exports = function(options) {
                 {
                     name: "store",
                     title: "Storage Type",
-                    show_when: "true",
                     type: "dropdown",
                     required: true,
                     default_value: "mongo",
@@ -201,7 +198,6 @@ module.exports = function(options) {
                 {
                     name: "fields",
                     title: "Form Feilds",
-                    show_when: "true",
                     type: "childform",
                     layout: "list",
                     child_form: { _id: exps.forms.FormFieldMetadata},
@@ -217,7 +213,6 @@ module.exports = function(options) {
                 {
                     name: "title",
                     title: "Field Title",
-                    show_when: "true",
                     type: "text",
                     placeholder: "Field Label",
                     required: true
@@ -225,7 +220,6 @@ module.exports = function(options) {
                 {
                     name: "name",
                     title: "Field Name",
-                    show_when: "true",
                     type: "text",
                     placeholder: "No Spaces please",
                     required: true
@@ -233,7 +227,6 @@ module.exports = function(options) {
                 {
                     name: "type",
                     title: "Field Type",
-                    show_when: "true",
                     type: "dropdown",
                     required: true,
                     default_value: "text",
@@ -275,7 +268,6 @@ module.exports = function(options) {
                 {
                     name: "default_value",
                     title: "Default Value",
-                    show_when: "true",
                     type: "text",
                     placeholder: "Default Value",
                     required: false
@@ -290,7 +282,6 @@ module.exports = function(options) {
                 {
                     name: "show_when",
                     title: "Show When ( ie: record['type'] == 'list')",
-                    show_when: "true",
                     type: "text",
                     default_value: "true",
                     required: false
@@ -420,14 +411,15 @@ module.exports = function(options) {
         {
             _id: exps.forms.metaSearch,
             name: "metaSearch",
-            icon: "std28",
+            icon: {_id:"std28"},
             store: "mongo",
             collection: "formmeta",
             fields: [
               {
                   name: "icon",
                   title: "Icon",
-                  type: "icon",
+                  type: "reference",
+                  search_form: { _id: exps.forms.iconSearch}
               },
                 {
                     name: "name",
@@ -443,12 +435,11 @@ module.exports = function(options) {
             collection: "user",
             store: "mongo",
             layout: "1col",
-            icon: "std88",
+            icon: {_id:"std88"},
             fields: [
 
                 {
                     name: "name",
-                    show_when: "true",
                     title: "Full Name",
                     type: "text",
                     placeholder: "",
@@ -457,7 +448,6 @@ module.exports = function(options) {
                 {
                     name: "role",
                     title: "Role",
-                    show_when: "true",
                     type: "dropdown",
                     required: true,
                     default_value: "user",
@@ -482,7 +472,6 @@ module.exports = function(options) {
                 },
                 {
                     name: "email",
-                    show_when: "true",
                     title: "Email",
                     type: "email",
                     placeholder: "",
@@ -491,14 +480,12 @@ module.exports = function(options) {
                 {
                     name: "picture",
                     title: "Picture",
-                    show_when: "true",
                     type: "image",
                     required: false
                 },
                 {
                     name: "provider",
                     title: "Auth Providers",
-                    show_when: "true",
                     type: "childform",
                     child_form: { _id: exps.forms.AuthProviders},
                     _id: new ObjectID('000000000604')
@@ -518,18 +505,17 @@ module.exports = function(options) {
           name: "UserSearch",
           collection: "user",
           store: "mongo",
-          icon: "std88",
+          icon: {_id:"std88"},
           fields: [
-              {
-                  name: "name",
-                  show_when: "true",
-                  title: "Full Name",
-                  type: "text",
-              },
               {
                   name: "picture",
                   title: "Picture",
                   type: "image"
+              },
+              {
+                  name: "name",
+                  title: "Full Name",
+                  type: "text",
               }
             ]
         },
@@ -542,7 +528,6 @@ module.exports = function(options) {
                 {
                     name: "type",
                     title: "Auth Provider Type",
-                    show_when: "true",
                     type: "dropdown",
                     required: true,
                     dropdown_options: [
@@ -563,7 +548,6 @@ module.exports = function(options) {
                 {
                     name: "provider_id",
                     title: "Provider Id",
-                    show_when: "true",
                     type: "text",
                     placeholder: "Field Label",
                     required: true
@@ -571,7 +555,6 @@ module.exports = function(options) {
                 {
                     name: "password",
                     title: "Password",
-                    show_when: "true",
                     type: "text",
                     placeholder: "password",
                     required: true
@@ -598,50 +581,50 @@ module.exports = function(options) {
             _id: exps.forms.AppSearch,
             name: "AppSearch",
             collection: "app",
-            icon: "std8",
+            icon: {_id:"std8"},
             store: "mongo",
             fields: [
-                {
-                  name: "name",
-                  title: "App Name",
-                  type: "text"
-                },
-                {
+              {
                   name: "icon",
-                  title: "Form Icon",
-                  type: "text"
-                },
-                {
-                  name: "public",
-                  title: "Public Access",
-                  type: "dropdown",
-                  dropdown_options: [
-                      {
-                          name: "Yes",
-                          key: "yes"
-                      },
-                      {
-                          name: "No",
-                          key: "no"
-                      }
-                  ]
-                },
-                {
-                  name: "default",
-                  title: "Default App",
-                  type: "dropdown",
-                  dropdown_options: [
-                      {
-                          name: "Yes",
-                          key: "yes"
-                      },
-                      {
-                          name: "No",
-                          key: "no"
-                      }
-                  ]
-                }
-              ]
+                  type: "reference",
+                  search_form: { _id: exps.forms.iconSearch}
+
+              },
+              {
+                name: "name",
+                type: "text"
+              },
+              {
+                name: "public",
+                type: "dropdown",
+                show_when: "false",
+                dropdown_options: [
+                    {
+                        name: "Yes",
+                        key: "yes"
+                    },
+                    {
+                        name: "No",
+                        key: "no"
+                    }
+                ]
+              },
+              {
+                name: "default",
+                show_when: "false",
+                type: "dropdown",
+                dropdown_options: [
+                    {
+                        name: "Yes",
+                        key: "yes"
+                    },
+                    {
+                        name: "No",
+                        key: "no"
+                    }
+                ]
+              }
+            ]
         },
         {
             _id: exps.forms.App,
@@ -650,11 +633,10 @@ module.exports = function(options) {
             collection: "app",
             store: "mongo",
             layout: "1col",
-            icon: "std8",
+            icon: {_id:"std8"},
             fields: [
                 {
                     name: "name",
-                    show_when: "true",
                     title: "App Name",
                     type: "text",
                     placeholder: "",
@@ -663,7 +645,6 @@ module.exports = function(options) {
                 {
                     name: "type",
                     title: "Form Type",
-                    show_when: "true",
                     type: "dropdown",
                     required: true,
                     dropdown_options: [
@@ -680,7 +661,6 @@ module.exports = function(options) {
                 {
                     name: "public",
                     title: "Public Access",
-                    show_when: "true",
                     type: "dropdown",
                     required: true,
                     default_value: "no",
@@ -698,7 +678,6 @@ module.exports = function(options) {
                 {
                     name: "default",
                     title: "Default App",
-                    show_when: "true",
                     type: "dropdown",
                     required: true,
                     default_value: "no",
@@ -715,15 +694,13 @@ module.exports = function(options) {
                 },
                 {
                     name: "icon",
-                    show_when: "true",
-                    title: "Form Icon",
-                    type: "text",
-                    required: false
+                    title: "App Icon",
+                    type: "reference",
+                    search_form: { _id: exps.forms.iconSearch}
                 },
                 {
                     name: "appperms",
                     title: "App Forms",
-                    show_when: "true",
                     type: "childform",
                     layout: "list",
                     child_form: { _id: exps.forms.AppPerms},
@@ -761,7 +738,6 @@ module.exports = function(options) {
               {
                   name: "view",
                   title: "View",
-                  show_when: "true",
                   type: "dropdown",
                   required: true,
                   dropdown_options: [
@@ -790,7 +766,6 @@ module.exports = function(options) {
                 {
                     name: "filter",
                     title: "Data Filter",
-                    show_when: "true",
                     type: "dropdown",
                     required: true,
                     dropdown_options: [
@@ -816,7 +791,6 @@ module.exports = function(options) {
                       name: "columns",
                       title: "# of Columns",
                       type: "dropdown",
-                      show_when: "true",
                       required: true,
                       default_value: "1col",
                       dropdown_options: [
@@ -848,7 +822,6 @@ module.exports = function(options) {
               {
                   name: "crud",
                   title: "CRUD",
-                  show_when: "true",
                   type: "dropdown",
                   required: true,
                   default_value: "text",
@@ -877,7 +850,7 @@ module.exports = function(options) {
             _id: exps.forms.ImportMeta,
             name: "ImportMeta",
             desc: "Import applications",
-            icon: "std43",
+            icon: {_id:"std43"},
             store: "rest",
             url: "/dform/defaultData",
             action: "import",
@@ -885,13 +858,11 @@ module.exports = function(options) {
                 {
                     name: "name",
                     title: "App Name",
-                    show_when: "true",
                     type: "text"
                 },
                 {
                     name: "metadata",
                     title: "App Meta Data",
-                    show_when: "true",
                     type: "childform",
                     layout: "list",
                     child_form: { _id: exps.forms.ImportMetaData},
@@ -926,25 +897,21 @@ module.exports = function(options) {
                 {
                     name: "filename",
                     title: "Unique Filename",
-                    show_when: "true",
                     type: "text"
                 },
                 {
                     name: "length",
                     title: "size (bytes)",
-                    show_when: "true",
                     type: "text"
                 },
                 {
                     name: "uploadDate",
                     title: "Upload Date",
-                    show_when: "true",
                     type: "text"
                 },
                 {
                     name: "ownerId",
                     title: "Owner",
-                    show_when: "true",
                     type: "text"
                 }
             ]

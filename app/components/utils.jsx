@@ -26,7 +26,7 @@ export class IconField extends Component {
     let value = this.props.value,
         df = DynamicForm.instance,
         iconform = df.getFormByName("iconSearch"),
-        iconrow = iconform._data.find(x => x._id == value);
+        iconrow = value && iconform._data.find(x => x._id == value._id);
 
     if (iconrow)
       return <SvgIcon spriteType={iconrow.icon.type} spriteName={iconrow.icon.name} small={this.props.small} large={this.props.large}/>;
