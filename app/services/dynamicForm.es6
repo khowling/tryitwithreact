@@ -29,6 +29,9 @@ export default class DynamicForm {
   get app() {
     return this._currentApp;
   }
+  get appMeta() {
+    return this._appMeta;
+  }
 
   _callServer(path, mode = 'GET', body) {
     return new Promise( (resolve, reject) => {

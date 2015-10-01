@@ -138,10 +138,12 @@ module.exports = function(options) {
             db.collection(form.collection).find(q, fieldsandlookups.findField).toArray(function (err, docs) {
                 if (err) reject(err);
                 else {
+
+                  processlookupids (fieldsandlookups.subqarray, docs, []);
                   // if less results than expected and using 'formMeta' lookup to the formMetadata object, include the META_DATA, as there may be a reference.
                   // need to call processlookupids in update mode to format the reference fields
-                  processlookupids (fieldsandlookups.subqarray, docs, []);
-
+                  // TODO: Should this be done on the client??
+                  
                   if (objids.length > docs.length && form._id === meta.forms.metaSearch) {
                     let metares = [];
                     for (let lid of objids) {
@@ -157,6 +159,7 @@ module.exports = function(options) {
                       }
                     }
                   }
+
                   resolve({formid: form._id, records: docs});
                 }
             });
@@ -274,13 +277,14 @@ module.exports = function(options) {
                         console.log("find() got documents succfull") // ' + JSON.stringify(doc));
 
                         // finding all forms, so return our hardwired also
+                        /* - ERROR - this code mutates doc!!!
                         console.log ('debug: ' + form._id + " === " + exps.forms["metaSearch"]);
                         if (Object.is(form._id,exps.forms["metaSearch"])) {
                           if (!findone) {
                             doc = doc.concat( FORM_DATA) ;
                           }
                         }
-
+                        */
                         if (ignoreLookups) {
                           console.log ('resolve: ' );
                           // need to call processlookupids in update mode to format the reference fields

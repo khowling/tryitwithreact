@@ -84,8 +84,9 @@ export class Field extends Component {
   /* Lookup Functions */
   /********************/
 
-  _openCreate() {
-    this.setState({lookup: {create: true, visible: false, values: []}});
+  _openCreate(val) {
+
+    this.setState({lookup: {create: true, visible: false, values: [], createValue: {status: "ready", record: {name: val}}}});
   }
 
   _handleLookupKeypress(e) {
@@ -93,17 +94,26 @@ export class Field extends Component {
         df = DynamicForm.instance,
         sform = this.props.fielddef.search_form && df.getForm(this.props.fielddef.search_form._id);
 
-    if (sform.store === "metadata") {
+    if (!inval)
+      this.setState({lookup: {visible: false, fields: null, values: [], offercreate: false}});
+    else if (sform.store === "metadata") {
       console.log ("its from meta : " + JSON.stringify(sform._data));
+      // TODO : need text search logic here
       this.setState({lookup: {visible: true, fields: sform.fields, values: sform._data, offercreate: false}});
     } else {
       console.log ('_handleLookupKeypress: ' + inval);
-      this.setState({lookup: {visible: true, values:[], create: false}}, () => {
+      let setLookupVals = () => {
         df.search(sform._id, inval).then(succVal => {
-          //if (this.props.fielddef.search_form === "303030303030303030343030") {}
+          if (this.props.fielddef.search_form._id === "303030303030303030343030") { //'metaSearch'
+            succVal = succVal.concat( df.appMeta) ;
+          }
           this.setState({lookup: {visible: true, fields: sform.fields, values: succVal, offercreate: true}});
-        })
-      });
+        });
+      };
+      if (this.state.lookup.visible == false)
+        this.setState({lookup: {visible: true, values:[], create: false}}, setLookupVals );
+      else
+        setLookupVals();
     }
   }
 
@@ -279,9 +289,13 @@ export class Field extends Component {
                 return (<Field fielddef={fld} value={fldval} inlist={true}/>);
             }
           });
-      if (!gotimageicon && sform.icon)
+      if (rec.error) {
+        return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>{rec.error}</span>;
+      } else {
+        if (!gotimageicon && sform.icon)
           retform = <span><IconField value={sform.icon} small={true}/>{retform}</span>;
-      return retform;
+        return retform;
+      }
     }
 
     if (!this.props.edit) switch (this.props.fielddef.type) {
@@ -381,7 +395,7 @@ export class Field extends Component {
 
             field = <span>
                     <div className="slds-lookup__control slds-input-has-icon slds-input-has-icon--right">
-                      <a onClick={this._handleLookupKeypress.bind(this, {target: {}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
+                      <a onClick={this._handleLookupKeypress.bind(this, {target: {value: true}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
 
                       { this.state.value &&
                       <span className="slds-pill">
@@ -401,8 +415,16 @@ export class Field extends Component {
                     <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible && 'visible' || 'hidden'}}>
                       { this.state.lookup.create &&
                         <Modal>
-                          <PageHeader view={cform}/>
-                          <FormMain key={"model-"+this.props.fielddef.name} view={cform} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
+                          <div className="slds-modal__container w95">
+                            <div style={{padding: "0.5em", background: "white"}}>
+                              <PageHeader view={cform}/>
+                            </div>
+                            <div className="slds-modal__content" style={{padding: "0", minHeight: "350px"}}>
+                              <FormMain key={"model-"+this.props.fielddef.name} view={cform} value={this.state.lookup.createValue} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
+                            </div>
+                            <div className="slds-modal__footer">
+                            </div>
+                          </div>
                         </Modal>
                       ||
                         <ul className="slds-lookup__list" role="presentation">
@@ -416,9 +438,11 @@ export class Field extends Component {
                           );})}
 
                           { this.state.lookup.offercreate && cform &&
-                          <li className="slds-lookup__item" role="presentation">
-                             <a onClick={this._openCreate.bind(this)} role="option">
-                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride=" "/>Create {cform.name + ' "' + React.findDOMNode(this.refs.lookupinput).value + '"'}</a>
+                          <li className="slds-lookup__item " role="presentation">
+                             <a onClick={this._openCreate.bind(this, React.findDOMNode(this.refs.lookupinput).value)} role="option">
+                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride="icon-utility"/>
+                               Create {cform.name + ' "' + React.findDOMNode(this.refs.lookupinput).value + '"'}
+                             </a>
                            </li>
                           }
                         </ul>
@@ -505,8 +529,15 @@ export class Field extends Component {
                       </div>
                       { this.state.picselectexisting &&
                         <Modal>
+                          <div className="slds-modal__container w95">
+                            <div style={{padding: "0.5em", background: "white"}}>
                               <PageHeader view={picview}/>
+                            </div>
+                            <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
                               <ListMain view={picview} value={this.state.picFileList} selected={this._selectedFile}/>
+                            </div>
+                            <div className="slds-modal__footer"></div>
+                          </div>
                         </Modal>
                       }
 
@@ -530,11 +561,9 @@ export class Modal extends Component {
   render() {
     return (
     <div>
-      <div aria-hidden="false" role="dialog" className="slds-modal slds-modal- -large slds-fade-in-open">
+      <div aria-hidden="false" role="dialog" className="slds-modal slds-fade-in-open">
         <div className="slds-modal__container"  style={{width: "95%"}}>
-          <div className="slds-modal__content" style={{padding: "0"}}>
             {this.props.children}
-          </div>
         </div>
       </div>
       <div className="slds-modal-backdrop slds-modal-backdrop--open"></div>
@@ -549,13 +578,13 @@ export class FormMain extends Component {
     super(props);
     let df = DynamicForm.instance,
         nonchildformfields = props.view.fields.filter(m => m.type !== 'childform'),
-        value = props.crud == "c" && {state: "ready",  record: {}} || (props.value || {state: "wait",  record: {}});
+        value = props.value;// props.crud == "c" && {state: "ready",  record: {}} || (props.value || {state: "wait",  record: {}});
 
     this.state =  {
       nonchildformfields: nonchildformfields,
-      value: value, // this is the original data from the props
-      changedata: {}, // keep all data changes in the state
-      formcontrol: this._formControlState (nonchildformfields, value.record),  // keep form control (visibility and validity)
+      value: props.value, // this is the original data from the props
+      changedata:  props.crud == "c" && props.value.record || {}, // keep all data changes in the state
+      formcontrol: this._formControlState (nonchildformfields, props.value.record),  // keep form control (visibility and validity)
       edit: props.crud == "c" || props.crud == "u", // edit mode if props.edit or value has no _id (new record),
       errors: null};
     console.log ('FormMain constructor setState : ' + JSON.stringify(this.state));
@@ -746,10 +775,14 @@ export class FormMain extends Component {
 
     console.log ('FormMain render ' + this.props.view.name + ', state : ' + JSON.stringify(this.state));
     return (
-    <section>
-        <div className="slds-form--stacked" style={{padding: "0.5em"}}>
+      <div className={this.props.inModal && "slds-modal__container w95"} >
+
+        <div style={{padding: "0.5em", background: "white"}}>
+          { React.createElement (SectionHeader, Object.assign ({view: this.props.view}, headerButtons)) }
+        </div>
+
+        <div className={this.props.inModal && "slds-modal__content" || "" + " slds-form--stacked"} style={{padding: "0.5em", minHeight: this.props.inModal && "400px" || "auto"}}>
           <div className="slds-grid slds-wrap">
-            { React.createElement (SectionHeader, Object.assign ({view: this.props.view}, headerButtons)) }
 
             {nonchildformfields.map(function(field, i) {
               let fc = formcontrol.flds[field.name];
@@ -769,6 +802,7 @@ export class FormMain extends Component {
                 </div>
               </div>
             );})}
+
             {(record._updatedBy && !self.state.edit) &&
               <div  className="slds-col slds-col--padded slds-size--2-of-2 slds-medium-size--2-of-2 slds-x-small-size--1-of-1">
                 <div className="slds-form-element field-seperator ">
@@ -779,33 +813,45 @@ export class FormMain extends Component {
                 </div>
               </div>
             }
+
             { this.state.formcontrol.serverError &&
               <div className="slds-col slds-col--padded slds-size--1-of-1"  style={{marginTop: "15px"}}>
                 <Alert type="error" message={this.state.formcontrol.serverError}/>
               </div>
             }
-            { self.state.edit &&
-              <div className="slds-col slds-col--padded slds-size--1-of-1" style={{textAlign: "right", marginTop: "15px"}}>
-                <button className="slds-button slds-button--neutral" onClick={cancelButton}>Cancel</button>
-                <button className="slds-button slds-button--neutral slds-button--brand" onClick={saveButton}>Save</button>
-              </div>
-            }
+
             { this.state.manageData &&
               <Modal>
-                <PageHeader view={this.state.value.record}/>
-                <SectionHeader view={this.state.value.record} saveButton={this._inlineDataFinished.bind(this, true)} cancelButton={this._inlineDataFinished.bind(this, null)}/>
-                <ListMain view={this.state.value.record} value={{status: "ready", records: this.state.inlineData}}  onDataChange={this._inlineDataChange.bind(this)}/>
-                { this.state.serverError  &&
-                  <div className="slds-col slds-col--padded slds-size--1-of-1"  style={{marginTop: "15px"}}>
-                    <Alert type="error" message={this.state.serverError}/>
+                <div className="slds-modal__container w95">
+                  <div style={{padding: "0.5em", background: "white"}}>
+                    <SectionHeader view={this.state.value.record} saveButton={this._inlineDataFinished.bind(this, true)} cancelButton={this._inlineDataFinished.bind(this, null)}/>
                   </div>
-                }
+                  <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
+                    <ListMain view={this.state.value.record} value={{status: "ready", records: this.state.inlineData}}  onDataChange={this._inlineDataChange.bind(this)}/>
+                    { this.state.serverError  &&
+                      <div className="slds-col slds-col--padded slds-size--1-of-1"  style={{marginTop: "15px"}}>
+                        <Alert type="error" message={this.state.serverError}/>
+                      </div>
+                    }
+                  </div>
+                  <div className="slds-modal__footer"></div>
+                </div>
               </Modal>
             }
-          </div>
-      </div>
 
-    </section>
+          </div>
+        </div>
+
+        <div className={this.props.inModal && "slds-modal__footer" || "slds-col slds-col--padded slds-size--1-of-1"} style={{padding: "0.5em", textAlign: "right"}}>
+          { self.state.edit &&
+              <button className="slds-button slds-button--neutral" onClick={cancelButton}>Cancel</button>
+          }
+          { self.state.edit &&
+              <button className="slds-button slds-button--neutral slds-button--brand" onClick={saveButton}>Save</button>
+          }
+        </div>
+
+      </div>
     );
   }
 }
@@ -828,8 +874,9 @@ FormMain.propTypes = {
   }),
   // used by lookup and childform (if no onComplete, assume top)
   onComplete: React.PropTypes.func,
+  inModal: React.PropTypes.book
 };
-
+FormMain.defaultProps = { inModal: false};
 
 // RecordList - list of records, supports inline editing of embedded docs.
 export class ListPage extends Component {
@@ -1109,7 +1156,7 @@ export class ListMain extends Component {
           </div>
           { this.state.editrow &&
             <Modal>
-              <FormMain  value={this.state.editrow.value} view={this.props.view} crud={this.state.editrow.crud} parent={this.props.parent} onComplete={this._onFinished.bind(this)}/>
+                <FormMain  value={this.state.editrow.value} view={this.props.view} crud={this.state.editrow.crud} parent={this.props.parent} onComplete={this._onFinished.bind(this)} inModal={true}/>
             </Modal>
           }
       </div>
@@ -1288,7 +1335,7 @@ export class PageHeader extends Component {
 export class SectionHeader extends Component {
   render() {
     return (
-      <div className="slds-col slds-col--padded slds-size--1-of-1 ">
+      <div className="slds- col slds-col-- padded slds -size--1-of-1 ">
           <div className="slds-grid form-seperator">
             <div className="slds-col slds-col--padded slds-has-flexi-truncate">
               <h3 className="slds-text-heading--small" style={{marginTop: "8px"}}>{this.props.view.name}</h3>
