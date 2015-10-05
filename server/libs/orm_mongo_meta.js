@@ -11,6 +11,7 @@ module.exports = function(options) {
     var exps = {
         forms: {
             "formMetadata" : new ObjectID('000000000100'),
+            "ComponentMetadata" : new ObjectID('000000000150'),
             "FormFieldMetadata": new ObjectID('000000000200'),
             "DropDownOption": new ObjectID('000000000250'),
             "iconSearch": new ObjectID('000000000300'),
@@ -117,10 +118,32 @@ module.exports = function(options) {
 
     ]
 
+    exps.Compoments = [
+      {
+        _id: "ListMain",
+        Component: "ListMain",
+        props: [
+          {
+              name: "view",
+              title: "Data view",
+              type: "reference",
+              search_form: { _id: exps.forms.metaSearch}
+          },
+          {
+              name: "query",
+              title: "Query",
+              type: "text",
+              placeholder: ""
+          }
+        ]
+      }
+
+    ];
+
     exps.FORMMETA = [
         {
             _id: exps.forms.formMetadata,
-            name: "FormMetadata",
+            name: "Form Metadata",
             desc: "This is where you define and extend your application forms",
             collection: "formmeta",
             store: "mongo",
@@ -183,17 +206,17 @@ module.exports = function(options) {
                     name: "collection",
                     title: "Mongo Collection name",
                     type: "text",
-                    show_when: "record['store'] == 'mongo'",
+                    show_when: "rec['store'] == 'mongo'",
                     placeholder: "No Spaces please!",
-                    required: "record['store'] == 'mongo'"
+                    required: "rec['store'] == 'mongo'"
                 },
                 {
                     name: "url",
                     title: "REST Endpoint",
                     type: "text",
-                    show_when: "record['store'] == 'rest'",
+                    show_when: "rec['store'] == 'rest'",
                     placeholder: "No Spaces please!",
-                    required: "record['store'] == 'rest'"
+                    required: "rec['store'] == 'rest'"
                 },
                 {
                     name: "fields",
@@ -204,6 +227,40 @@ module.exports = function(options) {
                     _id: new ObjectID('000000000106')
                 }
             ]
+        },
+        {
+            _id: exps.forms.ComponentMetadata,
+            name: "Compoment Metadata",
+            desc: "This is you compoments",
+            collection: "compomentmeta",
+            store: "metadata",
+            icon: {_id:"std28"},
+            fields: [
+
+                {
+                    name: "name",
+                    title: "Form Name",
+                    type: "text",
+                    placeholder: "",
+                    required: true
+                },
+                {
+                    name: "desc",
+                    title: "Form Description",
+                    type: "textarea",
+                    placeholder: "Coplete Form Description",
+                    required: false
+                },
+                {
+                    name: "props",
+                    title: "Properties",
+                    type: "childform",
+                    layout: "list",
+                    child_form: { _id: exps.forms.FormFieldMetadata},
+                    _id: new ObjectID('000000000156')
+                }
+            ],
+            _data: exps.Compoments
         },
         {
             _id: exps.forms.FormFieldMetadata,
@@ -262,6 +319,14 @@ module.exports = function(options) {
                         {
                             name: "DateTime",
                             key: "datetime"
+                        },
+                        {
+                            name: "Related List",
+                            key: "relatedlist"
+                        },
+                        {
+                          name: "Dynamic",
+                          key: "dynamic"
                         }
                     ]
                 },
@@ -275,13 +340,13 @@ module.exports = function(options) {
                 {
                     name: "placeholder",
                     title: "Placeholder Value",
-                    show_when: "record['type'] == 'list'",
+                    show_when: "rec['type'] == 'list'",
                     type: "text",
                     required: false
                 },
                 {
                     name: "show_when",
-                    title: "Show When ( ie: record['type'] == 'list')",
+                    title: "Show When ( ie: rec['type'] == 'list')",
                     type: "text",
                     default_value: "true",
                     required: false
@@ -291,7 +356,7 @@ module.exports = function(options) {
                     title: "Lookup Create form",
                     type: "reference",
                     placeholder: "only for lookup fields",
-                    show_when: "record['type'] == 'reference'",
+                    show_when: "rec['type'] == 'reference'",
                     createnew_form: { _id: exps.forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": {}}',
                     search_form: { _id: exps.forms.metaSearch},
@@ -302,7 +367,7 @@ module.exports = function(options) {
                     name: "createnew_defaults",
                     title: "Lookup Create New Defaults",
                     type: "text",
-                    show_when: "record['type'] == 'reference'",
+                    show_when: "rec['type'] == 'reference'",
                     placeholder: "{primary: 'name', others: {fieldname: 'val', fieldname: 'val'}}",
                     required: false
                 },
@@ -311,7 +376,7 @@ module.exports = function(options) {
                     title: "Lookup Search Form",
                     type: "reference",
                     placeholder: "only for lookup fields",
-                    show_when: "record['type'] == 'reference'",
+                    show_when: "rec['type'] == 'reference'",
                     createnew_form: { _id: exps.forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": {}}',
                     search_form: { _id: exps.forms.metaSearch},
@@ -322,7 +387,7 @@ module.exports = function(options) {
                     name: "child_form",
                     title: "Child Form",
                     type: "reference",
-                    show_when: "record['type'] == 'childform'",
+                    show_when: "rec['type'] == 'childform' || rec['type'] == 'relatedlist'",
                     createnew_form: { _id: exps.forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": { "type": "childform"}}',
                     search_form: { _id: exps.forms.metaSearch},
@@ -333,7 +398,7 @@ module.exports = function(options) {
                     name: "layout",
                     title: "Childform Layout",
                     type: "dropdown",
-                    show_when: "record['type'] == 'childform'",
+                    show_when: "rec['type'] == 'childform'",
                     required: false,
                     default_value: "1col",
                     dropdown_options: [
@@ -365,9 +430,16 @@ module.exports = function(options) {
                     ]
                 },
                 {
+                  name: "dynamic_fields",
+                  title: "Fields (EL)",
+                  show_when: "rec['type'] == 'dynamic'",
+                  placeholder: "context vars: $rec, $user, $app",
+                  type: "textarea"
+                },
+              {
                     name: "dropdown_options",
                     title: "Dropdown Options",
-                    show_when: "record['type'] == 'dropdown'",
+                    show_when: "rec['type'] == 'dropdown'",
                     type: "dropdown_options",
                     child_form: exps.forms.DropDownOption,
                 }
@@ -728,82 +800,60 @@ module.exports = function(options) {
                   required: true
               },
               {
-                  name: "form",
-                  title: "Form",
+                  name: "component",
+                  title: "component",
                   type: "reference",
-                  search_form: { _id: exps.forms.metaSearch},
+                  search_form: { _id: exps.forms.ComponentMetadata},
                   required: true,
                   _id: new ObjectID('000000000e01'),
               },
               {
-                  name: "view",
-                  title: "View",
+                  name: "props",
+                  title: "Component Properties",
+                  type: "dynamic",
+                  dynamic_fields: "$rec.component.search_ref.props",
+              },
+              {
+                  name: "filter",
+                  title: "Data Filter",
                   type: "dropdown",
                   required: true,
                   dropdown_options: [
                       {
-                          name: "Tile view",
-                          key: "TileMain"
+                          name: "Filter Clause",
+                          key: "filter"
                       },
                       {
-                          name: "List view",
-                          key: "ListMain"
+                          name: "Top X",
+                          key: "topx"
                       },
                       {
-                          name: "Record view",
-                          key: "FormMain"
+                          name: "Other Page Component",
+                          key: "page"
                       },
                       {
-                          name: "Graph",
-                          key: "graph"
-                      },
-                      {
-                          name: "TimeLine",
-                          key: "TimeLine"
+                          name: "xxx",
+                          key: "xxx"
                       }
                     ]
                 },
                 {
-                    name: "filter",
-                    title: "Data Filter",
+                    name: "columns",
+                    title: "# of Columns",
                     type: "dropdown",
                     required: true,
+                    default_value: "1col",
                     dropdown_options: [
                         {
-                            name: "Filter Clause",
-                            key: "filter"
+                            name: "1 Column",
+                            key: "1col"
                         },
                         {
-                            name: "Top X",
-                            key: "topx"
-                        },
-                        {
-                            name: "Other Page Component",
-                            key: "page"
-                        },
-                        {
-                            name: "xxx",
-                            key: "xxx"
+                            name: "2 Column",
+                            key: "2col"
                         }
-                      ]
-                  },
-                  {
-                      name: "columns",
-                      title: "# of Columns",
-                      type: "dropdown",
-                      required: true,
-                      default_value: "1col",
-                      dropdown_options: [
-                          {
-                              name: "1 Column",
-                              key: "1col"
-                          },
-                          {
-                              name: "2 Column",
-                              key: "2col"
-                          }
-                      ]
-                  }
+                    ]
+                }
             ]
         },
         {
@@ -928,10 +978,12 @@ module.exports = function(options) {
             load: [
               {name: "Admin App", type: "deployed", public: "yes", default: "yes", appperms: [
                 {form: {_id: exps.forms.formMetadata}, crud: "crud"},
+                {form: {_id: exps.forms.ComponentMetadata}, crud: "crud"},
                 {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
                 {form: {_id: exps.forms.DropDownOption}, crud: "crud"},
                 {form: {_id: exps.forms.metaSearch}, crud: "crud"},
                 {form: {_id: exps.forms.Users}, crud: "crud"},
+                {form: {_id: exps.forms.UserSearch}, crud: "crud"},
                 {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
                 {form: {_id: exps.forms.UserApps}, crud: "crud"},
                 {form: {_id: exps.forms.App}, crud: "crud"},

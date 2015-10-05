@@ -2,6 +2,7 @@
 
 import React, {Component} from 'react';
 //import ReactDOM from 'react-dom';
+import jexl from 'jexl';
 
 import Router from './router.jsx';
 
@@ -10,6 +11,8 @@ import { SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
 import DynamicForm from '../services/dynamicForm.es6';
+
+import async from '../lib/async.es6';
 
 
 export class Field extends Component {
@@ -275,9 +278,8 @@ export class Field extends Component {
     let referenceForm = (sform, rec) => {
       let gotimageicon = false,
           retform = sform.fields.map(function(fld, fldidx) {
-            let visible = true;
-            if (fld.show_when) visible = eval(fld.show_when);
-            if (visible) {
+
+            let genField = function() {
               let fldval = rec[fld.name];
               if (fld.name === "_id") ;
               else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id ) {
@@ -285,16 +287,27 @@ export class Field extends Component {
                   gotimageicon = true;
                   return (<IconField value={fldval} small={true}/>);
                 }
-              } else
+              } else if (fld.type !== "reference" && fld.type !== "childform" && fld.type !== "relatedlist") {
                 return (<Field fielddef={fld} value={fldval} inlist={true}/>);
+              } else
+                return <Alert message={'"'+fld.type+'" not supported on search form'}/>
             }
+
+            if (fld.show_when) {
+              jexl.eval(fld.show_when, {"$rec": rec}, (err, visible) => { //eval(fld.show_when);
+                if (visible) return genField();
+              });
+            } else
+              return genField();
           });
-      if (rec.error) {
-        return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>{rec.error}</span>;
+      if (typeof rec === "undefined") {
+        return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>no search_ref</span>;
+      } else if (rec.error) {
+        return  <span key={rec._id} style={{color: "red"}}><IconField value={sform.icon} small={true}/>{rec.error}</span>;
       } else {
         if (!gotimageicon && sform.icon)
-          retform = <span><IconField value={sform.icon} small={true}/>{retform}</span>;
-        return retform;
+          retform = <span key={rec._id}><IconField value={sform.icon} small={true}/>{retform}</span>;
+        return <span key={rec._id}>{retform}</span>;
       }
     }
 
@@ -356,7 +369,7 @@ export class Field extends Component {
             field = (<span/>);
           break;
         case 'image':
-          let marginBott = !this.props.inlist && {marginBottom: "4px;"} || {};
+          let marginBott = !this.props.inlist && {marginBottom: "4px"} || {};
           field = (<div className={this.props.inlist && "slds-avatar slds-avatar--circle slds-avatar--x-small"} style={marginBott}>
                     <img style={{maxHeight: "150px"}} src={img_src} alt="message user image"/>
                   </div>);
@@ -577,14 +590,14 @@ export class FormMain extends Component {
   constructor(props) {
     super(props);
     let df = DynamicForm.instance,
-        nonchildformfields = props.view.fields.filter(m => m.type !== 'childform'),
+        nonchildformfields = props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'relatedlist'),
         value = props.value;// props.crud == "c" && {state: "ready",  record: {}} || (props.value || {state: "wait",  record: {}});
 
     this.state =  {
       nonchildformfields: nonchildformfields,
       value: props.value, // this is the original data from the props
       changedata:  props.crud == "c" && props.value.record || {}, // keep all data changes in the state
-      formcontrol: this._formControlState (nonchildformfields, props.value.record),  // keep form control (visibility and validity)
+      formcontrol: {flds:{},invalid: false, change: false}, // this._formControlState (nonchildformfields, props.value.record),  // keep form control (visibility and validity)
       edit: props.crud == "c" || props.crud == "u", // edit mode if props.edit or value has no _id (new record),
       errors: null};
     console.log ('FormMain constructor setState : ' + JSON.stringify(this.state));
@@ -602,60 +615,67 @@ export class FormMain extends Component {
 
   // form control - visibility and validity
   // TODO : Needs to be MUCH better, not calling eval many times!
-  _formControlState (fields, val, currentState) {
-    //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
-    let cnrt = {flds:{},invalid: false, change: false};
-    for (let fld of fields) {
-      let record = val,
-          visible = true;
+  _formControlState(fields, val, currentState) {
 
-      if (fld.show_when) {
-          //console.log ("evaluating: " + fld.show_when)
-          visible = eval(fld.show_when);
+    return async(function *(fields, val, currentState) {
+      //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
+      let cnrt = {flds:{},invalid: false, change: false};
+      for (let fld of fields) {
+        let visible = true;
+        console.log (`field ${fld.name}, show_when ${fld.show_when}, val ${JSON.stringify(val)}`);
+        if (fld.show_when)
+          visible = yield jexl.eval(fld.show_when, {rec: val});
+
+        let fctrl = {
+                invalid: fld.required && !val[fld.name],
+                visible: visible
+                };
+        console.log (`fctrl ${fld.name}, show_when ${JSON.stringify(fctrl)}`);
+        // check to see if form control state has changed from last time, if so, it will re-render the whole form!
+        if (currentState && currentState.flds[fld.name]) {
+          if (!Object.is(currentState.flds[fld.name].invalid, fctrl.invalid) ||
+              !Object.is(currentState.flds[fld.name].visible, fctrl.visible))
+                cnrt.change = true;
+        } else if (fctrl.invalid || !fctrl.visible) {
+          // no current state, so much be change
+          cnrt.change = true;
+        }
+
+        if (fctrl.invalid) cnrt.invalid = true;
+        cnrt.flds[fld.name] = fctrl;
       }
-
-      let fctrl = {
-              invalid: fld.required && !record[fld.name],
-              visible: visible
-              };
-
-      // check to see if form control state has changed from last time, if so, it will re-render the whole form!
-      if (currentState && currentState.flds[fld.name]) {
-        if (!Object.is(currentState.flds[fld.name].invalid, fctrl.invalid) ||
-            !Object.is(currentState.flds[fld.name].visible, fctrl.visible))
-              cnrt.change = true;
-      } else if (fctrl.invalid || !fctrl.visible) {
-        // no current state, so much be change
-        cnrt.change = true;
-      }
-
-      if (fctrl.invalid) cnrt.invalid = true;
-      cnrt.flds[fld.name] = fctrl;
-    }
-    //console.log ("FormMain _formControlState result : " + JSON.stringify(cnrt));
-    return cnrt;
+      //console.log ("FormMain _formControlState result : " + JSON.stringify(cnrt));
+      return cnrt;
+    })(fields, val, currentState);
   }
 
   // form data is ready from parent
   componentWillReceiveProps (nextProps) {
     console.log ("FormMain componentWillReceiveProps");
     if (nextProps.value) {
-      this.setState ({
-        changedata: {},
-        manageData: false,
-        inlineData: null,
-        serverError: null,
-        value: nextProps.value,
-        formcontrol: this._formControlState (this.state.nonchildformfields, nextProps.value.record)});
+      this._formControlState (this.state.nonchildformfields, nextProps.value.record).then(succval => {
+        this.setState ({
+          changedata: {},
+          manageData: false,
+          inlineData: null,
+          serverError: null,
+          value: nextProps.value,
+          formcontrol: succval
+        });
+      });
     }
   }
 
   // Called form the Field
   _fieldChange(d) {
     console.log ('FormMain _fieldChange got field update, update Form state.changedata & formcontrol, val : ' + JSON.stringify(d));
-    let changedata = Object.assign({}, this.state.changedata, d),
-        newState  = {changedata: changedata, formcontrol: this._formControlState (this.state.nonchildformfields, Object.assign({}, this.state.value.record , changedata), this.state.formcontrol)};
-    this.setState(newState);
+    let changedata = Object.assign({}, this.state.changedata, d);
+    this._formControlState (this.state.nonchildformfields, Object.assign({}, this.state.value.record , changedata), this.state.formcontrol).then(succval => {
+      this.setState({
+        changedata: changedata,
+        formcontrol: succval
+      });
+    });
   }
 
   _save(succfn) {
@@ -785,7 +805,7 @@ export class FormMain extends Component {
           <div className="slds-grid slds-wrap">
 
             {nonchildformfields.map(function(field, i) {
-              let fc = formcontrol.flds[field.name];
+              let fc = formcontrol.flds[field.name] || {visible: true, invalid: false};
               if (fc.visible) return (
               <div key={i} className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
                 <div className={"slds-form-element " + (self.state.edit && "  " || " field-seperator ") + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
@@ -874,7 +894,7 @@ FormMain.propTypes = {
   }),
   // used by lookup and childform (if no onComplete, assume top)
   onComplete: React.PropTypes.func,
-  inModal: React.PropTypes.book
+  inModal: React.PropTypes.bool
 };
 FormMain.defaultProps = { inModal: false};
 
@@ -901,13 +921,11 @@ export class ListPage extends Component {
       let df = DynamicForm.instance;
       console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.state.metaview._id));
       if (this.state.metaview.store === "mongo")
-        df.query (this.state.metaview._id).then(
+        df.query (this.state.metaview._id, this.props.urlparam.q).then(
           succRes => this.setState({value: {status: "ready", records: succRes}}),
           errRes  => this.setState({value: {status: "error", message: errRes }})
         );
-      else if (this.state.metaview.store === "mongo") {
-        this.setState({value: {status: "ready", records: this.state.metaview._data || []}});
-      } else if (this.state.metaview.url)
+      else if (this.state.metaview.store === "rest")
         df._callServer(this.state.metaview.url).then(succRes =>
           this.setState({value: {status: "ready", records: succRes}})
         );
@@ -933,7 +951,13 @@ export class ListPage extends Component {
       );
     }
 }
-
+ListPage.propTypes = {
+  // Core
+  urlparam: React.PropTypes.shape({
+    view: React.PropTypes.string.isRequired,
+    q: React.PropTypes.object
+  })
+}
 
 export class ListMain extends Component {
   constructor(props) {
@@ -1081,7 +1105,7 @@ export class ListMain extends Component {
     console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
     let self = this,
         {status, records} = this.state.value,
-        nonchildformfields = this.props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'dropdown_options');
+        nonchildformfields = this.props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'dropdown_options' && m.type !== 'relatedlist');
 
     let header = React.createElement (SectionHeader, Object.assign ({key: +this.props.view._id, view: this.props.view}, this.props.selected && {
           closeButton: this._handleSelect.bind(this, null)
@@ -1202,6 +1226,7 @@ export class RecordPage extends Component {
       crud: !props.urlparam.id && "c" || props.urlparam.e && "u" || "r",
       metaview: metaview,
       childformfields: metaview.fields.filter(m => m.type === 'childform'),
+      relatedlistfields: metaview.fields.filter(m => m.type === 'relatedlist'),
       value: {status: "wait", record: {}}
     };
     console.log ('RecordPage constructor setState : ' + JSON.stringify(this.state));
@@ -1286,6 +1311,17 @@ export class RecordPage extends Component {
               );})}
             </div>
           }
+          { this.state.value.status !== "error" &&
+            <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
+              {this.state.crud === "r"  && this.state.value.status === "ready" && this.state.relatedlistfields.map(function(field, i) {
+                return (
+                <div style={{padding: "0.5em"}}>
+                  <ListPage  urlparam={{view: field.child_form._id, q: {[field.name]: record._id}}} />
+                </div>
+              );})}
+            </div>
+          }
+
         </div>
       );
     }

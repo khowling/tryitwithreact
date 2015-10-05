@@ -6,25 +6,26 @@
     "devHttps": false,
     "devHost": "localhost",
     "devPort": 8000
-   },
-   "scripts": {
-     "start": "~/node-v4.0.0-linux-x64/bin/node dev-server ./webpack.config",
-     "test": "mocha app/test/components --compilers js:babel-core/register"
-   },
+  },
+  "scripts": {
+    "start": "~/node-v4.0.0-linux-x64/bin/node dev-server ./webpack.config",
+    "test": "mocha app/test/components --compilers js:babel-core/register"
+  },
   "dependencies": {
-    "express": "*",
-    "express-session": "*",
     "body-parser": "*",
-    "cookie-parser": "*",
     "connect-heroku-memcached": "*",
     "connect-mongo": "*",
-    "mongodb": "*",
+    "cookie-parser": "*",
+    "express": "*",
+    "express-session": "*",
     "gridfs-stream": "*",
+    "jexl": "^1.1.2",
+    "lwip": "*",
+    "mongodb": "*",
     "passport": "*",
-    "passport-local": "*",
     "passport-facebook": "*",
     "passport-forcedotcom": "*",
-    "lwip": "*"
+    "passport-local": "*"
   },
   "devDependencies": {
     "mocha": "*",
@@ -34,7 +35,7 @@
     "css-loader": "",
     "file-loader": "",
     "template-html-loader": "",
-    "lodash":"",
+    "lodash": "",
     "json-loader": "",
     "less": "",
     "less-loader": "",
@@ -47,7 +48,7 @@
     "transducers.js": "",
     "webpack": "",
     "webpack-dev-server": "",
-    "opn":"",
+    "opn": "",
     "react": "*",
     "react-dom": "*",
     "source-map-support": "*",

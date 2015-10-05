@@ -43,14 +43,12 @@ module.exports = function(options) {
             }
             for (var f in form.fields) {
                 var field = form.fields[f];
-                if (!parentField) {
+                if (!parentField && field.type != "relatedlist") {
                     // only add top level fields to the find
                     result.findField[field.name] = 1;
                 }
 
-                if (field.type === 'icon-lookup') {
-                  //???
-                } else if (field.type === 'reference') {
+                if (field.type === 'reference') {
                     console.log('find() findFieldsandLookups: found a lookup field on [' + form.name + '] field : ' + field.name);
                     let searchform = field.search_form && meta.findFormById(FORM_DATA, field.search_form._id);
                     let subqobj = {field: field.name};
@@ -143,7 +141,7 @@ module.exports = function(options) {
                   // if less results than expected and using 'formMeta' lookup to the formMetadata object, include the META_DATA, as there may be a reference.
                   // need to call processlookupids in update mode to format the reference fields
                   // TODO: Should this be done on the client??
-                  
+
                   if (objids.length > docs.length && form._id === meta.forms.metaSearch) {
                     let metares = [];
                     for (let lid of objids) {
@@ -249,7 +247,26 @@ module.exports = function(options) {
                       //mquery = { "$text": { "$search": query.p}};
                       mquery = {name: {$regex: query.p, $options: 'i'}}
                     } else if (qkey === "q") {
-                      mquery = query.q;
+                      let validatedq = {};
+                      for (let fieldname in query.q) {
+                        let fval = query.q[fieldname],
+                            fdef = form.fields.find(x => x.name === fieldname);
+                        if (fieldname === "_id")
+                          // probably query list of _ids, processed on server, already in ObjectID format
+                          validatedq[fieldname] = fval;
+                        else if (!fdef) {
+                          let idxdot = fieldname.indexOf ('.');
+                          if (idxdot > -1) {
+                            if (!form.fields.find(x => x.name === fieldname.substr(0,idxdot)))
+                              return reject ("query object doesnt contains a invalid field :  " + fieldname);
+                          } else
+                            return reject ("query object doesnt contains a invalid field :  " + fieldname);
+                        }else if (fdef.type === "reference" && fval && typeof fval === 'string' && fval.length == 24)
+                            validatedq[fieldname] = new ObjectID(fval);
+                          else
+                            validatedq[fieldname] = fval;
+                      }
+                      mquery = validatedq;
                     } else {
                       return reject ("query parameter not recognised : " + qkey);
                     }
@@ -799,6 +816,7 @@ module.exports = function(options) {
 
                 retadminmeta.add(adminmeta[exps.forms.FileMeta.toString()]); // apps that need to work with files
                 retadminmeta.add(adminmeta[exps.forms.iconSearch.toString()]); // apps that need to work with icons
+                retadminmeta.add(adminmeta[exps.forms.UserSearch.toString()]); // apps that need to work with users
                 if (false) for (let admins in exps.forms) { // Get out of Jail!!
                   retadminmeta.add(adminmeta[exps.forms[admins].toString()]);
                 }
