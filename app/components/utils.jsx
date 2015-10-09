@@ -13,7 +13,7 @@ export  class SvgIcon extends Component {
 
     return (
         <svg className={(this.props.classOverride  || "") + ((this.props.spriteType === "utility" && !this.props.classOverride) && " icon-utility "  ||  " slds-icon ")  + (this.props.small && "slds-icon--small" || "") + (this.props.large && "slds-icon--large" || "") + " slds-icon-" + this.props.spriteType+ "-" +this.props.spriteName.replace(/_/g,"-")}
-          dangerouslySetInnerHTML={{__html: "<use xlink:href='/slds080/assets/icons/"+this.props.spriteType+"-sprite/svg/symbols.svg#"+this.props.spriteName+"' />"}}>
+          dangerouslySetInnerHTML={{__html: "<use xlink:href='/assets/icons/"+this.props.spriteType+"-sprite/svg/symbols.svg#"+this.props.spriteName+"' />"}}>
         </svg>
   )}
 }
@@ -25,13 +25,16 @@ export class IconField extends Component {
   render() {
     let value = this.props.value,
         df = DynamicForm.instance,
-        iconform = df.getFormByName("iconSearch"),
-        iconrow = value && iconform._data.find(x => x._id == value._id);
+        iconform = df.getFormByName("iconSearch");
 
-    if (iconrow)
-      return <SvgIcon spriteType={iconrow.icon.type} spriteName={iconrow.icon.name} small={this.props.small} large={this.props.large}/>;
-    else
-      return <span></span>;
+    if (iconform) {
+      let iconrow = value && iconform._data.find(x => x._id == value._id);
+      if (iconrow)
+        return <SvgIcon spriteType={iconrow.icon.type} spriteName={iconrow.icon.name} small={this.props.small} large={this.props.large}/>;
+      else
+        return <span></span>;
+    } else
+      return <Alert type="error" message="iconSearch not available in this app"/>;
   }
 }
 IconField.propTypes = {  small: React.PropTypes.bool, large: React.PropTypes.bool };

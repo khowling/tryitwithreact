@@ -10,8 +10,13 @@ var opn = require('opn');
 var pkg = require('./package.json');
 var port = pkg.config.devPort,
     host = pkg.config.devHost,
-    https = pkg.config.devHttps;
+    https = pkg.config.devHttps,
+    serverurl = util.format('http%s://%s:%d', https ? 's' : '', host, port);
 
+
+config.entry.app.unshift('webpack/hot/only-dev-server');
+config.entry.app.unshift(util.format('webpack-dev-server/client?%s', serverurl));
+config.plugins.push(new webpack.HotModuleReplacementPlugin());
 
 console.log (JSON.stringify(config));
 
@@ -23,7 +28,6 @@ new WebpackDevServer(webpack(config), {
         if (err) {
             console.log(err);
         }
-        var url = util.format('http%s://%s:%d', https ? 's' : '', host, port);
-        console.log('Weboack dev-server Listening at %s', url);
-        opn(url);
+        console.log('Weboack dev-server Listening at %s', serverurl);
+        opn(serverurl);
     });

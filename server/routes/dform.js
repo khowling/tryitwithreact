@@ -147,8 +147,8 @@ module.exports = function(options) {
         if (urlappid)
           // app requested, so provide it.
           appid = urlappid;
-        else
-          appid = "55f986e0db910aa2333226f3";
+//        else
+//          appid = "55f986e0db910aa2333226f3";
       }
       //res.setHeader('Content-Type', 'application/json');
       if (appid) {
@@ -165,9 +165,12 @@ module.exports = function(options) {
             }, errfn).catch(errfn);
         }, errfn)
       } else {
-        orm.getFormMeta([]).then (function (sucval) {
-          res.json({user: req.user, appMeta: sucval});
-        }, errfn).catch(errfn);
+        // no user, no appid, return the admin app!
+        let adminmetabyId = orm.adminMetabyId(),
+            adminmetafiltered = orm.adminApp.appperms.map(ap => { return adminmetabyId[ap.form._id.toString()]});
+      //  orm.getFormMeta([]).then (function (sucval) {
+          res.json({user: req.user, app: orm.adminApp,  appMeta: adminmetafiltered});
+    //    }, errfn).catch(errfn);
       }
 
     });

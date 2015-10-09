@@ -288,10 +288,10 @@ module.exports = function(options) {
                       console.log('find() find ERROR :  ' + err);
                       reject (err);
                     } else if (findone && doc == null) {
-                      reject("Cannot find record");
+                      resolve();
                     } else {
 
-                        console.log("find() got documents succfull") // ' + JSON.stringify(doc));
+                        console.log("find() no error retuned") // ' + JSON.stringify(doc));
 
                         // finding all forms, so return our hardwired also
                         /* - ERROR - this code mutates doc!!!
@@ -426,13 +426,13 @@ module.exports = function(options) {
 
     exps.save = function (formparam, parentfieldid,parentid, userdoc, userid) {
         return new Promise( function(resolve, reject)  {
-          exps.getFormMeta().then(function(FORM_DATA) {
+          exps.getFormMeta(formparam).then(function(FORM_DATA) {
             var form = meta.findFormById(FORM_DATA, formparam),
                 isInsert = Array.isArray (userdoc) || typeof userdoc._id === 'undefined',
                 isEmbedded = (parentfieldid && parentid);
 
             if (!form) {
-                return reject ("save() not Found : " + formparam);
+                return reject ("save() form not Found : " + formparam);
             } else if (!isEmbedded && (parentfieldid || parentid)){
                 return reject ("save() need to supply both 'parentfieldid' and 'parentid' for embedded document save : " + formparam);
             } else if (Array.isArray (userdoc) && isEmbedded){
@@ -787,9 +787,11 @@ module.exports = function(options) {
       })
     }
 
-    exps.forms = meta.forms;
+    //exps.forms = meta.exp.form;
     // expose these from the static data
     exps.defaultData = meta.defaultData;
+    exps.adminApp = meta.adminApp;
+    exps.adminMetabyId = meta.adminMetabyId;
 
 
     exps.getFormMeta = function (filterids) {

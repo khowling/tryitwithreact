@@ -1,6 +1,7 @@
 var webpack = require('webpack');
 var path = require('path');
 var util = require('util');
+var ExtractTextPlugin = require('extract-text-webpack-plugin');
 
 var pkg = require('./package.json');
 var port = pkg.config.devPort,
@@ -23,32 +24,31 @@ console.log ('htmlLoader' + htmlLoader);
 
 module.exports = {
     context: path.join(__dirname, 'app'),
-    entry:  [
-         util.format('webpack-dev-server/client?http%s://%s:%d', https && 's' || '', host, port),
-        'webpack/hot/dev-server',
-        './app_index.jsx'
-    ],
+    entry:  {app: ['./app_index.jsx']},
     target: "web",
     output: {
         path: path.resolve(target),
         filename: jsBundle,
         publicPath: "/"
-
     },
     plugins: [
-        new webpack.HotModuleReplacementPlugin(),
-        new webpack.NoErrorsPlugin()
+        new webpack.NoErrorsPlugin(),
+        new webpack.optimize.OccurenceOrderPlugin()
     ],
     module: {
         loaders: [
             {
               test: /\.jsx$|\.es6$/,
               exclude: /node_modules/,
-              loaders:  ['babel-loader?optional=runtime']
+              loaders:  ['react-hot', 'babel-loader?optional=runtime']
             },
             {
               test: /\.html$/,
               loader: htmlLoader
+            },
+            {
+              test: /\.scss$/,
+              loaders: ["style", "css", "sass"]
             }
         ]
     }

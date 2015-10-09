@@ -967,7 +967,7 @@ module.exports = function(options) {
             ]
         }
     ];
-
+/*
     exps.defaultData =   [
       {
         _id: "LoadApp001",
@@ -975,29 +975,31 @@ module.exports = function(options) {
         metadata: [
           {
             form: {_id: exps.forms.App, search_ref: {name: "App"}},
-            load: [
-              {name: "Admin App", type: "deployed", public: "yes", default: "yes", appperms: [
-                {form: {_id: exps.forms.formMetadata}, crud: "crud"},
-                {form: {_id: exps.forms.ComponentMetadata}, crud: "crud"},
-                {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
-                {form: {_id: exps.forms.DropDownOption}, crud: "crud"},
-                {form: {_id: exps.forms.metaSearch}, crud: "crud"},
-                {form: {_id: exps.forms.Users}, crud: "crud"},
-                {form: {_id: exps.forms.UserSearch}, crud: "crud"},
-                {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
-                {form: {_id: exps.forms.UserApps}, crud: "crud"},
-                {form: {_id: exps.forms.App}, crud: "crud"},
-                {form: {_id: exps.forms.AppSearch}, crud: "crud"},
-                {form: {_id: exps.forms.AppPerms}, crud: "crud"},
-                {form: {_id: exps.forms.AppPageComponent}, crud: "crud"},
-                {form: {_id: exps.forms.ImportMeta}, crud: "crud"},
-                {form: {_id: exps.forms.ImportMetaData}, crud: "crud"}
-                ]}
-            ]
+            load: [ exps.adminApp  ]
           }
         ]
       }
     ];
+*/
+    exps.adminApp = {_id: "admin",
+        name: "Admin App", type: "deployed", public: "yes", default: "yes", appperms: [
+      {form: {_id: exps.forms.formMetadata}, crud: "crud"},
+      {form: {_id: exps.forms.ComponentMetadata}, crud: "crud"},
+      {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
+      {form: {_id: exps.forms.DropDownOption}, crud: "crud"},
+      {form: {_id: exps.forms.metaSearch}, crud: "crud"},
+      {form: {_id: exps.forms.Users}, crud: "crud"},
+      {form: {_id: exps.forms.UserSearch}, crud: "crud"},
+      {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
+      {form: {_id: exps.forms.UserApps}, crud: "crud"},
+      {form: {_id: exps.forms.App}, crud: "crud"},
+      {form: {_id: exps.forms.AppSearch}, crud: "crud"},
+      {form: {_id: exps.forms.AppPerms}, crud: "crud"},
+      {form: {_id: exps.forms.AppPageComponent}, crud: "crud"},
+      {form: {_id: exps.forms.iconSearch}, crud: "crud"},
+      {form: {_id: exps.forms.ImportMeta}, crud: "crud"},
+      {form: {_id: exps.forms.ImportMetaData}, crud: "crud"}
+    ]};
 
     exps.adminMetabyId = function() {
       let res = {};

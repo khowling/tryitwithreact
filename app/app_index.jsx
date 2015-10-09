@@ -3,6 +3,8 @@
 import './index.html';
 import 'babel-core/polyfill';
 
+import './styles/main.scss';
+
 import React, {Component} from 'react';
 import App from "./app.jsx";
 
