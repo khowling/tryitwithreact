@@ -372,12 +372,12 @@ export class Field extends Component {
               else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id ) {
                 if (fldval) {
                   gotimageicon = true;
-                  return (<IconField value={fldval} small={true}/>);
+                  return (<IconField key={fldidx} value={fldval} small={true}/>);
                 }
               } else if (fld.type !== "reference" && fld.type !== "childform" && fld.type !== "relatedlist") {
-                return (<Field fielddef={fld} value={fldval} inlist={true}/>);
+                return (<Field key={fldidx} fielddef={fld} value={fldval} inlist={true}/>);
               } else
-                return <Alert message={'"'+fld.type+'" not supported on search form'}/>
+                return <Alert key={fldidx} message={'"'+fld.type+'" not supported on search form'}/>
             }
 
             if (fld.show_when) {
@@ -496,12 +496,12 @@ export class Field extends Component {
           if (sform) {
 
             field = <span>
-                    <div className="slds-pill-container slds-input-has-icon slds-input-has-icon--right">
+                    <div className="slds-pill-container slds-input-has-icon slds-input-has-icon--right" style={{padding: "0"}}>
 
                       <a onClick={this._handleLookupKeypress.bind(this, {target: {value: true}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
 
                       { this.state.value &&
-                      <span className="slds-pill">
+                      <span className="slds-pill" style={{padding: "0.15rem", margin: "0.18rem"}}>
                         <a href={cform && Router.URLfor(null, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
                           { referenceForm(sform, self.state.value.search_ref) }
                         </a>
@@ -511,7 +511,7 @@ export class Field extends Component {
                         </button>
                       </span>
                       ||
-                      <input className="slds-input--bare" style={{visibility: this.state.value && "hidden" || "visible"}}  type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value && "disabled" || ""}/>
+                      <input className="slds-input" style={{border: "none"}} type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value && "disabled" || ""}></input>
                       }
                   </div>
                   { this.state.lookup.create &&
@@ -592,15 +592,15 @@ export class Field extends Component {
                       <thead>
                         <tr id="weekdays">
                           { ["S", "M", "T", "W", "T", "F", "S"].map((day, i) =>{ return (
-                            <th ><abbr>{day}</abbr></th>
+                            <th key={day}><abbr>{day}</abbr></th>
                         )})}
                         </tr>
                       </thead>
                       <tbody>
                         { this.state.date.montharray.map((wkarray, i) =>{ return (
-                            <tr>
+                            <tr key={i}>
                             { wkarray.map((day, i) =>{ return (
-                              <td className={day.length == 0 &&  "slds-disabled-text" || (day == this.state.date.today && "slds-is-today" || "")}>
+                              <td key={i} className={day.length == 0 &&  "slds-disabled-text" || (day == this.state.date.today && "slds-is-today" || "")}>
                                 <span className="slds-day" onClick={self._doneDate.bind(self, 2015, 6, day)}>{day}</span>
                               </td>
                             )})}

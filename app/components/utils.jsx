@@ -66,7 +66,7 @@ export class UpdatedBy extends Component {
         img_src = this.props.user.picture && df.host+"/dform/file/"+this.props.user.picture || "http://placehold.it/120x120";
 
     return (
-      <span className="slds-pill" style={{marginBottom: "4px;"}}>
+      <span className="slds-pill" style={{marginBottom: "4px"}}>
         <a href="#" className="slds-pill__label">
           <span className="slds-avatar slds-avatar--circle slds-avatar--x-small">
             <img src={img_src} alt="" />

@@ -136,26 +136,31 @@ module.exports = function(options) {
       console.log (`----------------  /loadApp: urlappid: ${urlappid}, user: " ${JSON.stringify(req.user)}`);
 
       if (req.user) {
+
+        if (req.user.role === "manager") req.user.apps.push({app: {_id: orm.adminApp._id, search_ref: orm.adminApp}});
         let userapps = req.user.apps  || [];
         if (urlappid) {
           // app requested, so provide it.
           let app = userapps.find(ua => ua.app._id == urlappid);
           appid = app && app.app._id || userapps[0] && userapps[0].app._id;
         }  else {
-          // no app requested, so get the default  app..
+          // no app requested, so get the default  app, if no default, get admin app
           let app = userapps.find(ua => ua.app.default == "yes");
-          appid = app && app.app._id || userapps[0] && userapps[0].app._id;
+          appid = app && app.app._id || null;
         }
       } else {
         // not logged on, get the default app, unless requested.
         if (urlappid)
           // app requested, so provide it.
           appid = urlappid;
-//        else
-//          appid = "55f986e0db910aa2333226f3";
       }
-      //res.setHeader('Content-Type', 'application/json');
-      if (appid) {
+
+      if (!appid || appid == orm.adminApp._id) {
+        // no user, no appid, return the admin app!
+        let adminmetabyId = orm.adminMetabyId(),
+            adminmetafiltered = orm.adminApp.appperms.map(ap => { return adminmetabyId[ap.form._id.toString()]});
+          res.json({user: req.user, app: orm.adminApp,  appMeta: adminmetafiltered});
+      } else {
         console.log ("/formdata: user logged on and authorised for the apps : " + appid);
         orm.find(orm.forms.App, { id: appid}, true, true).then((apprec) => {
             let objectids = [];
@@ -168,15 +173,7 @@ module.exports = function(options) {
               res.json({user: req.user, app: apprec, appMeta: sucval});
             }, errfn).catch(errfn);
         }, errfn)
-      } else {
-        // no user, no appid, return the admin app!
-        let adminmetabyId = orm.adminMetabyId(),
-            adminmetafiltered = orm.adminApp.appperms.map(ap => { return adminmetabyId[ap.form._id.toString()]});
-      //  orm.getFormMeta([]).then (function (sucval) {
-          res.json({user: req.user, app: orm.adminApp,  appMeta: adminmetafiltered});
-    //    }, errfn).catch(errfn);
       }
-
     });
 
   router.get('/defaultData', function(req, res) {

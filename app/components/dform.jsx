@@ -3,31 +3,26 @@
 import React, {Component} from 'react';
 //import ReactDOM from 'react-dom';
 import jexl from 'jexl';
-
 import Router from './router.jsx';
-
 import {Field} from './dform_fields.jsx';
 import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
-
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
-
 import DynamicForm from '../services/dynamicForm.es6';
-
 import async from '../lib/async.es6';
 
-
-// Called from Form Route (top), or within List (embedded), for lookup (create new)
+/*****************************************************************************
+  ** Called from Form Route (top), or within List (embedded),
+  ** Responsibilities: Render form fields, save record, delete record
+  ***************************************************************************/
 export class FormMain extends Component {
   constructor(props) {
     super(props);
 
     this.state =  {
       nonchildformfields:  props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'relatedlist'),
-//      value: props.value, // this is the original data from the props
       manageData: false,
       changedata:  props.crud == "c" && props.value.record || {}, // keep all data changes in the state
-      formcontrol: {flds:{},invalid: false, change: false}, // this._formControlState (nonchildformfields, props.value.record),  // keep form control (visibility and validity)
       edit: props.crud == "c" || props.crud == "u", // edit mode if props.edit or value has no _id (new record),
       errors: null};
     console.log ('FormMain constructor setState : ' + JSON.stringify(this.state));
@@ -79,6 +74,13 @@ export class FormMain extends Component {
     })(fields, val, currentState);
   }
 
+  componentWillMount() {
+    this._formControlState (this.state.nonchildformfields, this.props.value.record).then(succval => {
+      this.setState ({
+        formcontrol: succval
+      });
+    });
+  }
   // form data is ready from parent
   componentWillReceiveProps (nextProps) {
     console.log ("FormMain componentWillReceiveProps");
@@ -89,7 +91,6 @@ export class FormMain extends Component {
           manageData: false,
           inlineData: null,
           serverError: null,
-//          value: nextProps.value,
           formcontrol: succval
         });
       });
@@ -120,7 +121,7 @@ export class FormMain extends Component {
       let {view, recordid, field} = this.props.parent;
       saveopt.parent = {
         parentid: recordid,
-        parentfieldid: field._id
+        parentfieldid: field
       };
     }
     console.log ('FormMain _save : '+ JSON.stringify(saveopt));
@@ -145,7 +146,7 @@ export class FormMain extends Component {
         let {view, recordid, field} = this.props.parent;
         saveopt.parent = {
           parentid: recordid,
-          parentfieldid: field._id
+          parentfieldid: field
         };
       }
 
@@ -234,7 +235,7 @@ export class FormMain extends Component {
         <div className={this.props.inModal && "slds-modal__content" || "" + " slds-form--stacked"} style={{padding: "0.5em", minHeight: this.props.inModal && "400px" || "auto"}}>
           <div className="slds-grid slds-wrap">
 
-            {nonchildformfields.map(function(field, i) {
+            { formcontrol && nonchildformfields.map(function(field, i) {
               let fc = formcontrol.flds[field.name] || {visible: true, invalid: false};
               if (fc.visible) return (
               <div key={i} className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
@@ -264,7 +265,7 @@ export class FormMain extends Component {
               </div>
             }
 
-            { this.state.formcontrol.serverError &&
+            { this.state.formcontrol && this.state.formcontrol.serverError &&
               <div className="slds-col slds-col--padded slds-size--1-of-1"  style={{marginTop: "15px"}}>
                 <Alert type="error" message={this.state.formcontrol.serverError}/>
               </div>
@@ -422,7 +423,7 @@ export class ListMain extends Component {
           let {view, recordid, field} = this.props.parent;
           saveopt.parent = {
             parentid: recordid,
-            parentfieldid: field._id
+            parentfieldid: field
           };
         }
         console.log ('ListMain _delete : '+ JSON.stringify(saveopt));
@@ -496,23 +497,6 @@ export class ListMain extends Component {
         // this will re-load the data at the parent, and in turn send new props
         this.props.onDataChange();
       }
-/*
-      console.log ('ListMain _formDone() update of row ' + JSON.stringify(this.state.editrow));
-      if (operation === 'save') {
-
-        if (this.state.editrow.crud === "u") {
-          var newVals = seq(this.state.value.records,
-            map(x => x._id === this.state.editrow.value.records._id && res || x));
-        } else if (this.state.editrow.crud === "c") { {
-          this.state.value.records.push(res);
-          var newVals = this.state.value.records;
-        }
-
-      } else if (operation === 'delete') {
-        var newVals = this.state.value.records.filter (r => r._id !== this.state.editrow.value.records._id);
-      }
-      this.setState ({value: newVals, editrow: false});
-*/
     } else {
       console.log ("ListMain _formDone() no data, must be cancel");
       this.setState ({editrow: false});
@@ -619,7 +603,6 @@ export class ListMain extends Component {
 }
 ListMain.propTypes = {
   // Core
-  //view: React.PropTypes.string.isRequired,
   view: React.PropTypes.shape({
     store: React.PropTypes.string.isRequired,
     fields: React.PropTypes.array.isRequired
@@ -735,7 +718,7 @@ export class RecordPage extends Component {
               {this.state.crud === "r"  && this.state.childformfields.map(function(field, i) {
                 let cform = field.child_form && df.getForm(field.child_form._id);
                 return (
-                <div style={{padding: "0.5em"}}>
+                <div key={`${cform._id}${i}`} style={{padding: "0.5em"}}>
                   <ListMain parent={{view: self.state.metaview._id, recordid: status == 'ready' && record._id || "new", field: field._id }} view={cform} value={{status: status, records: status === "ready" && record[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
                 </div>
               );})}
@@ -745,7 +728,7 @@ export class RecordPage extends Component {
             <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
               {this.state.crud === "r"  && this.state.value.status === "ready" && this.state.relatedlistfields.map(function(field, i) {
                 return (
-                <div style={{padding: "0.5em"}}>
+                <div key={`${field.child_form._id}${i}`} style={{padding: "0.5em"}}>
                   <ListPage  urlparam={{view: field.child_form._id, q: {[field.name]: record._id}}} />
                 </div>
               );})}
@@ -785,7 +768,7 @@ export class PageHeader extends Component {
           <div className="slds-col slds-no-flex slds-align-bottom">
             <div className="slds-grid">
               { !isformmeta &&
-              <a className="slds-button slds-button--icon-more slds-shrink-none slds-m-left--large" href={ Router.URLfor("55f87e3e65a3434223b2ed20", "RecordPage", "303030303030303030313030", this.props.view._id)}>
+              <a className="slds-button slds-button--icon-more slds-shrink-none slds-m-left--large" href={ Router.URLfor("admin", "RecordPage", "303030303030303030313030", this.props.view._id)}>
                 <SvgIcon spriteType="utility" spriteName="settings" small={true} classOverride="slds-button__icon icon-utility"/>
               </a>
               }

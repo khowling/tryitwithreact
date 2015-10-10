@@ -782,7 +782,7 @@ module.exports = function(options) {
       })
     }
 
-    //exps.forms = meta.exp.form;
+    exps.forms = meta.forms;
     // expose these from the static data
     exps.defaultData = meta.defaultData;
     exps.adminApp = meta.adminApp;
