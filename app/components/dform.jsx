@@ -44,7 +44,7 @@ export class FormMain extends Component {
 
     return async(function *(fields, val, currentState) {
       //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
-      let cnrt = {flds:{},invalid: false, change: false};
+      let cnrt = {flds:{},invalid: false, change: currentState && false || true};
       for (let fld of fields) {
         let visible = true;
         console.log (`field ${fld.name}, show_when ${fld.show_when}, val ${JSON.stringify(val)}`);
@@ -87,10 +87,7 @@ export class FormMain extends Component {
     if (nextProps.value) {
       this._formControlState (this.state.nonchildformfields, nextProps.value.record).then(succval => {
         this.setState ({
-          changedata: {},
-          manageData: false,
-          inlineData: null,
-          serverError: null,
+          changedata: {}, // wipe out any changes???
           formcontrol: succval
         });
       });
