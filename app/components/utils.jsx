@@ -76,3 +76,18 @@ export class UpdatedBy extends Component {
     )
   }
 }
+
+export class Modal extends Component {
+  render() {
+    return (
+    <div>
+      <div aria-hidden="false" role="dialog" className="slds-modal slds-modal--large slds-fade-in-open">
+        <div className="slds-modal__container"  style={{width: "95%"}}>
+            {this.props.children}
+        </div>
+      </div>
+      <div className="slds-modal-backdrop slds-modal-backdrop--open"></div>
+    </div>
+    );
+  }
+}

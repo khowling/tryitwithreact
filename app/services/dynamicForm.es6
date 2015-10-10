@@ -135,7 +135,12 @@ export default class DynamicForm {
       var xhr = new XMLHttpRequest();
       xhr.upload.addEventListener("progress",  evtFn, false);
       xhr.addEventListener("load", function (evt) {
-        resolve(JSON.parse(evt.target.response));
+        let response = JSON.parse(evt.target.response);
+        if (response._id) {
+          resolve(response);
+        } else {
+          reject (response.error);
+        }
        }, false);
      xhr.addEventListener("error", function (evt) {
        reject (evt);
@@ -144,7 +149,7 @@ export default class DynamicForm {
        reject(evt);
      }, false);
      xhr.addEventListener("loadstart", evtFn);
-
+     xhr.withCredentials = true;
      xhr.open("PUT", this._host + '/dform/file/' + file.name, true);
      xhr.setRequestHeader("Content-Type", file.type);
      console.log ('uploadFile() sending : ' + file.name + ', ' + file.type);

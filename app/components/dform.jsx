@@ -6,596 +6,26 @@ import jexl from 'jexl';
 
 import Router from './router.jsx';
 
-import ProgressBar from 'progressbar.js'
-import { SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
+import {Field} from './dform_fields.jsx';
+import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
+
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
+
 import DynamicForm from '../services/dynamicForm.es6';
 
 import async from '../lib/async.es6';
 
 
-export class Field extends Component {
-
-  constructor(props) {
-    super(props);
-    let state = {
-      picupload:0, picselectexisting:false, picFileList: {state: "wait", records: []},
-      lookup: { visible: false, values: [], create: false, offercreate: false},
-      date: {visible: false, montharray: [] }
-    };
-
-    state.value = props.value
-    console.log ("Field constructor " + props.fielddef.name + "["+props.fielddef.type+"] = " + JSON.stringify(state.value));
-    this.state = state;
-    this._selectedFile = this._selectedFile.bind(this);
-  }
-
-  componentWillReceiveProps(nextProps) {
-    console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
-    if (nextProps.value != this.props.value) {
-      console.log ('the field value has been updated by the form, update the field (this will override the field state)');
-      this.setState({value: nextProps.value});
-    }
-  }
-/*
-  _formatReferenceValue(search_form, value) {
-    console.log ("Field _formatReferenceValue, form: " + search_form.name + "["+search_form.type+"], value: "+ JSON.stringify(value));
-    if (search_form.type === "metadata") {
-      if (!value || typeof value !== "string")  return null;
-      // client needs to do it
-     let search_ref = search_form.data.find(i => i.key === value) || {};
-     return {key: value, search_ref: search_ref};
-    } else {
-      // done by the server
-      return value;
-    }
-  }
-*/
-  shouldComponentUpdate(nextProps, nextState) {
-    let shouldUpdate = true;
-    //console.log ('Field shouldComponentupdate props: ' + JSON.stringify(nextProps));
-     // state: ' + JSON.stringify(nextState));
-
-      // Field is updating itsself, always update
-    if (!nextState) {
-      if (this.props.fielddef.type === "reference") {
-        if (nextProps.value && this.props.edit) {
-          shouldUpdate =  false;
-        }
-      } else if (nextProps.value && nextProps.value === this.props.value) {
-        shouldUpdate =  false;
-      }
-    }
-    console.log ('Field shouldComponentupdate : ' + shouldUpdate);
-    return shouldUpdate;
-  }
-
-  componentDidMount() {
-      var self = this,
-        df = DynamicForm.instance;
-      if (this.props.fielddef.type === 'image' && this.props.edit) {
-        this.line = new ProgressBar.Line(React.findDOMNode(this.refs.progressline), {color: '#FCB03C'})
-      }
-  }
-
-  componentWillUnmount () {
-      if (this.line) this.line.destroy();
-  }
-
-  /********************/
-  /* Lookup Functions */
-  /********************/
-
-  _openCreate(val) {
-
-    this.setState({lookup: {create: true, visible: false, values: [], createValue: {status: "ready", record: {name: val}}}});
-  }
-
-  _handleLookupKeypress(e) {
-    let inval = e.target.value,
-        df = DynamicForm.instance,
-        sform = this.props.fielddef.search_form && df.getForm(this.props.fielddef.search_form._id);
-
-    if (!inval)
-      this.setState({lookup: {visible: false, fields: null, values: [], offercreate: false}});
-    else if (sform.store === "metadata") {
-      console.log ("its from meta : " + JSON.stringify(sform._data));
-      // TODO : need text search logic here
-      this.setState({lookup: {visible: true, fields: sform.fields, values: sform._data, offercreate: false}});
-    } else {
-      console.log ('_handleLookupKeypress: ' + inval);
-      let setLookupVals = () => {
-        df.search(sform._id, inval).then(succVal => {
-          if (this.props.fielddef.search_form._id === "303030303030303030343030") { //'metaSearch'
-            succVal = succVal.concat( df.appMeta) ;
-          }
-          this.setState({lookup: {visible: true, fields: sform.fields, values: succVal, offercreate: true}});
-        });
-      };
-      if (this.state.lookup.visible == false)
-        this.setState({lookup: {visible: true, values:[], create: false}}, setLookupVals );
-      else
-        setLookupVals();
-    }
-  }
-
-
-  _handleLookupSelectOption (data) {
-    let lookupval,
-        resetLookup = {visible: false, values: [] };
-
-    React.findDOMNode(this.refs.lookupinput).value = "";
-
-    if (!data) {
-      console.log ('Field _handleLookupSelectOption, clear field state, then update parent ['+this.props.fielddef.name+']');
-      this.setState ({value: null, lookup: resetLookup}, () => {
-        if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: null});
-      });
-    } else {
-      lookupval ={_id: data._id, search_ref: data} ;
-      console.log ('Field _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
-      this.setState ({value: lookupval, lookup: resetLookup}, () => {
-        if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: {_id: data._id}});
-      });
-    }
-  }
-
-  _newLookupRecord(row) {
-    console.log ("Field _newLookupRecord got new lookup record : " + JSON.stringify (row));
-    React.findDOMNode(this.refs.lookupinput).value = "";
-    this.setState({value: row, lookup: {create: false, visible: false, values:[]}}, () => {
-      if (this.props.onChange)
-        this.props.onChange ({[this.props.fielddef.name]: row});
-    });
-  }
-
-  /*******************/
-  /* Image Functions */
-  /*******************/
-  _clickFile() {
-    React.findDOMNode(this.refs.imageinput).click();
-  }
-
-  _fileuploadhtml5(e) {
-    var self = this,
-        df = DynamicForm.instance,
-        file = e.currentTarget.files[0];
-
-    console.log('Field _fileuploadhtml5 : ' + file.name);
-    df.uploadFile(file, progressEvt => {
-      console.log ('progress ' + progressEvt.loaded);
-      if (progressEvt.lengthComputable) {
-        //this.setState({picupload: Math.round(progressEvt.loaded * 100 / progressEvt.total)});
-        this.line.animate(Math.round(progressEvt.loaded / progressEvt.total));
-      } else {
-        //this.setState({picupload: 50});
-        this.line.animate(0.5);
-      }
-    }).then (succVal => {
-
-      this.line.animate(1, () => this.line.set(0));
-      console.log ('got :' + JSON.stringify (succVal));
-
-      this.setState({value: succVal._id}, () => {
-        if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: succVal._id});
-        });
-     //data.documents[field.name] = evt.target.responseText;
-   }, errEvt => {
-     console.log ("There was an error attempting to upload the file:" + JSON.stringify(errEvt));
-     this.setState({servererr: 'Upload failed'});
-   });
-   return false;
-  }
-
-  _selectExisting() {
-    let df = DynamicForm.instance;
-    this.setState({picselectexisting: true}, () => {
-      df.listFiles().then(succVal => {
-        this.setState({picFileList: {state: "wait", records: succVal}});
-      });
-    });
-  }
-  _selectedFile(filename) {
-    let fileid = filename  || this.state.value;
-    console.log ('called _selectedFile with:' + JSON.stringify(filename));
-    this.setState({value: fileid, picselectexisting: false}, () => {
-      if (this.props.onChange)
-        this.props.onChange ({[this.props.fielddef.name]: fileid});
-      });
-  }
-  /*******************/
-  /* Date  Functions */
-  /*******************/
-  _showDate() {
-
-    let now = new Date(),
-        montharray = [],
-        daycnt = 0,
-        today = new Date().getDate(),
-        firstDoW = new Date(now.getFullYear(), now.getMonth(), 1).getDay(), // day of week [0-6]
-        lastDoM = new Date(now.getFullYear(), now.getMonth(), 0).getDate(); // day of month [1-31]
-
-    for (let wkidx of [0,1,2,3,4,5]) {
-      montharray[wkidx] = [];
-      for (let dayidx of [0,1,2,3,4,5,6]) {
-        if (wkidx == 0 && dayidx == firstDoW) daycnt = 1; // found 1st day of month, start the count up
-        montharray[wkidx][dayidx] = "";
-        if (daycnt >0 && daycnt < lastDoM)  montharray[wkidx][dayidx] = daycnt++;
-      }
-      if (daycnt >= lastDoM)  break;
-    }
-    this.setState ({date: {visible: true, today: today, montharray: montharray }})
-  }
-
-  _doneDate(yr,mth,day) {
-    if (yr) {
-      console.log ("Field _doneDate :"  + yr + ":" + mth + ":" + day);
-      this.setState ({value: new Date(yr,mth,day), date: {visible: false }}, () => {
-        if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: this.state.value});
-      });
-    } else {
-      this.setState ({date: {visible: false }});
-    }
-  }
-  /**************************/
-  /* inline Data  Functions */
-  /**************************/
-  _inlineDataChange(val) {
-    console.log ("Field: _inlineDataChange : got update from List : " + JSON.stringify(val));
-    if (this.props.onChange)
-      this.props.onChange ({[this.props.fielddef.name]: val});
-  }
-  /****************************/
-
-  handleValueChange(event) {
-    let newval = event.target.value;
-    console.log ('Field handleValueChange : ' + newval);
-    this.setState ({value: newval}, () => {
-      if (this.props.onChange)
-        this.props.onChange ({[this.props.fielddef.name]: newval});
-    });
-  }
-
-  render() {
-
-    console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> state.value : ' + JSON.stringify(this.state.value));
-
-    let field, img_src,
-        self = this,
-        df = DynamicForm.instance;
-
-    if (this.props.fielddef.type === 'image') {
-      img_src = this.state.value && df.host+"/dform/file/"+this.state.value || "http://placehold.it/120x120";
-      console.log ('Field img_src: ' + img_src);
-    }
-
-    // function to generate reference search form (for seleced value in edit and view modes, and list values)
-    let referenceForm = (sform, rec) => {
-      let gotimageicon = false,
-          retform = sform.fields.map(function(fld, fldidx) {
-
-            let genField = function() {
-              let fldval = rec[fld.name];
-              if (fld.name === "_id") ;
-              else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id ) {
-                if (fldval) {
-                  gotimageicon = true;
-                  return (<IconField value={fldval} small={true}/>);
-                }
-              } else if (fld.type !== "reference" && fld.type !== "childform" && fld.type !== "relatedlist") {
-                return (<Field fielddef={fld} value={fldval} inlist={true}/>);
-              } else
-                return <Alert message={'"'+fld.type+'" not supported on search form'}/>
-            }
-
-            if (fld.show_when) {
-              jexl.eval(fld.show_when, {"$rec": rec}, (err, visible) => { //eval(fld.show_when);
-                if (visible) return genField();
-              });
-            } else
-              return genField();
-          });
-      if (typeof rec === "undefined") {
-        return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>no search_ref</span>;
-      } else if (rec.error) {
-        return  <span key={rec._id} style={{color: "red"}}><IconField value={sform.icon} small={true}/>{rec.error}</span>;
-      } else {
-        if (!gotimageicon && sform.icon)
-          retform = <span key={rec._id}><IconField value={sform.icon} small={true}/>{retform}</span>;
-        return <span key={rec._id}>{retform}</span>;
-      }
-    }
-
-    if (!this.props.edit) switch (this.props.fielddef.type) {
-        case 'text':
-        case 'email':
-        case 'textarea':
-          field = (<span>{this.props.value}</span>);
-          break;
-        case 'jsonarea':
-          field = (<span>{JSON.stringify(this.props.value, null, 4)}</span>);
-          break;
-        case 'dropdown':
-          let ddopt = this.props.value &&  this.props.fielddef.dropdown_options.filter(f => f.key === this.props.value)[0];
-          field = (<span>{ddopt && ddopt.name || (this.props.value && 'Unknown option <' + this.props.value +'>' || '')}</span>);
-          break;
-        case "reference":
-          if (this.state.value) {
-            let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id);
-            if (sform) {
-              // this is here for the "metadata" - inline edit screen!
-              if (this.state.value._id && sform.store === "metadata") {
-                this.state.value.search_ref = sform._data.find(x => x._id === this.state.value._id);
-              }
-
-              if (this.props.fielddef.createnew_form)
-                field = (<span className="slds-pill">
-                            <a href={Router.URLfor(null,"RecordPage", this.props.fielddef.createnew_form._id, this.state.value._id)} className="slds-pill__label">
-                              { referenceForm(sform, self.state.value.search_ref) }
-                            </a>
-                          </span>);
-              else
-                field = (<span className="slds-pill">
-                            <span className="slds-pill__label">{ referenceForm(sform, self.state.value.search_ref) }</span>
-                          </span>);
-            } else
-              field = <Alert type="error" message={"Missing Metadata: " + this.props.fielddef.search_form}/>;
-
-          } else  {
-            field = (<span/>);
-          }
-          break;
-        case "dropdown_options":
-          let cform = this.props.fielddef.child_form && df.getForm(this.props.fielddef.child_form._id);
-          field = (<ListMain view={cform} value={{status: "ready", records: this.props.value}} parent={{field: this.props.fielddef}} viewonly={true}/>);
-          break;
-        case "datetime":
-          field = (<span>{this.props.value && new Date(this.props.value).toLocaleDateString() || ""}</span>);
-          break;
-        case 'childform':
-          //let cform = MetaStore.getForm (this.props.fielddef.child_form);
-          //field = <ChildForm form={cform} value={this.props.value}/>;
-          field = (<span>childform not supported here</span>);
-          break;
-        case "icon":
-          if (this.props.value)
-              field = (<span><SvgIcon spriteType={this.props.value.type} spriteName={this.props.value.name} small={true}/></span>);
-          else
-            field = (<span/>);
-          break;
-        case 'image':
-          let marginBott = !this.props.inlist && {marginBottom: "4px"} || {};
-          field = (<div className={this.props.inlist && "slds-avatar slds-avatar--circle slds-avatar--x-small"} style={marginBott}>
-                    <img style={{maxHeight: "150px"}} src={img_src} alt="message user image"/>
-                  </div>);
-          break;
-        default:
-          field = <span>Unknown fieldtype {this.props.fielddef.type}</span>;
-          break;
-    } else {
-
-
-      switch (this.props.fielddef.type) {
-        case 'text':
-        case 'email':
-          field =  <input type="text" className="slds-input" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}/>;
-          break;
-        case 'textarea':
-          field = <textarea className="slds-input" rows="3" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}></textarea>;
-            break;
-        case 'jsonarea':
-            field = <textarea className="slds-input" rows="3" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}></textarea>;
-            break;
-        case 'dropdown':
-          field = <select className="slds-input" value={this.state.value} onChange={this.handleValueChange.bind(this)}>
-                        <option value="">-- select --</option>
-                        {this.props.fielddef.dropdown_options.map (function(opt, i) { return (
-                        <option key={i} value={opt.key}>{opt.name}</option>
-                        );})}
-                      </select>;
-            break;
-        case "icon":
-        case "reference":
-          let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id),
-              cform = this.props.fielddef.createnew_form && df.getForm (this.props.fielddef.createnew_form._id);
-
-          if (sform) {
-
-            field = <span>
-                    <div className="slds-lookup__control slds-input-has-icon slds-input-has-icon--right">
-                      <a onClick={this._handleLookupKeypress.bind(this, {target: {value: true}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
-
-                      { this.state.value &&
-                      <span className="slds-pill">
-                        <a href={cform && Router.URLfor(null, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
-                          { referenceForm(sform, self.state.value.search_ref) }
-                        </a>
-                        <button onClick={self._handleLookupSelectOption.bind (self, null)} className="slds-button slds-button--icon-bare">
-                          <SvgIcon spriteType="utility" spriteName="close" small={true} classOverride="slds-button__icon icon-utility"/>
-                          <span className="slds-assistive-text">Remove</span>
-                        </button>
-                      </span>
-                      }
-                      <input className="slds-input--bare" style={{visibility: this.state.value && "hidden" || "visible"}}  type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value && "disabled" || ""}/>
-
-                  </div>
-
-                    <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible && 'visible' || 'hidden'}}>
-                      { this.state.lookup.create &&
-                        <Modal>
-                          <div className="slds-modal__container w95">
-                            <div style={{padding: "0.5em", background: "white"}}>
-                              <PageHeader view={cform}/>
-                            </div>
-                            <div className="slds-modal__content" style={{padding: "0", minHeight: "350px"}}>
-                              <FormMain key={"model-"+this.props.fielddef.name} view={cform} value={this.state.lookup.createValue} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
-                            </div>
-                            <div className="slds-modal__footer">
-                            </div>
-                          </div>
-                        </Modal>
-                      ||
-                        <ul className="slds-lookup__list" role="presentation">
-
-                          {this.state.lookup.values.map(function(row, i) { return (
-                          <li key={i} className="slds-lookup__item" role="presentation">
-                              <a onClick={self._handleLookupSelectOption.bind (self, row)} role="option">
-                                { referenceForm(sform, row) }
-                              </a>
-                          </li>
-                          );})}
-
-                          { this.state.lookup.offercreate && cform &&
-                          <li className="slds-lookup__item " role="presentation">
-                             <a onClick={this._openCreate.bind(this, React.findDOMNode(this.refs.lookupinput).value)} role="option">
-                               <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride="icon-utility"/>
-                               Create {cform.name + ' "' + React.findDOMNode(this.refs.lookupinput).value + '"'}
-                             </a>
-                           </li>
-                          }
-                        </ul>
-                      }
-                    </div>
-                  </span>;
-            } else {
-              field = <Alert type="error" message={"no search_form " + this.props.fielddef.search_form}/>;
-            }
-            break;
-        case "datetime":
-          field = <span>
-                  <div className="slds-form-element__control">
-                    <div className="slds-input-has-icon slds-input-has-icon--right">
-                      <SvgIcon spriteType="utility" spriteName="event" small={true} classOverride="slds-input__icon" />
-                      <input className="slds-input" type="text" placeholder="Pick a Date" value={this.state.value && new Date(this.state.value).toLocaleDateString() || ""} onFocus={this._showDate.bind(this)} />
-                    </div>
-                  </div>
-
-                  { this.state.date.visible &&
-                  <div className="slds-dropdown slds-dropdown--left slds-datepicker">
-                    <div className="slds-datepicker__filter slds-grid">
-                      <div className="slds-datepicker__filter--month slds-grid slds-grid--align-spread slds-size--3-of-4">
-                        <div className="slds-align-middle">
-                          <button className="slds-button slds-button--icon-container">
-                            <SvgIcon spriteType="utility" spriteName="left" small={true} classOverride="slds-input__icon" small={true}/>
-                            <span className="slds-assistive-text">Previous Month</span>
-                          </button>
-                        </div>
-                        <h2 id="month" className="slds-align-middle" aria-live="assertive" aria-atomic="true">June</h2>
-                        <div className="slds-align-middle">
-                          <button className="slds-button slds-button--icon-container">
-                            <SvgIcon spriteType="utility" spriteName="right" small={true} small={true}/>
-                            <span className="slds-assistive-text">Next Month</span>
-                          </button>
-                        </div>
-                      </div>
-                      <div className="slds-picklist datepicker__filter--year slds-shrink-none">
-                        <button id="year" className="slds-button slds-button--neutral slds-picklist__label" aria-haspopup="true">2015
-                          <SvgIcon spriteType="utility" spriteName="down" small={true} classOverride="slds-input__icon" small={true}/>
-                        </button>
-                      </div>
-                    </div>
-                    <table className="datepicker__month" role="grid" aria-labelledby="month">
-                      <thead>
-                        <tr id="weekdays">
-                          { ["S", "M", "T", "W", "T", "F", "S"].map((day, i) =>{ return (
-                            <th ><abbr>{day}</abbr></th>
-                        )})}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        { this.state.date.montharray.map((wkarray, i) =>{ return (
-                            <tr>
-                            { wkarray.map((day, i) =>{ return (
-                              <td className={day.length == 0 &&  "slds-disabled-text" || (day == this.state.date.today && "slds-is-today" || "")}>
-                                <span className="slds-day" onClick={self._doneDate.bind(self, 2015, 6, day)}>{day}</span>
-                              </td>
-                            )})}
-                            </tr>
-                        )})}
-                      </tbody>
-                    </table>
-                  </div>
-                  }
-                </span>;
-          break;
-        case 'childform':
-            field = <div></div>;
-            break;
-        case 'image':
-            let picview = df.getFormByName('FileMeta');
-            field = <div>
-                      <input type="file" ref="imageinput" name="file" style={{display: "none"}} accept="image/*" onChange={this._fileuploadhtml5.bind(this)} />
-                      <div className="pic-with-text" style={{backgroundImage: "url("+img_src+")"}}>
-                        <header>
-                          <div style={{margin: "8px 30px"}}>
-                            <a onClick={this._clickFile.bind(this)}>upload new picture</a> |
-                            <a onClick={this._selectExisting.bind(this)}> select existing picture</a>
-                          </div>
-                          <div ref="progressline"></div>
-                        </header>
-
-                      </div>
-                      { this.state.picselectexisting &&
-                        <Modal>
-                          <div className="slds-modal__container w95">
-                            <div style={{padding: "0.5em", background: "white"}}>
-                              <PageHeader view={picview}/>
-                            </div>
-                            <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
-                              <ListMain view={picview} value={this.state.picFileList} selected={this._selectedFile}/>
-                            </div>
-                            <div className="slds-modal__footer"></div>
-                          </div>
-                        </Modal>
-                      }
-
-                    </div>;
-            break;
-        case 'dropdown_options':
-          let cform1 = this.props.fielddef.child_form && df.getForm(this.props.fielddef.child_form._id);
-          field = (<ListMain view={cform1} value={{status: "ready", records: this.state.value }} parent={{field: this.props.fielddef}} onDataChange={this._inlineDataChange.bind(this)}/>);
-          break;
-        default:
-            field = <div>Unknown fieldtype {this.props.fielddef.type}</div>;
-            break;
-      };
-    }
-
-    return field;
-  }
-}
-
-export class Modal extends Component {
-  render() {
-    return (
-    <div>
-      <div aria-hidden="false" role="dialog" className="slds-modal slds-fade-in-open">
-        <div className="slds-modal__container"  style={{width: "95%"}}>
-            {this.props.children}
-        </div>
-      </div>
-      <div className="slds-modal-backdrop slds-modal-backdrop--open"></div>
-    </div>
-    );
-  }
-}
-
 // Called from Form Route (top), or within List (embedded), for lookup (create new)
 export class FormMain extends Component {
   constructor(props) {
     super(props);
-    let df = DynamicForm.instance,
-        nonchildformfields = props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'relatedlist'),
-        value = props.value;// props.crud == "c" && {state: "ready",  record: {}} || (props.value || {state: "wait",  record: {}});
 
     this.state =  {
-      nonchildformfields: nonchildformfields,
-      value: props.value, // this is the original data from the props
+      nonchildformfields:  props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'relatedlist'),
+//      value: props.value, // this is the original data from the props
+      manageData: false,
       changedata:  props.crud == "c" && props.value.record || {}, // keep all data changes in the state
       formcontrol: {flds:{},invalid: false, change: false}, // this._formControlState (nonchildformfields, props.value.record),  // keep form control (visibility and validity)
       edit: props.crud == "c" || props.crud == "u", // edit mode if props.edit or value has no _id (new record),
@@ -659,7 +89,7 @@ export class FormMain extends Component {
           manageData: false,
           inlineData: null,
           serverError: null,
-          value: nextProps.value,
+//          value: nextProps.value,
           formcontrol: succval
         });
       });
@@ -670,7 +100,7 @@ export class FormMain extends Component {
   _fieldChange(d) {
     console.log ('FormMain _fieldChange got field update, update Form state.changedata & formcontrol, val : ' + JSON.stringify(d));
     let changedata = Object.assign({}, this.state.changedata, d);
-    this._formControlState (this.state.nonchildformfields, Object.assign({}, this.state.value.record , changedata), this.state.formcontrol).then(succval => {
+    this._formControlState (this.state.nonchildformfields, Object.assign({}, this.props.value.record , changedata), this.state.formcontrol).then(succval => {
       this.setState({
         changedata: changedata,
         formcontrol: succval
@@ -683,7 +113,7 @@ export class FormMain extends Component {
         df = DynamicForm.instance,
         saveopt = {
           form: this.props.view._id,
-          body: this.state.value.record._id && Object.assign({_id: this.state.value.record._id}, this.state.changedata) || this.state.changedata
+          body: this.props.value.record._id && Object.assign({_id: this.props.value.record._id}, this.state.changedata) || this.state.changedata
         };
     // if its a childform - add parent details to the save for mongo & nav back to parent
     if (this.props.parent) {
@@ -708,7 +138,7 @@ export class FormMain extends Component {
           df = DynamicForm.instance,
           saveopt = {
             form: this.props.view._id,
-            id: this.state.value.record._id
+            id: this.props.value.record._id
           };
 
       if (this.props.parent) {
@@ -729,7 +159,7 @@ export class FormMain extends Component {
   /************************/
   /*  manage inline data */
   _manageData() {
-    this.setState({manageData: true,  inlineData:  this.state.value.record._data || []});
+    this.setState({manageData: true,  inlineData:  this.props.value.record._data || []});
   }
   _inlineDataChange(val) {
     console.log ("FormMain: _inlineDataChange : got update from List : " + JSON.stringify(val));
@@ -741,7 +171,7 @@ export class FormMain extends Component {
       let df = DynamicForm.instance,
           saveopt = {
             form: this.props.view._id,
-            body: Object.assign({_id: this.state.value.record._id}, {"_data": this._saveInlineData})
+            body: Object.assign({_id: this.props.value.record._id}, {"_data": this._saveInlineData})
           };
 
       console.log ('FormMain _inlineDataFinished : '+ JSON.stringify(saveopt));
@@ -762,7 +192,7 @@ export class FormMain extends Component {
   render() {
 
     var self = this,
-        {state, record} = this.state.value,
+        {state, record} = this.props.value,
         offerdata = !this.state.edit && this.props.view._id == "303030303030303030313030" && record.store === "metadata",
         nonchildformfields = this.state.nonchildformfields,
         formcontrol = this.state.formcontrol,
@@ -844,10 +274,10 @@ export class FormMain extends Component {
               <Modal>
                 <div className="slds-modal__container w95">
                   <div style={{padding: "0.5em", background: "white"}}>
-                    <SectionHeader view={this.state.value.record} saveButton={this._inlineDataFinished.bind(this, true)} cancelButton={this._inlineDataFinished.bind(this, null)}/>
+                    <SectionHeader view={this.props.value.record} saveButton={this._inlineDataFinished.bind(this, true)} cancelButton={this._inlineDataFinished.bind(this, null)}/>
                   </div>
                   <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
-                    <ListMain view={this.state.value.record} value={{status: "ready", records: this.state.inlineData}}  onDataChange={this._inlineDataChange.bind(this)}/>
+                    <ListMain view={this.props.value.record} value={{status: "ready", records: this.state.inlineData}}  onDataChange={this._inlineDataChange.bind(this)}/>
                     { this.state.serverError  &&
                       <div className="slds-col slds-col--padded slds-size--1-of-1"  style={{marginTop: "15px"}}>
                         <Alert type="error" message={this.state.serverError}/>
@@ -1306,7 +736,7 @@ export class RecordPage extends Component {
                 let cform = field.child_form && df.getForm(field.child_form._id);
                 return (
                 <div style={{padding: "0.5em"}}>
-                  <ListMain parent={{view: self.state.metaview._id, recordid: status == 'ready' && record._id || "new", field: field }} view={cform} value={{status: status, records: status === "ready" && record[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
+                  <ListMain parent={{view: self.state.metaview._id, recordid: status == 'ready' && record._id || "new", field: field._id }} view={cform} value={{status: status, records: status === "ready" && record[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
                 </div>
               );})}
             </div>

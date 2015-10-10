@@ -277,7 +277,7 @@ module.exports = function(options) {
 
               //console.log('looking for lookup fields in ' + form.name);
               var fieldsandlookups = findFieldsandLookups(FORM_DATA, form, null, ignoreLookups, true);
-              console.log('find() fieldsandlookups: ' + JSON.stringify(fieldsandlookups));
+              console.log('find() fieldsandlookups'); // + JSON.stringify(fieldsandlookups));
 
               if (fieldsandlookups.error) {
                 reject(fieldsandlookups.error)
@@ -287,11 +287,12 @@ module.exports = function(options) {
                     if (err ) {
                       console.log('find() find ERROR :  ' + err);
                       reject (err);
-                    } else if (findone && doc == null) {
-                      resolve();
+                    } else if ((findone && doc == null) || (!findone && doc.length == 0)) {
+                      console.log("find() no records retuned") // ' + JSON.stringify(doc));
+                      resolve(doc);
                     } else {
 
-                        console.log("find() no error retuned") // ' + JSON.stringify(doc));
+                        console.log("find() got records") // ' + JSON.stringify(doc));
 
                         // finding all forms, so return our hardwired also
                         /* - ERROR - this code mutates doc!!!
@@ -419,7 +420,7 @@ module.exports = function(options) {
         }, function (err) {
             error ('delete() cannot find form definitions ' + err);
         }).catch(function (err) {
-            error ('find() catch error ' + err);
+            error ('delete() catch error ' + err);
         });
     };
 
@@ -702,12 +703,6 @@ module.exports = function(options) {
         }, function (err) {
             reject ('save() Cannot find form definitions ' + err);
         });
-      }, err => {
-        console.log ("catch err : " + err);
-        reject ('save() error: ' + err);
-      }).catch(err => {
-        console.log ("catch err : " + err);
-        reject ('save() error: ' + err);
       });
     };
 

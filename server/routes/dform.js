@@ -25,28 +25,29 @@ module.exports = function(options) {
 
 
     router.get('/db/:form', function(req, res) {
-        console.log ("/db/:form: : " +  JSON.stringify(req.query));
-        let formparam = req.params["form"],
-            query;
+      let formparam = req.params["form"],
+          query;
 
-        if (req.query) {
-          if (req.query.id) {
-            query =  {id: req.query.id.indexOf(",") > -1 && req.query.id.split(",") || req.query.id};
-          } else if (req.query.p)
-            query =  {p: req.query.p};
-          else if (req.query.q)
-            query =  {q: JSON.parse(req.query.q)};
-        }
-        console.log ("/db/:form query: " + JSON.stringify(query));
-        orm.find(formparam, query, (query && query.id && !Array.isArray(query.id))).then(function success(j) {
-            res.json(j);
-        }, function error(e) {
-          console.log ("find err : " + e);
-          res.status(400).send(e);
-        }).catch(function error(e) {
-          console.log ("catch err : " + e);
-          res.status(400).send(e);
-        })
+      console.log (`----------------  /db/${formparam}: query:  ${JSON.stringify(req.query)}, user: ${JSON.stringify(req.user)}`);
+
+      if (req.query) {
+        if (req.query.id) {
+          query =  {id: req.query.id.indexOf(",") > -1 && req.query.id.split(",") || req.query.id};
+        } else if (req.query.p)
+          query =  {p: req.query.p};
+        else if (req.query.q)
+          query =  {q: JSON.parse(req.query.q)};
+      }
+      console.log ("/db/:form query: " + JSON.stringify(query));
+      orm.find(formparam, query, (query && query.id && !Array.isArray(query.id))).then(function success(j) {
+          res.json(j);
+      }, function error(e) {
+        console.log ("find err : " + e);
+        res.status(400).send(e);
+      }).catch(function error(e) {
+        console.log ("catch err : " + e);
+        res.status(400).send(e);
+      })
     });
 
 
@@ -78,14 +79,15 @@ module.exports = function(options) {
       if (!req.user)
         res.status(400).send("Permission Denied");
       else {
-        orm.save (formparam, parentfieldid,parentid, userdoc, req.user._id).then(function success(j) {
+        orm.save (formparam, parentfieldid,parentid, userdoc, req.user._id).then((j) => {
           console.log ('save() : responding : ' + JSON.stringify(j));
           res.json(j);
-        }, function error(e) {
+        }, (e) => {
+          console.log ("reject error : " + e);
           res.status(400).send(e);
-        }).catch(function error(e) {
-          console.log ("catch err : " + e);
-          res.status(400).send(e);
+        }).catch(function error(ce) {
+          console.log ("catch err : " + ce);
+          res.status(400).send(ce);
         });
       }
     });
@@ -106,10 +108,12 @@ module.exports = function(options) {
 
     // upload file into mongo, with help from formidable
     router.put ('/file/:filename', function(req,res) {
+      var filename = req.params["filename"];
+      console.log (`----------------  /file/${filename}:  user: ${JSON.stringify(req.user)}`);
+
       if (!req.user)
-        res.status(400).send("Permission Denied");
+        res.status(400).send({error:"Permission Denied"});
       else {
-        var filename = req.params["filename"];
         orm.putfile(req, res, filename);
       }
     });
@@ -129,7 +133,7 @@ module.exports = function(options) {
                 res.status(400).send(errval);
             };
 
-      console.log ("/loadApp: starting, requested app:  urlappid=" + urlappid + ", user: " + JSON.stringify(req.user));
+      console.log (`----------------  /loadApp: urlappid: ${urlappid}, user: " ${JSON.stringify(req.user)}`);
 
       if (req.user) {
         let userapps = req.user.apps  || [];

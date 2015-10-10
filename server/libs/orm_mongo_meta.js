@@ -121,7 +121,8 @@ module.exports = function(options) {
     exps.Compoments = [
       {
         _id: "ListMain",
-        Component: "ListMain",
+        name: "ListMain",
+        desc: "List of records in a table",
         props: [
           {
               name: "view",
@@ -997,6 +998,7 @@ module.exports = function(options) {
       {form: {_id: exps.forms.AppPerms}, crud: "crud"},
       {form: {_id: exps.forms.AppPageComponent}, crud: "crud"},
       {form: {_id: exps.forms.iconSearch}, crud: "crud"},
+      {form: {_id: exps.forms.FileMeta}, crud: "crud"},
       {form: {_id: exps.forms.ImportMeta}, crud: "crud"},
       {form: {_id: exps.forms.ImportMetaData}, crud: "crud"}
     ]};
