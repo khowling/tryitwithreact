@@ -6,8 +6,8 @@ import React, {Component} from 'react';
 
 import { SvgIcon, Alert }           from './components/utils.jsx';
 import Router                       from './components/router.jsx';
-import {TileList}                   from './components/tiles.jsx';
-import {ListPage, RecordPage}       from './components/dform.jsx';
+import {AdminTileList}                   from './components/tiles.jsx';
+import {ListMain, ListPage, RecordPage}       from './components/dform.jsx';
 import {TimeLine}                   from './components/timeline.jsx';
 import {Login, LogMeIn, AuthState}  from './components/auth.jsx';
 
@@ -18,7 +18,7 @@ export default class App extends Component {
    constructor (props) {
      super(props);
      console.log ('App: constructor');
-     this.appComponents = App.createFactories (TileList, ListPage, RecordPage, TimeLine, Login, LogMeIn);
+     this.appComponents = App.createFactories (ListMain, AdminTileList, ListPage, RecordPage, TimeLine, Login, LogMeIn);
      this.dynamicForm = new DynamicForm(props.buildprops.server_url);
      this.state = { booted: false, booterr: false,  bootmsg: "not booted", user: null, currentApp: null};
    }

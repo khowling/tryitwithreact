@@ -3,6 +3,7 @@
 
 import React, {Component} from 'react';
 import DynamicForm from '../services/dynamicForm.es6';
+import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 
 
 const DEFAULT_LANDING = 'TileList';
@@ -46,12 +47,12 @@ export default class Router extends Component {
         }
       }
       //console.log ("Router._encodeHash got params " + array.length + " : " + JSON.stringify(array));
-      return "#" + (appid && (appid+"/") || "") + (hash || DEFAULT_LANDING) + ((array.length > 0) &&  ("?" + array.join("&")) || "");
+      return "#" + (appid && (appid+"/") || "") + (hash || "") + ((array.length > 0) &&  ("?" + array.join("&")) || "");
     }
 
     static _decodeHash (hashuri) {
       //console.log ('Router._decodeHash value : ' + hashuri);
-      let retval = {appid: null, hash: DEFAULT_LANDING, params: null},
+      let retval = {appid: null, hash: null, params: null},
           paramjson = {};
 
       // url format: #[<appid>/]<compoment>
@@ -179,15 +180,37 @@ export default class Router extends Component {
     }
 
     render() {
+      let df = DynamicForm.instance,
+          template3 = (head,content,side) => {
+        return (
+          <div className="slds-grid slds-wrap">
+            <div className="slds-col slds-size--1-of-1">{head}
+            </div>
+            <div className="slds-col slds-size--1-of-1 slds-medium-size--2-of-3">{content}
+            </div>
+            <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-3">{side}
+            </div>
+        </div>
+          );
+      }
       console.log ('Router: render newroute');
-      let Routefactory = this.props.componentFactories[this.state.newroute.hash];
-      if (Routefactory) {
-          return Routefactory(
-            {key: JSON.stringify(this.state.newroute.params),
-             urlparam: this.state.newroute.params});
-      } else return (
-          <div>404</div>
-      )
+      if (!this.state.newroute.hash) { // landingpage
+        let page = df.app.landingpage && df.app.landingpage[0],
+            comp = page && this.props.componentFactories[page.component._id] || null;
+        if (comp) {
+          console.log (`Router: rendering component ${page.component._id} with props ${JSON.stringify(page.props)}`);
+          return template3((<div></div>),comp(page.props), (<div></div>) );
+        } else
+          return (<Alert message={page && ("Unknown Compoent " + JSON.stringify(page.component)) || "No landing page defined for app"} alert={true}/>);
+      } else {
+        let Routefactory = this.props.componentFactories[this.state.newroute.hash];
+        if (Routefactory) {
+            return Routefactory(
+              {key: JSON.stringify(this.state.newroute.params),
+                view: {_id: this.state.newroute.params.view},
+               urlparam: this.state.newroute.params});
+        } else return (<Alert message={"Unknown Compoent " + this.state.newroute.hash} alert={true}/>);
+      }
     }
 }
 Router.propTypes = {

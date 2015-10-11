@@ -8,7 +8,8 @@ var   express = require('express')
 //  , fs = require('fs') // TESTING ONLY
     , mongo = require('mongodb')
     , GridStore = require('mongodb').GridStore
-    , ObjectID = require('mongodb').ObjectID;
+    , ObjectID = require('mongodb').ObjectID
+    , jexl = require('jexl');
 
 
 module.exports = function(options) {
@@ -518,7 +519,10 @@ module.exports = function(options) {
                         return {error: "data contains childform field, but data is not array: " + propname};
                       else
                         return {childform_field: fldmeta, childform_array: fval};
-                    }
+                    } else if (fldmeta.type === "dynamic") {
+                      if (fval && typeof fval !== 'object') return {error: "data contains value of incorrect type : " + propname};
+                      return {validated_value: fval || null};
+                    } else return {error: "data contains unknown field type: " + fldmeta.type};
                   };
 
                   let fldsByPropname = {};

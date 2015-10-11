@@ -278,7 +278,7 @@ export class Field extends Component {
       console.log ('Field _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
       this.setState ({value: lookupval, lookup: resetLookup}, () => {
         if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: {_id: data._id}});
+          this.props.onChange ({[this.props.fielddef.name]: lookupval}); // {_id: data._id}}); (this is so dynamic data works!!!)
       });
     }
   }
@@ -352,46 +352,44 @@ export class Field extends Component {
     console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> state.value : ' + JSON.stringify(this.state.value));
 
     let field,
-    //    img_src,
         self = this,
         df = DynamicForm.instance;
 
-//    if (this.props.fielddef.type === 'image') {
-//      img_src = this.state.value && df.host+"/dform/file/"+this.state.value || "http://placehold.it/120x120";
-//      console.log ('Field img_src: ' + img_src);
-//    }
 
     // function to generate reference search form (for seleced value in edit and view modes, and list values)
     let referenceForm = (sform, rec) => {
-      let gotimageicon = false,
-          retform = sform.fields.map(function(fld, fldidx) {
 
-            let genField = function() {
-              let fldval = rec[fld.name];
-              if (fld.name === "_id") ;
-              else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id ) {
-                if (fldval) {
-                  gotimageicon = true;
-                  return (<IconField key={fldidx} value={fldval} small={true}/>);
-                }
-              } else if (fld.type !== "reference" && fld.type !== "childform" && fld.type !== "relatedlist") {
-                return (<Field key={fldidx} fielddef={fld} value={fldval} inlist={true}/>);
-              } else
-                return <Alert key={fldidx} message={'"'+fld.type+'" not supported on search form'}/>
-            }
 
-            if (fld.show_when) {
-              jexl.eval(fld.show_when, {"$rec": rec}, (err, visible) => { //eval(fld.show_when);
-                if (visible) return genField();
-              });
-            } else
-              return genField();
-          });
       if (typeof rec === "undefined") {
         return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>no search_ref</span>;
       } else if (rec.error) {
         return  <span key={rec._id} style={{color: "red"}}><IconField value={sform.icon} small={true}/>{rec.error}</span>;
       } else {
+        let gotimageicon = false,
+            retform = sform.fields.map(function(fld, fldidx) {
+
+              let genField = function() {
+                let fldval = rec[fld.name];
+                if (fld.name === "_id") ;
+                else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id ) {
+                  if (fldval) {
+                    gotimageicon = true;
+                    return (<IconField key={fldidx} value={fldval} small={true}/>);
+                  }
+                } else if (fld.type !== "reference" && fld.type !== "childform" && fld.type !== "relatedlist") {
+                  return (<Field key={fldidx} fielddef={fld} value={fldval} inlist={true}/>);
+                } else
+                  return <Alert key={fldidx} message={'"'+fld.type+'" not supported on search form'}/>
+              }
+
+              if (fld.show_when) {
+                jexl.eval(fld.show_when, {"$rec": rec}, (err, visible) => { //eval(fld.show_when);
+                  if (visible) return genField();
+                });
+              } else
+                return genField();
+            });
+
         if (!gotimageicon && sform.icon)
           retform = <span key={rec._id}><IconField value={sform.icon} small={true}/>{retform}</span>;
         return <span key={rec._id}>{retform}</span>;
@@ -628,3 +626,15 @@ export class Field extends Component {
     return field;
   }
 }
+Field.propTypes = {
+  // Core
+  fielddef: React.PropTypes.shape({
+    name: React.PropTypes.string.isRequired,
+    type: React.PropTypes.string.isRequired
+  }),
+  value: React.PropTypes.any,
+  // used by lookup and childform (if no onComplete, assume top)
+  onChange: React.PropTypes.func,
+  edit: React.PropTypes.bool
+};
+Field.defaultProps = { edit: false};

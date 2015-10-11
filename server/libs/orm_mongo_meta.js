@@ -120,8 +120,8 @@ module.exports = function(options) {
 
     exps.Compoments = [
       {
-        _id: "ListMain",
-        name: "ListMain",
+        _id: "ListPage",
+        name: "ListPage",
         desc: "List of records in a table",
         props: [
           {
@@ -137,6 +137,11 @@ module.exports = function(options) {
               placeholder: ""
           }
         ]
+      },
+      {
+        _id: "AdminTileList",
+        name: "Admin TileList",
+        desc: "Admin Tiles",
       }
 
     ];
@@ -434,7 +439,7 @@ module.exports = function(options) {
                   name: "dynamic_fields",
                   title: "Fields (EL)",
                   show_when: "rec['type'] == 'dynamic'",
-                  placeholder: "context vars: $rec, $user, $app",
+                  placeholder: "context vars: rec, user, appMeta",
                   type: "textarea"
                 },
               {
@@ -812,7 +817,7 @@ module.exports = function(options) {
                   name: "props",
                   title: "Component Properties",
                   type: "dynamic",
-                  dynamic_fields: "$rec.component.search_ref.props",
+                  dynamic_fields: "rec.component.search_ref.props",
               },
               {
                   name: "filter",
@@ -983,7 +988,11 @@ module.exports = function(options) {
     ];
 */
     exps.adminApp = {_id: "admin",
-        name: "Admin App", type: "deployed", public: "yes", default: "yes", appperms: [
+        name: "Admin App",
+        type: "deployed",
+        public: "yes",
+        default: "yes",
+        appperms: [
       {form: {_id: exps.forms.formMetadata}, crud: "crud"},
       {form: {_id: exps.forms.ComponentMetadata}, crud: "crud"},
       {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
@@ -1001,7 +1010,16 @@ module.exports = function(options) {
       {form: {_id: exps.forms.FileMeta}, crud: "crud"},
       {form: {_id: exps.forms.ImportMeta}, crud: "crud"},
       {form: {_id: exps.forms.ImportMetaData}, crud: "crud"}
-    ]};
+            ],
+        landingpage: [
+          {
+            columns: "1col",
+            component: {_id: "AdminTileList"},
+            filter: "topx",
+            title: "Admin Tile List"
+          }
+        ]
+  };
 
     exps.adminMetabyId = function() {
       let res = {};

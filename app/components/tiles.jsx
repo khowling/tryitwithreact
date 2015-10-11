@@ -47,7 +47,7 @@ export class Tile extends Component {
     }
 }
 
-export class TileList extends Component {
+export class AdminTileList extends Component {
     render () {
         let df = DynamicForm.instance,
             metaview = df.getForm ();

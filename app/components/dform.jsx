@@ -18,12 +18,9 @@ import async from '../lib/async.es6';
 export class FormMain extends Component {
   constructor(props) {
     super(props);
-
     this.state =  {
-      nonchildformfields:  props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'relatedlist'),
       manageData: false,
       changedata:  props.crud == "c" && props.value.record || {}, // keep all data changes in the state
-      edit: props.crud == "c" || props.crud == "u", // edit mode if props.edit or value has no _id (new record),
       errors: null};
     console.log ('FormMain constructor setState : ' + JSON.stringify(this.state));
   }
@@ -45,21 +42,30 @@ export class FormMain extends Component {
     return async(function *(fields, val, currentState) {
       //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
       let cnrt = {flds:{},invalid: false, change: currentState && false || true};
-      for (let fld of fields) {
-        let visible = true;
-        console.log (`field ${fld.name}, show_when ${fld.show_when}, val ${JSON.stringify(val)}`);
-        if (fld.show_when)
-          visible = yield jexl.eval(fld.show_when, {rec: val});
+      for (let fld of fields.filter(f => f.type !== 'childform' && f.type !== 'relatedlist')) {
 
+        let visible = true;
+        //console.log (`field ${fld.name}, show_when ${fld.show_when}, val ${JSON.stringify(val)}`);
+        if (fld.show_when)
+          visible = yield jexl.eval(fld.show_when, {rec: val, appMeta: DynamicForm.instance.appMeta});
         let fctrl = {
-                invalid: fld.required && !val[fld.name],
-                visible: visible
-                };
-        console.log (`fctrl ${fld.name}, show_when ${JSON.stringify(fctrl)}`);
+          invalid: fld.required && !val[fld.name],
+          visible: visible,
+          dynamic_fields: null
+        };
+
+        if (fld.type === 'dynamic') {
+          //console.log ('eval dynamic_fields')
+          fctrl.dynamic_fields = yield jexl.eval(fld.dynamic_fields, {rec: val, appMeta: DynamicForm.instance.appMeta}) || [];
+          //console.log (`eval dynamic_fields ${fld.dynamic_fields}, res: ${fctrl.dynamic_fields}, rec: ${val}`)
+        }
+
+        //console.log (`fctrl ${fld.name}, show_when ${JSON.stringify(fctrl)}`);
         // check to see if form control state has changed from last time, if so, it will re-render the whole form!
         if (currentState && currentState.flds[fld.name]) {
           if (!Object.is(currentState.flds[fld.name].invalid, fctrl.invalid) ||
-              !Object.is(currentState.flds[fld.name].visible, fctrl.visible))
+              !Object.is(currentState.flds[fld.name].visible, fctrl.visible) ||
+              !Object.is(currentState.flds[fld.name].dynamic_fields, fctrl.dynamic_fields))
                 cnrt.change = true;
         } else if (fctrl.invalid || !fctrl.visible) {
           // no current state, so much be change
@@ -75,7 +81,7 @@ export class FormMain extends Component {
   }
 
   componentWillMount() {
-    this._formControlState (this.state.nonchildformfields, this.props.value.record).then(succval => {
+    this._formControlState (this.props.view.fields, this.props.value.record).then(succval => {
       this.setState ({
         formcontrol: succval
       });
@@ -85,7 +91,7 @@ export class FormMain extends Component {
   componentWillReceiveProps (nextProps) {
     console.log ("FormMain componentWillReceiveProps");
     if (nextProps.value) {
-      this._formControlState (this.state.nonchildformfields, nextProps.value.record).then(succval => {
+      this._formControlState (this.props.view.fields, nextProps.value.record).then(succval => {
         this.setState ({
           changedata: {}, // wipe out any changes???
           formcontrol: succval
@@ -95,10 +101,15 @@ export class FormMain extends Component {
   }
 
   // Called form the Field
-  _fieldChange(d) {
-    console.log ('FormMain _fieldChange got field update, update Form state.changedata & formcontrol, val : ' + JSON.stringify(d));
+  _fieldChange(dynamicFieldName, d) {
+    console.log (`--------- FormMain _fieldChange got field update, [${dynamicFieldName}] ${JSON.stringify(d)}`);
+    if (dynamicFieldName) {
+      d = {[dynamicFieldName]: Object.assign({}, this.props.value.record[dynamicFieldName], d)};
+    }
+
     let changedata = Object.assign({}, this.state.changedata, d);
-    this._formControlState (this.state.nonchildformfields, Object.assign({}, this.props.value.record , changedata), this.state.formcontrol).then(succval => {
+    console.log (`--------- FormMain _fieldChange full changedata ${JSON.stringify(changedata)}`);
+    this._formControlState (this.props.view.fields, Object.assign({}, this.props.value.record , changedata), this.state.formcontrol).then(succval => {
       this.setState({
         changedata: changedata,
         formcontrol: succval
@@ -189,17 +200,18 @@ export class FormMain extends Component {
 
   render() {
 
-    var self = this,
+    let self = this,
+        edit = this.props.crud == "c" || this.props.crud == "u",
         {state, record} = this.props.value,
-        offerdata = !this.state.edit && this.props.view._id == "303030303030303030313030" && record.store === "metadata",
-        nonchildformfields = this.state.nonchildformfields,
-        formcontrol = this.state.formcontrol,
-        headerButtons  = {}, saveButton, cancelButton;
+        offerdata = !edit && this.props.view._id == "303030303030303030313030" && record.store === "metadata",
+        formcontrol = this.state.formcontrol;
 
+
+    let headerButtons  = {}, saveButton, cancelButton;
     if (this.props.onComplete) {
       cancelButton = () => this.props.onComplete(null);
       //notify parent screen
-      if (this.state.edit) {
+      if (edit) {
         // form in edit mode
         saveButton = this._save.bind(this, succval => {
           this.props.onComplete({_id: succval._id, search_ref: this.state.changedata});
@@ -210,7 +222,7 @@ export class FormMain extends Component {
         headerButtons.deleteButton= this._delete.bind(this,  () =>  self.props.onFinished('delete', succVal));
       }
     } else {
-      if (this.state.edit) {
+      if (edit) {
         cancelButton = () => Router.navTo(null, record._id && "RecordPage" || "ListPage", this.props.view._id, record._id && record._id || null, null, true);
         saveButton = this._save.bind(this, succval => {
           Router.navTo(null, "RecordPage", this.props.view._id, succval._id, false, true);
@@ -219,6 +231,25 @@ export class FormMain extends Component {
         headerButtons.deleteButton = this._delete.bind(this, () =>   Router.navTo(null, "ListPage", this.props.view._id));
         headerButtons.editButton = () => Router.navTo(null,"RecordPage", this.props.view._id, record._id, {e: true});
       }
+    }
+
+    let getFieldDOM = (key, field, value, edit, fc, dynamicFieldName) => {
+      return (
+        <div key={key} className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
+          <div className={"slds-form-element " + (edit && "  " || " field-seperator ") + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
+              <label className="slds-form-element__label">{field.title}</label>
+              <div className="slds-form-element__control"  style={{marginLeft: edit && '0' || "15px"}}>
+                <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
+                    { (!edit && offerdata && field.name === "store") &&
+                     <a className="slds-button slds-button--neutral slds-button--brand" onClick={self._manageData.bind(self)}>edit data</a>
+                    ||
+                    <Field fielddef={field} value={value} edit={edit} onChange={self._fieldChange.bind(self, dynamicFieldName)}/>
+                    }
+                </span>
+              </div>
+          </div>
+        </div>
+      );
     }
 
     console.log ('FormMain render ' + this.props.view.name + ', state : ' + JSON.stringify(this.state));
@@ -232,26 +263,21 @@ export class FormMain extends Component {
         <div className={this.props.inModal && "slds-modal__content" || "" + " slds-form--stacked"} style={{padding: "0.5em", minHeight: this.props.inModal && "400px" || "auto"}}>
           <div className="slds-grid slds-wrap">
 
-            { formcontrol && nonchildformfields.map(function(field, i) {
-              let fc = formcontrol.flds[field.name] || {visible: true, invalid: false};
-              if (fc.visible) return (
-              <div key={i} className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
-                <div className={"slds-form-element " + (self.state.edit && "  " || " field-seperator ") + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
-                    <label className="slds-form-element__label">{field.title}</label>
-                    <div className="slds-form-element__control"  style={{marginLeft: self.state.edit && '0' || "15px"}}>
-                      <span className={(self.state.edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
-                          { (!self.state.edit && offerdata && field.name === "store") &&
-                           <a className="slds-button slds-button--neutral slds-button--brand" onClick={self._manageData.bind(self)}>edit data</a>
-                          ||
-                          <Field fielddef={field} value={record[field.name]} edit={self.state.edit} onChange={self._fieldChange.bind(self)}/>
-                          }
-                      </span>
-                    </div>
-                </div>
-              </div>
-            );})}
+            { formcontrol && this.props.view.fields.map(function(field, i) {
+              if (field.type !== 'childform' && field.type !== 'relatedlist' && field.type !== 'dynamic') {
+                let fc = formcontrol.flds[field.name] || {visible: true, invalid: false};
+                if (fc.visible) return getFieldDOM(i, field, record[field.name], edit, fc);
+              } else if (field.type === 'dynamic') {
+                console.log ('dynimic field ' + field.name);
+                let dflds = formcontrol.flds[field.name].dynamic_fields;
+                if (dflds) return dflds.map(function(dfield, i) {
+                  let fc = {visible: true, invalid: false};
+                  if (fc.visible) return  getFieldDOM(i, dfield, record[field.name] && record[field.name][dfield.name], edit, fc, field.name);
+                });
+              }
+            })}
 
-            {(record._updatedBy && !self.state.edit) &&
+            {(record._updatedBy && !edit) &&
               <div  className="slds-col slds-col--padded slds-size--2-of-2 slds-medium-size--2-of-2 slds-x-small-size--1-of-1">
                 <div className="slds-form-element field-seperator ">
                   <label className="slds-form-element__label">Last Updated</label>
@@ -291,10 +317,10 @@ export class FormMain extends Component {
         </div>
 
         <div className={this.props.inModal && "slds-modal__footer" || "slds-col slds-col--padded slds-size--1-of-1"} style={{padding: "0.5em", textAlign: "right"}}>
-          { self.state.edit &&
+          { edit &&
               <button className="slds-button slds-button--neutral" onClick={cancelButton}>Cancel</button>
           }
-          { self.state.edit &&
+          { edit &&
               <button className="slds-button slds-button--neutral slds-button--brand" onClick={saveButton}>Save</button>
           }
         </div>
@@ -331,14 +357,12 @@ export class ListPage extends Component {
 
     constructor(props) {
       super(props);
-      let df = DynamicForm.instance,
-            metaview = df.getForm (props.urlparam.view);
-
+      let df = DynamicForm.instance;
       this.state = {
-        metaview: metaview,
+        metaview: df.getForm (props.view._id),
         value: {status: "wait", records: []}
       };
-      console.log ('ListPage constructor');
+      console.log ('ListPage constructor: '+ props.view._id);
     }
 
     componentDidMount() {
@@ -347,9 +371,9 @@ export class ListPage extends Component {
 
     _dataChanged() {
       let df = DynamicForm.instance;
-      console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.state.metaview._id));
+      console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.view._id));
       if (this.state.metaview.store === "mongo")
-        df.query (this.state.metaview._id, this.props.urlparam.q).then(
+        df.query (this.props.view._id, this.props.query && JSON.parse(this.props.query) || {}).then(
           succRes => this.setState({value: {status: "ready", records: succRes}}),
           errRes  => this.setState({value: {status: "error", message: errRes }})
         );
@@ -363,7 +387,8 @@ export class ListPage extends Component {
       return (
         <div className="slds-grid slds-wrap">
           <div className="slds-col slds-size--1-of-1">
-          { this.props.urlparam && <PageHeader view={this.state.metaview}/> }
+          { // this.props.urlparam && <PageHeader view={this.state.metaview}/>
+          }
           </div>
           { this.state.value.status === "error" &&
             <div className="slds-col slds-size--1-of-1">
@@ -379,13 +404,13 @@ export class ListPage extends Component {
       );
     }
 }
-ListPage.propTypes = {
+/*ListPage.propTypes = {
   // Core
   urlparam: React.PropTypes.shape({
     view: React.PropTypes.string.isRequired,
     q: React.PropTypes.object
   })
-}
+}*/
 
 export class ListMain extends Component {
   constructor(props) {
@@ -516,7 +541,7 @@ export class ListMain extends Component {
     console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
     let self = this,
         {status, records} = this.state.value,
-        nonchildformfields = this.props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'dropdown_options' && m.type !== 'relatedlist');
+        nonchildformfields = this.props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'dropdown_options' && m.type !== 'relatedlist' && m.type !== 'dynamic');
 
     let header = React.createElement (SectionHeader, Object.assign ({key: +this.props.view._id, view: this.props.view}, this.props.selected && {
           closeButton: this._handleSelect.bind(this, null)
