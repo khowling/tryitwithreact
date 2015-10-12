@@ -13,6 +13,7 @@ export default class DynamicForm {
     this.ROUTES = {dform: '/dform/', auth: '/auth/'};
     instance = this;
     this.clearApp();
+    this._user = {};
   }
 
   static get instance() {
@@ -65,7 +66,6 @@ export default class DynamicForm {
 
   clearApp() {
     this._appMeta = [];
-    this._user = {};
     this._currentApp = {};
   }
 
@@ -76,6 +76,7 @@ export default class DynamicForm {
   logOut() {
     return this._callServer(this.ROUTES.auth + 'logout').then(succ => {
       this.clearApp();
+      this._user = {};
     });
   }
 

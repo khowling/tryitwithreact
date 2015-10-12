@@ -422,7 +422,7 @@ export class Field extends Component {
 
               if (this.props.fielddef.createnew_form)
                 field = (<span className="slds-pill">
-                            <a href={Router.URLfor(null,"RecordPage", this.props.fielddef.createnew_form._id, this.state.value._id)} className="slds-pill__label">
+                            <a href={Router.URLfor(true,"RecordPage", this.props.fielddef.createnew_form._id, this.state.value._id)} className="slds-pill__label">
                               { referenceForm(sform, self.state.value.search_ref) }
                             </a>
                           </span>);
@@ -500,7 +500,7 @@ export class Field extends Component {
 
                       { this.state.value &&
                       <span className="slds-pill" style={{padding: "0.15rem", margin: "0.18rem"}}>
-                        <a href={cform && Router.URLfor(null, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
+                        <a href={cform && Router.URLfor(true, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
                           { referenceForm(sform, self.state.value.search_ref) }
                         </a>
                         <button onClick={self._handleLookupSelectOption.bind (self, null)} className="slds-button slds-button--icon-bare">

@@ -142,8 +142,15 @@ module.exports = function(options) {
         _id: "AdminTileList",
         name: "Admin TileList",
         desc: "Admin Tiles",
+        props: [
+          {
+              name: "formids",
+              title: "form Ids (comma seperated)",
+              type: "reference",
+              search_form: { _id: exps.forms.metaSearch}
+          }
+        ]
       }
-
     ];
 
     exps.FORMMETA = [
@@ -295,40 +302,44 @@ module.exports = function(options) {
                     default_value: "text",
                     dropdown_options: [
                         {
-                            name: "Text",
-                            key: "text"
+                          name: "Text",
+                          key: "text"
                         },
                         {
-                            name: "Picture",
-                            key: "image"
+                          name: "Picture",
+                          key: "image"
                         },
                         {
-                            name: "Email",
-                            key: "email"
+                          name: "Email",
+                          key: "email"
                         },
                         {
-                            name: "ChildForm",
-                            key: "childform"
+                          name: "ChildForm",
+                          key: "childform"
                         },
                         {
-                            name: "Reference",
-                            key: "reference"
+                          name: "Reference",
+                          key: "reference"
                         },
                         {
-                            name: "Textarea",
-                            key: "textarea"
+                          name: "Textarea",
+                          key: "textarea"
                         },
                         {
-                            name: "Dropdown",
-                            key: "dropdown"
+                          name: "JSON",
+                          key: "jsonarea"
                         },
                         {
-                            name: "DateTime",
-                            key: "datetime"
+                          name: "Dropdown",
+                          key: "dropdown"
                         },
                         {
-                            name: "Related List",
-                            key: "relatedlist"
+                          name: "DateTime",
+                          key: "datetime"
+                        },
+                        {
+                          name: "Related List",
+                          key: "relatedlist"
                         },
                         {
                           name: "Dynamic",

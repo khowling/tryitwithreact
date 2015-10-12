@@ -603,7 +603,7 @@ export class ListMain extends Component {
                                 <td key={fidx}><a style={{color: "#0070d2", cursor: "pointer"}} onClick={self._ActionEdit.bind(self, i, true)}>{listfield}</a></td>);
                               else
                                 return (
-                                <td key={fidx}><a href={Router.URLfor(null, "RecordPage", self.props.view._id, row._id)}>{listfield}</a></td>);
+                                <td key={fidx}><a href={Router.URLfor(true, "RecordPage", self.props.view._id, row._id)}>{listfield}</a></td>);
                             } else {
                               return (<td key={fidx}>{listfield}</td>);
                             }
@@ -775,7 +775,7 @@ export class PageHeader extends Component {
 
             <div className="slds-media">
               <div className="slds-media__figure">
-                <a  href={ Router.URLfor(null, "ListPage", this.props.view._id)}>
+                <a  href={ Router.URLfor(true, "ListPage", this.props.view._id)}>
                 <IconField value={this.props.view.icon} large={true}/>
                 </a>
               </div>

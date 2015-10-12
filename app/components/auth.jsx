@@ -97,12 +97,12 @@ export class AuthState extends Component {
                </li>
              );})}
                <li className="slds-dropdown__item" >
-                 <a onClick={this._changeapp.bind(this, {logout: true})} className="slds-truncate">logout</a>
+                 <a onClick={this.props.onLogout} className="slds-truncate">logout</a>
                </li>
              </ul>
            </div>
          </div>);
     else
-      return <div><a href='#Login'>Login</a> ({this.state.app.name})</div>;
+      return <div><a href='#Login'>Login</a> ({this.state.app && this.state.app.name || ""})</div>;
   }
 }

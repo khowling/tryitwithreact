@@ -18,7 +18,8 @@ export default class App extends Component {
    constructor (props) {
      super(props);
      console.log ('App: constructor');
-     this.appComponents = App.createFactories (ListMain, AdminTileList, ListPage, RecordPage, TimeLine, Login, LogMeIn);
+     this.appComponents = App.createFactories (ListMain, AdminTileList, ListPage, RecordPage, TimeLine, LogMeIn);
+     this.nonAppComponents = App.createFactories (Login);
      this.dynamicForm = new DynamicForm(props.buildprops.server_url);
      this.state = { booted: false, booterr: false,  bootmsg: "not booted", user: null, currentApp: null};
    }
@@ -40,43 +41,46 @@ export default class App extends Component {
      return {factories: factories, navMeta: navMeta};
    }
 
-   _loadApp(appid) {
-     let loadappid = appid;
-     this.dynamicForm.loadApp(loadappid).then ((val) => {
-       if (this.dynamicForm.app) {
-         console.log ("App: _loadApp, loaded with the app id : " + this.dynamicForm.app._id);
-         Router.ensureAppInUrl (this.dynamicForm.app._id);
-       }
-       this.setState ({ booted: true, booterr: false, bootmsg: null, user: this.dynamicForm.user, currentApp: this.dynamicForm.app});
-     }, (error) => {
-         this.setState ({ booterr: true, bootmsg: 'Error loading app : ' + JSON.parse(error).message});
-     });
+   _loadApp(newroute) {
+     console.log ("App: _loadApp: loading app with route : " + JSON.stringify(newroute));
+     if (!newroute.appid && newroute.hash && newroute.hash in this.nonAppComponents.factories) {
+       console.log ('App: componentWillMount, no appid, Hash is a non-app related page :' + newroute.hash);
+       this.dynamicForm.clearApp();
+       this.setState({ booted: true, currentApp: null, nonAppPage: newroute.hash});
+     } else {
+       console.log ("App: _loadApp: setting up services for requested route");
+       this.dynamicForm.loadApp(newroute.appid).then ((val) => {
+         if (this.dynamicForm.app) {
+           console.log ("App: _loadApp, loaded with the app id : " + this.dynamicForm.app._id);
+           Router.ensureAppInUrl (this.dynamicForm.app._id);
+         }
+         this.setState ({ booted: true, booterr: false, bootmsg: null, user: this.dynamicForm.user, currentApp: this.dynamicForm.app});
+       }, (error) => {
+           this.setState ({ booterr: true, bootmsg: 'Error loading app : ' + JSON.parse(error).message});
+       });
+     }
    }
 
    componentWillMount() {
-    var urlappid = Router.decodeCurrentURI().appid;
-    console.log ("App: componentWillMount: setting up services for requested app id : " + urlappid);
-    this._loadApp(urlappid);
-  }
-
-  _authChange(chng) {
-    console.log ('App:  router noitified authChange: ' + JSON.stringify(chng));
-    if (chng.logout) {
-      this.dynamicForm.logOut().then(succ => {
-        //this.setState ({user: {}}, () => {
-        if (window)
-          window.location.reload("#");
-      //  });
-      });
-    }
+    var newroute = Router.decodeCurrentURI();
+    this._loadApp(newroute);
   }
 
   routeUpdated (newroute) {
     console.log ('App: router noitified App route updated');
     if (newroute.appid !== this.state.currentApp._id) {
-      console.log ('App: new app requested, need to reload the new app');
-      this.setState ({ booted: false, booterr: false, bootmsg: 'loading app'}, () =>  this._loadApp(newroute.appid));
+      this._loadApp(newroute);
     }
+  }
+
+  _logout() {
+    console.log ('App: _logout router noitified');
+    this.dynamicForm.logOut().then(succ => {
+      this.setState ({ booted: false, booterr: false,  bootmsg: "not booted", user: null, currentApp: null}, () => {
+        if (window)
+          window.location.href = (Router.URLfor(false,"Login"));
+      });
+    });
   }
 
    render () {
@@ -88,13 +92,13 @@ export default class App extends Component {
                <div className="slds-container--center slds-container--medium">
                   <div className="slds-grid">
                     <div className="slds-col slds-has-flexi-truncate">
-                        <a href={Router.URLfor()}><SvgIcon classOverride="icon-utility" large={true} spriteType="utility" spriteName="apps"/></a>
+                        <a href={Router.URLfor(true)}><SvgIcon classOverride="icon-utility" large={true} spriteType="utility" spriteName="apps"/></a>
                     </div>
 
                     <div className="slds-col slds-no-flex slds-align-bottom">
                       <div className="slds-grid">
                         <div className="slds-button-space-left" >
-                          <AuthState user={this.state.user} currentApp={this.state.currentApp} onchange={this._authChange.bind(this)}/>
+                          <AuthState user={this.state.user} currentApp={this.state.currentApp} onLogout={this._logout.bind(this)}/>
                         </div>
                       </div>
                     </div>
@@ -107,6 +111,8 @@ export default class App extends Component {
               { this.state.currentApp &&
               <Router key={this.state.currentApp._id} componentFactories={this.appComponents.factories} currentApp={this.state.currentApp} updateRoute={this.routeUpdated.bind(this)}/>
               }
+
+              { this.state.nonAppPage && this.nonAppComponents.factories[this.state.nonAppPage]({key: this.state.nonAppPage}) }
             </div>
 
          </div>
