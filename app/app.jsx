@@ -79,6 +79,7 @@ export default class App extends Component {
       this.setState ({ booted: false, booterr: false,  bootmsg: "not booted", user: null, currentApp: null}, () => {
         if (window)
           window.location.href = (Router.URLfor(false,"Login"));
+          this._loadApp ({hash: "Login"});
       });
     });
   }

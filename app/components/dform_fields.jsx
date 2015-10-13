@@ -151,37 +151,18 @@ export class FieldImage extends Component {
   }
 }
 
-export class FieldDynamic extends Component {
+export class FieldReference extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      lookup: { visible: false, values: [], create: false, offercreate: false},
       value: props.value // needs to be mutatable
     };
   }
-  render() {
-    console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> state.value : ' + JSON.stringify(this.state.value));
-    let df = DynamicForm.instance,
-        elx = this.props.fielddef.dynamic_fields;
 
-    jexl.eval(this.props.fielddef.dynamic_fields, {"$rec": rec}, (err, visible) => { //eval(fld.show_when);
-    });
-    return (<FormMain  />);
-  }
-
-}
-
-export class Field extends Component {
-
-  constructor(props) {
-    super(props);
-    this.state = {
-      value: props.value, // needs to be mutatable
-      lookup: { visible: false, values: [], create: false, offercreate: false},
-      date: {visible: false, montharray: [] }
-    };
-    //console.log ("Field constructor " + props.fielddef.name + "["+props.fielddef.type+"] = " + JSON.stringify(state.value));
-  }
-
+  /*******************/
+  /* Common          */
+  /*******************/
   componentWillReceiveProps(nextProps) {
     console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
     if (nextProps.value != this.props.value) {
@@ -189,39 +170,6 @@ export class Field extends Component {
       this.setState({value: nextProps.value});
     }
   }
-/*
-  _formatReferenceValue(search_form, value) {
-    console.log ("Field _formatReferenceValue, form: " + search_form.name + "["+search_form.type+"], value: "+ JSON.stringify(value));
-    if (search_form.type === "metadata") {
-      if (!value || typeof value !== "string")  return null;
-      // client needs to do it
-     let search_ref = search_form.data.find(i => i.key === value) || {};
-     return {key: value, search_ref: search_ref};
-    } else {
-      // done by the server
-      return value;
-    }
-  }
-*/
-  shouldComponentUpdate(nextProps, nextState) {
-    let shouldUpdate = true;
-    //console.log ('Field shouldComponentupdate props: ' + JSON.stringify(nextProps));
-     // state: ' + JSON.stringify(nextState));
-
-      // Field is updating itsself, always update
-    if (!nextState) {
-      if (this.props.fielddef.type === "reference") {
-        if (nextProps.value && this.props.edit) {
-          shouldUpdate =  false;
-        }
-      } else if (nextProps.value && nextProps.value === this.props.value) {
-        shouldUpdate =  false;
-      }
-    }
-    console.log ('Field shouldComponentupdate : ' + shouldUpdate);
-    return shouldUpdate;
-  }
-
 
   /********************/
   /* Lookup Functions */
@@ -293,6 +241,186 @@ export class Field extends Component {
   }
 
 
+  render() {
+    let df = DynamicForm.instance,
+        self = this,
+        field;
+    console.log ('FieldReference render: ' + this.props.fielddef.name + ', state.value : ' + JSON.stringify(this.state.value));
+
+    // function to generate reference search form (for seleced value in edit and view modes, and list values)
+    let referenceForm = (sform, rec) => {
+      if (typeof rec === "undefined") {
+        return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>no search_ref</span>;
+      } else if (rec.error) {
+        return  <span key={rec._id} style={{color: "red"}}><IconField value={sform.icon} small={true}/>{rec.error}</span>;
+      } else {
+        let gotimageicon = false,
+            retform = sform.fields.map(function(fld, fldidx) {
+
+              let genField = function() {
+                let fldval = rec[fld.name];
+                if (fld.name === "_id") ;
+                else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id ) {
+                  if (fldval) {
+                    gotimageicon = true;
+                    return (<IconField key={fldidx} value={fldval} small={true}/>);
+                  }
+                } else if (fld.type !== "reference" && fld.type !== "childform" && fld.type !== "relatedlist") {
+                  if (fld.type === "image") gotimageicon = true;
+                  return (<Field key={fldidx} fielddef={fld} value={fldval} inlist={true}/>);
+                } else
+                  return <Alert key={fldidx} message={'"'+fld.type+'" not supported on search form'}/>
+              }
+
+              if (fld.show_when) {
+                jexl.eval(fld.show_when, {"$rec": rec}, (err, visible) => { //eval(fld.show_when);
+                  if (visible) return genField();
+                });
+              } else
+                return genField();
+            });
+
+        if (!gotimageicon && sform.icon)
+          retform = <span key={rec._id}><IconField value={sform.icon} small={true}/>{retform}</span>;
+        return <span key={rec._id}>{retform}</span>;
+      }
+    }
+
+    if (!this.props.edit) {
+      if (this.state.value) {
+        let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id);
+        if (sform) {
+          // this is here for the "metadata" - inline edit screen!
+          if (this.state.value._id && sform.store === "metadata") {
+            this.state.value.search_ref = sform._data.find(x => x._id === this.state.value._id);
+          }
+
+          if (this.props.fielddef.createnew_form)
+            field = (<span className="slds-pill">
+                        <a href={Router.URLfor(true,"RecordPage", this.props.fielddef.createnew_form._id, this.state.value._id)} className="slds-pill__label">
+                          { referenceForm(sform, self.state.value.search_ref) }
+                        </a>
+                      </span>);
+          else
+            field = (<span className="slds-pill">
+                        <span className="slds-pill__label">{ referenceForm(sform, self.state.value.search_ref) }</span>
+                      </span>);
+        } else
+          field = <Alert type="error" message={"Missing Metadata: " + this.props.fielddef.search_form}/>;
+
+      } else  {
+        field = (<span/>);
+      }
+    } else {
+
+      let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id),
+          cform = this.props.fielddef.createnew_form && df.getForm (this.props.fielddef.createnew_form._id);
+      if (sform) {
+        field = <span>
+                <div className="slds-pill-container slds-input-has-icon slds-input-has-icon--right" style={{padding: "0"}}>
+
+                  <a onClick={this._handleLookupKeypress.bind(this, {target: {value: true}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
+
+                  { this.state.value &&
+                  <span className="slds-pill" style={{padding: "0.15rem", margin: "0.18rem"}}>
+                    <a href={cform && Router.URLfor(true, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
+                      { referenceForm(sform, self.state.value.search_ref) }
+                    </a>
+                    <button onClick={self._handleLookupSelectOption.bind (self, null)} className="slds-button slds-button--icon-bare">
+                      <SvgIcon spriteType="utility" spriteName="close" small={true} classOverride="slds-button__icon icon-utility"/>
+                      <span className="slds-assistive-text">Remove</span>
+                    </button>
+                  </span>
+                  ||
+                  <input className="slds-input" style={{border: "none"}} type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value && "disabled" || ""}></input>
+                  }
+              </div>
+              { this.state.lookup.create &&
+                <Modal>
+                  <div className="slds-modal__container w95">
+                    <div style={{padding: "0.5em", background: "white"}}>
+                      <PageHeader view={cform}/>
+                    </div>
+                    <div className="slds-modal__content" style={{padding: "0", minHeight: "350px"}}>
+                      <FormMain key={"model-"+this.props.fielddef.name} view={cform} value={this.state.lookup.createValue} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
+                    </div>
+                    <div className="slds-modal__footer">
+                    </div>
+                  </div>
+                </Modal>
+              ||
+                <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible && 'visible' || 'hidden'}}>
+                  <ul className="slds-lookup__list" role="presentation">
+
+                    {this.state.lookup.values.map(function(row, i) { return (
+                    <li key={i} className="slds-lookup__item">
+                        <a onClick={self._handleLookupSelectOption.bind (self, row)} role="option">
+                          { referenceForm(sform, row) }
+                        </a>
+                    </li>
+                    );})}
+
+                    { this.state.lookup.offercreate && cform &&
+                    <li className="slds-lookup__item ">
+                       <a onClick={this._openCreate.bind(this, React.findDOMNode(this.refs.lookupinput).value)} role="option">
+                         <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride="icon-utility"/>
+                         Create {cform.name + ' "' + React.findDOMNode(this.refs.lookupinput).value + '"'}
+                       </a>
+                     </li>
+                    }
+                    </ul>
+                  </div>
+                }
+              </span>;
+      } else {
+        field = <Alert type="error" message={"no search_form " + this.props.fielddef.search_form}/>;
+      }
+    }
+    return field;
+  }
+
+}
+
+export class Field extends Component {
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      value: props.value, // needs to be mutatable
+      lookup: { visible: false, values: [], create: false, offercreate: false},
+      date: {visible: false, montharray: [] }
+    };
+    //console.log ("Field constructor " + props.fielddef.name + "["+props.fielddef.type+"] = " + JSON.stringify(state.value));
+  }
+
+  componentWillReceiveProps(nextProps) {
+    console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
+    if (nextProps.value != this.props.value) {
+      console.log ('the field value has been updated by the form, update the field (this will override the field state)');
+      this.setState({value: nextProps.value});
+    }
+  }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    let shouldUpdate = true;
+    //console.log ('Field shouldComponentupdate props: ' + JSON.stringify(nextProps));
+     // state: ' + JSON.stringify(nextState));
+
+      // Field is updating itsself, always update
+    if (!nextState) {
+      if (this.props.fielddef.type === "reference") {
+        if (nextProps.value && this.props.edit) {
+          shouldUpdate =  false;
+        }
+      } else if (nextProps.value && nextProps.value === this.props.value) {
+        shouldUpdate =  false;
+      }
+    }
+    console.log ('Field shouldComponentupdate : ' + shouldUpdate);
+    return shouldUpdate;
+  }
+
+
   /*******************/
   /* Date  Functions */
   /*******************/
@@ -348,56 +476,16 @@ export class Field extends Component {
   }
 
   render() {
-
     console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> state.value : ' + JSON.stringify(this.state.value));
 
     let field,
         self = this,
         df = DynamicForm.instance;
 
-
-    // function to generate reference search form (for seleced value in edit and view modes, and list values)
-    let referenceForm = (sform, rec) => {
-
-
-      if (typeof rec === "undefined") {
-        return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>no search_ref</span>;
-      } else if (rec.error) {
-        return  <span key={rec._id} style={{color: "red"}}><IconField value={sform.icon} small={true}/>{rec.error}</span>;
-      } else {
-        let gotimageicon = false,
-            retform = sform.fields.map(function(fld, fldidx) {
-
-              let genField = function() {
-                let fldval = rec[fld.name];
-                if (fld.name === "_id") ;
-                else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id ) {
-                  if (fldval) {
-                    gotimageicon = true;
-                    return (<IconField key={fldidx} value={fldval} small={true}/>);
-                  }
-                } else if (fld.type !== "reference" && fld.type !== "childform" && fld.type !== "relatedlist") {
-                  return (<Field key={fldidx} fielddef={fld} value={fldval} inlist={true}/>);
-                } else
-                  return <Alert key={fldidx} message={'"'+fld.type+'" not supported on search form'}/>
-              }
-
-              if (fld.show_when) {
-                jexl.eval(fld.show_when, {"$rec": rec}, (err, visible) => { //eval(fld.show_when);
-                  if (visible) return genField();
-                });
-              } else
-                return genField();
-            });
-
-        if (!gotimageicon && sform.icon)
-          retform = <span key={rec._id}><IconField value={sform.icon} small={true}/>{retform}</span>;
-        return <span key={rec._id}>{retform}</span>;
-      }
-    }
-
     if (this.props.fielddef.type === "image") {
-      field = (<FieldImage fielddef={this.props.fielddef} value={this.props.value} edit={this.props.edit} onChange={this.props.onChange}/>);
+      field = (<FieldImage fielddef={this.props.fielddef} value={this.props.value} edit={this.props.edit} onChange={this.props.onChange} inlist={this.props.inlist}/>);
+    } else if (this.props.fielddef.type === "reference") {
+      field = (<FieldReference fielddef={this.props.fielddef} value={this.props.value} edit={this.props.edit} onChange={this.props.onChange} inlist={this.props.inlist}/>);
     } else if (!this.props.edit) switch (this.props.fielddef.type) {
         case 'text':
         case 'email':
@@ -410,32 +498,6 @@ export class Field extends Component {
         case 'dropdown':
           let ddopt = this.props.value &&  this.props.fielddef.dropdown_options.filter(f => f.key === this.props.value)[0];
           field = (<span>{ddopt && ddopt.name || (this.props.value && 'Unknown option <' + this.props.value +'>' || '')}</span>);
-          break;
-        case "reference":
-          if (this.state.value) {
-            let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id);
-            if (sform) {
-              // this is here for the "metadata" - inline edit screen!
-              if (this.state.value._id && sform.store === "metadata") {
-                this.state.value.search_ref = sform._data.find(x => x._id === this.state.value._id);
-              }
-
-              if (this.props.fielddef.createnew_form)
-                field = (<span className="slds-pill">
-                            <a href={Router.URLfor(true,"RecordPage", this.props.fielddef.createnew_form._id, this.state.value._id)} className="slds-pill__label">
-                              { referenceForm(sform, self.state.value.search_ref) }
-                            </a>
-                          </span>);
-              else
-                field = (<span className="slds-pill">
-                            <span className="slds-pill__label">{ referenceForm(sform, self.state.value.search_ref) }</span>
-                          </span>);
-            } else
-              field = <Alert type="error" message={"Missing Metadata: " + this.props.fielddef.search_form}/>;
-
-          } else  {
-            field = (<span/>);
-          }
           break;
         case "dropdown_options":
           let cform = this.props.fielddef.child_form && df.getForm(this.props.fielddef.child_form._id);
@@ -454,12 +516,6 @@ export class Field extends Component {
               field = (<span><SvgIcon spriteType={this.props.value.type} spriteName={this.props.value.name} small={true}/></span>);
           else
             field = (<span/>);
-          break;
-        case 'image':
-          let marginBott = !this.props.inlist && {marginBottom: "4px"} || {};
-          field = (<div className={this.props.inlist && "slds-avatar slds-avatar--circle slds-avatar--x-small"} style={marginBott}>
-                    <img style={{maxHeight: "150px"}} src={img_src} alt="message user image"/>
-                  </div>);
           break;
         default:
           field = <span>Unknown fieldtype {this.props.fielddef.type}</span>;
@@ -485,73 +541,6 @@ export class Field extends Component {
                         <option key={i} value={opt.key}>{opt.name}</option>
                         );})}
                       </select>;
-            break;
-        case "icon":
-        case "reference":
-          let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id),
-              cform = this.props.fielddef.createnew_form && df.getForm (this.props.fielddef.createnew_form._id);
-
-          if (sform) {
-
-            field = <span>
-                    <div className="slds-pill-container slds-input-has-icon slds-input-has-icon--right" style={{padding: "0"}}>
-
-                      <a onClick={this._handleLookupKeypress.bind(this, {target: {value: true}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
-
-                      { this.state.value &&
-                      <span className="slds-pill" style={{padding: "0.15rem", margin: "0.18rem"}}>
-                        <a href={cform && Router.URLfor(true, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
-                          { referenceForm(sform, self.state.value.search_ref) }
-                        </a>
-                        <button onClick={self._handleLookupSelectOption.bind (self, null)} className="slds-button slds-button--icon-bare">
-                          <SvgIcon spriteType="utility" spriteName="close" small={true} classOverride="slds-button__icon icon-utility"/>
-                          <span className="slds-assistive-text">Remove</span>
-                        </button>
-                      </span>
-                      ||
-                      <input className="slds-input" style={{border: "none"}} type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value && "disabled" || ""}></input>
-                      }
-                  </div>
-                  { this.state.lookup.create &&
-                    <Modal>
-                      <div className="slds-modal__container w95">
-                        <div style={{padding: "0.5em", background: "white"}}>
-                          <PageHeader view={cform}/>
-                        </div>
-                        <div className="slds-modal__content" style={{padding: "0", minHeight: "350px"}}>
-                          <FormMain key={"model-"+this.props.fielddef.name} view={cform} value={this.state.lookup.createValue} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
-                        </div>
-                        <div className="slds-modal__footer">
-                        </div>
-                      </div>
-                    </Modal>
-                  ||
-                    <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible && 'visible' || 'hidden'}}>
-                      <ul className="slds-lookup__list" role="presentation">
-
-                        {this.state.lookup.values.map(function(row, i) { return (
-                        <li key={i} className="slds-lookup__item">
-                            <a onClick={self._handleLookupSelectOption.bind (self, row)} role="option">
-                              { referenceForm(sform, row) }
-                            </a>
-                        </li>
-                        );})}
-
-                        { this.state.lookup.offercreate && cform &&
-                        <li className="slds-lookup__item ">
-                           <a onClick={this._openCreate.bind(this, React.findDOMNode(this.refs.lookupinput).value)} role="option">
-                             <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride="icon-utility"/>
-                             Create {cform.name + ' "' + React.findDOMNode(this.refs.lookupinput).value + '"'}
-                           </a>
-                         </li>
-                        }
-                        </ul>
-                      </div>
-                    }
-                  </span>;
-            } else {
-              field = <Alert type="error" message={"no search_form " + this.props.fielddef.search_form}/>;
-            }
             break;
         case "datetime":
           field = <span>

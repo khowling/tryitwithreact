@@ -145,9 +145,8 @@ module.exports = function(options) {
         props: [
           {
               name: "formids",
-              title: "form Ids (comma seperated)",
-              type: "reference",
-              search_form: { _id: exps.forms.metaSearch}
+              title: "form Ids",
+              type: "jsonarea"
           }
         ]
       }
@@ -1027,7 +1026,10 @@ module.exports = function(options) {
             columns: "1col",
             component: {_id: "AdminTileList"},
             filter: "topx",
-            title: "Admin Tile List"
+            title: "Admin Tile List",
+            props: {
+              formids: [exps.forms.formMetadata, exps.forms.Users, exps.forms.App, exps.forms.ImportMeta]
+            }
           }
         ]
   };

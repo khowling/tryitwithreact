@@ -37,19 +37,22 @@ export class FormMain extends Component {
 
   // form control - visibility and validity
   // TODO : Needs to be MUCH better, not calling eval many times!
-  _formControlState(fields, val, currentState) {
+  _formControlState(crud, fields, val, currentState) {
 
-    return async(function *(fields, val, currentState) {
+    return async(function *(crud, fields, val, currentState) {
       //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
-      let cnrt = {flds:{},invalid: false, change: currentState && false || true};
+      let cnrt = {flds:{},invalid: false, change: currentState && false || true},
+          edit = crud == "c" || crud == "u";
+
       for (let fld of fields.filter(f => f.type !== 'childform' && f.type !== 'relatedlist')) {
 
         let visible = true;
         //console.log (`field ${fld.name}, show_when ${fld.show_when}, val ${JSON.stringify(val)}`);
         if (fld.show_when)
           visible = yield jexl.eval(fld.show_when, {rec: val, appMeta: DynamicForm.instance.appMeta});
+
         let fctrl = {
-          invalid: fld.required && !val[fld.name],
+          invalid: edit && fld.required && !val[fld.name],
           visible: visible,
           dynamic_fields: null
         };
@@ -77,11 +80,11 @@ export class FormMain extends Component {
       }
       //console.log ("FormMain _formControlState result : " + JSON.stringify(cnrt));
       return cnrt;
-    })(fields, val, currentState);
+    })(crud, fields, val, currentState);
   }
 
   componentWillMount() {
-    this._formControlState (this.props.view.fields, this.props.value.record).then(succval => {
+    this._formControlState (this.props.crud, this.props.view.fields, this.props.value.record).then(succval => {
       this.setState ({
         formcontrol: succval
       });
@@ -91,10 +94,11 @@ export class FormMain extends Component {
   componentWillReceiveProps (nextProps) {
     console.log ("FormMain componentWillReceiveProps");
     if (nextProps.value) {
-      this._formControlState (this.props.view.fields, nextProps.value.record).then(succval => {
+      this._formControlState (this.props.crud, this.props.view.fields, nextProps.value.record).then(succval => {
         this.setState ({
           changedata: {}, // wipe out any changes???
-          formcontrol: succval
+          formcontrol: succval,
+          manageData: false, // ensure the inline modal closes when parent updates from save
         });
       });
     }
@@ -109,7 +113,7 @@ export class FormMain extends Component {
 
     let changedata = Object.assign({}, this.state.changedata, d);
     console.log (`--------- FormMain _fieldChange full changedata ${JSON.stringify(changedata)}`);
-    this._formControlState (this.props.view.fields, Object.assign({}, this.props.value.record , changedata), this.state.formcontrol).then(succval => {
+    this._formControlState (this.props.crud, this.props.view.fields, Object.assign({}, this.props.value.record , changedata), this.state.formcontrol).then(succval => {
       this.setState({
         changedata: changedata,
         formcontrol: succval
@@ -166,13 +170,20 @@ export class FormMain extends Component {
   }
 
   /************************/
-  /*  manage inline data */
+  /*  manage inline data  */
+  /************************/
   _manageData() {
     this.setState({manageData: true,  inlineData:  this.props.value.record._data || []});
   }
+
   _inlineDataChange(val) {
     console.log ("FormMain: _inlineDataChange : got update from List : " + JSON.stringify(val));
-    this._saveInlineData = val;
+    if ('data' in val) {
+      this._saveInlineData = val.data;
+    }
+    if ('disableSave' in val) {
+      this.setState({inlineDataDisbleSave: val.disableSave});
+    }
   }
   _inlineDataFinished(save) {
     let updateState = {changedata: {}, manageData: false,  inlineData: null, serverError: null};
@@ -223,13 +234,13 @@ export class FormMain extends Component {
       }
     } else {
       if (edit) {
-        cancelButton = () => Router.navTo(null, record._id && "RecordPage" || "ListPage", this.props.view._id, record._id && record._id || null, null, true);
+        cancelButton = () => Router.navTo(true, record._id && "RecordPage" || "ListPage", this.props.view._id, record._id && record._id || null, null, true);
         saveButton = this._save.bind(this, succval => {
-          Router.navTo(null, "RecordPage", this.props.view._id, succval._id, false, true);
+          Router.navTo(true, "RecordPage", this.props.view._id, succval._id, false, true);
         });
       } else {
-        headerButtons.deleteButton = this._delete.bind(this, () =>   Router.navTo(null, "ListPage", this.props.view._id));
-        headerButtons.editButton = () => Router.navTo(null,"RecordPage", this.props.view._id, record._id, {e: true});
+        headerButtons.deleteButton = this._delete.bind(this, () =>   Router.navTo(true, "ListPage", this.props.view._id));
+        headerButtons.editButton = () => Router.navTo(true,"RecordPage", this.props.view._id, record._id, {e: true});
       }
     }
 
@@ -241,7 +252,7 @@ export class FormMain extends Component {
               <div className="slds-form-element__control"  style={{marginLeft: edit && '0' || "15px"}}>
                 <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
                     { (!edit && offerdata && field.name === "store") &&
-                     <a className="slds-button slds-button--neutral slds-button--brand" onClick={self._manageData.bind(self)}>edit data</a>
+                     <button className="slds-button slds-button--neutral slds-button--brand" onClick={self._manageData.bind(self)}>edit data ({record._data.length})</button>
                     ||
                     <Field fielddef={field} value={value} edit={edit} onChange={self._fieldChange.bind(self, dynamicFieldName)}/>
                     }
@@ -298,10 +309,10 @@ export class FormMain extends Component {
               <Modal>
                 <div className="slds-modal__container w95">
                   <div style={{padding: "0.5em", background: "white"}}>
-                    <SectionHeader view={this.props.value.record} saveButton={this._inlineDataFinished.bind(this, true)} cancelButton={this._inlineDataFinished.bind(this, null)}/>
+                    <SectionHeader view={this.props.value.record} saveButton={this._inlineDataFinished.bind(this, true)} saveButtonDisable={this.state.inlineDataDisbleSave} cancelButton={this._inlineDataFinished.bind(this, null)}/>
                   </div>
                   <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
-                    <ListMain view={this.props.value.record} value={{status: "ready", records: this.state.inlineData}}  onDataChange={this._inlineDataChange.bind(this)}/>
+                    <ListMain inline={true} view={this.props.value.record} value={{status: "ready", records: this.state.inlineData}}  onDataChange={this._inlineDataChange.bind(this)}/>
                     { this.state.serverError  &&
                       <div className="slds-col slds-col--padded slds-size--1-of-1"  style={{marginTop: "15px"}}>
                         <Alert type="error" message={this.state.serverError}/>
@@ -416,77 +427,81 @@ export class ListMain extends Component {
   constructor(props) {
     super(props);
     console.log ('ListMain InitialState : ' + JSON.stringify(props.value));
-
     this.state = {
-      inline: {enabled: props.view.store === "metadata", editidx: null, editval: {}}, // {enabled: props.parent && props.parent.field.type === "dropdown_options" || false, editidx: null, editval: {}},
-      value: props.value,
+      inline: {enabled: props.inline, editidx: null, editval: {}},
+      inlineData: props.inline && props.value,  // inline data is locally mutable, so save in state
       editrow: false,
     };
   }
 
   _ActionDelete (rowidx) {
-    if (this.state.inline.enabled) {
-      let newarray = this.state.value.records.slice(0);
-      newarray.splice(rowidx, 1);
-      console.log ("ListMain _delete rowidx:" + rowidx + ", result : " + JSON.stringify(newarray));
-      this.setState({value: {status: "ready", records: newarray}, inline: {enabled: true, editidx: null, editval: {}, currentval: null}}, () => {
-        if (this.props.onDataChange) {
-          this.props.onDataChange(newarray);
-        }});
-    } else {
-      let row = this.state.value.records[rowidx];
-      if (window.confirm("Sure?")) {
-        let df = DynamicForm.instance,
-            saveopt = {
-              form: this.props.view._id,
-              id: row._id
-            };
-        if (this.props.parent) {
-          let {view, recordid, field} = this.props.parent;
-          saveopt.parent = {
-            parentid: recordid,
-            parentfieldid: field
+    let row = this.props.value.records[rowidx];
+    if (window.confirm("Sure?")) {
+      let df = DynamicForm.instance,
+          saveopt = {
+            form: this.props.view._id,
+            id: row._id
           };
-        }
-        console.log ('ListMain _delete : '+ JSON.stringify(saveopt));
-        df.delete (saveopt).then(succVal => {
-          if (this.props.onDataChange) {
-            // this will re-load the data at the parent, and in turn send new props
-            this.props.onDataChange();
-          }
-        });
+      if (this.props.parent) {
+        let {view, recordid, field} = this.props.parent;
+        saveopt.parent = {
+          parentid: recordid,
+          parentfieldid: field
+        };
       }
+      console.log ('ListMain _delete : '+ JSON.stringify(saveopt));
+      df.delete (saveopt).then(succVal => {
+        if (this.props.onDataChange) {
+          // this will re-load the data at the parent, and in turn send new props
+          this.props.onDataChange();
+        }
+      });
     }
   }
 
   _ActionEdit (rowidx, view = false) {
-    let records = this.state.value.records;
+    let records = this.props.value.records;
     console.log ("ListMain _ActionEdit rowidx :" + rowidx + ", view : " + view);
-    if (this.state.inline.enabled)
-      if (rowidx >= 0)
-        this.setState({inline: Object.assign(this.state.inline, {editidx: rowidx, currentval: records[rowidx]})});
-      else {
-        let newarray = records && records.slice(0) || [];
-        newarray.push({});
-        this.setState({value: {status: "ready", records: newarray}, inline: Object.assign(this.state.inline, {editidx: newarray.length-1, currentval: null})});
-      }
-    else if (this.props.parent)
+    if (this.props.parent)
       if (rowidx >= 0)
         this.setState({editrow: {value: {status: "ready", record: records[rowidx]}, crud: view && "r" || "u"}});
       else
         this.setState({editrow: {value: {status: "ready", record: {}}, crud: "c"}});
     else
-      Router.navTo(null, "RecordPage", this.props.view._id, rowidx >= 0 && records[rowidx]._id,  !view && {"e": true} || {});
+      Router.navTo(true, "RecordPage", this.props.view._id, rowidx >= 0 && records[rowidx]._id,  !view && {"e": true} || {});
   }
 
+  /***************/
+  /** inline  ****/
   _inLinefieldChange(val) {
     console.log ("ListMain _inLinefieldChange : " + JSON.stringify(val));
     this.setState({inline: Object.assign(this.state.inline, {editval: Object.assign(this.state.inline.editval, val)})});
   }
+  _inLineDelete(rowidx) {
+    let newarray = this.state.inlineData.records.slice(0);
+    newarray.splice(rowidx, 1);
+    console.log ("ListMain _delete rowidx:" + rowidx + ", result : " + JSON.stringify(newarray));
+    this.setState({inlineData: {status: "ready", records: newarray}, inline: {enabled: true, editidx: null, editval: {}, currentval: null}}, () => {
+      if (this.props.onDataChange) {
+        this.props.onDataChange(newarray);
+      }});
+  }
+  _inLineEdit(rowidx) {
+    let records = this.state.inlineData.records;
+    if (rowidx >= 0)
+      this.setState({inline: Object.assign(this.state.inline, {editidx: rowidx, currentval: records[rowidx]})}, () =>
+        this.props.onDataChange({disableSave : true}));
+    else {
+      let newarray = records && records.slice(0) || [];
+      newarray.push({});
+      this.setState({inlineData: {status: "ready", records: newarray}, inline: Object.assign(this.state.inline, {editidx: newarray.length-1, currentval: null})}, () =>
+        this.props.onDataChange({disableSave : true}));
+    }
+  }
   _inLineSave(saveit) {
     console.log ("ListMain _inLineSave : saveit:"+saveit+" ["+ this.state.inline.editidx + "] : " + JSON.stringify(this.state.inline.editval));
     if (saveit) {
-      let newarray = this.state.value.records.slice(0);
+      let newarray = this.state.inlineData.records.slice(0);
       if (this.state.inline.currentval) {
         // edit existing val, so join the current val with the changes to get the full record
         newarray[this.state.inline.editidx] = Object.assign(this.state.inline.currentval, this.state.inline.editval);
@@ -494,16 +509,17 @@ export class ListMain extends Component {
         newarray[this.state.inline.editidx] = this.state.inline.editval;
       }
       console.log ("ListMain _inLineSave : inform parent of new data, newarray:" +JSON.stringify(newarray));
-      this.setState({value: {status: "ready", records: newarray}, inline: {enabled: true, editidx: null, editval: {}, currentval: null}}, () => {
+      this.setState({inlineData: {status: "ready", records: newarray}, inline: {enabled: true, editidx: null, editval: {}, currentval: null}}, () => {
         if (this.props.onDataChange) {
-          this.props.onDataChange(newarray);
+          this.props.onDataChange({data: newarray, disableSave: false});
         }});
       } else {
         //we are cancelling.
         let newarray;
         if (this.state.inline.currentval) {
           // its a existing row so do nothing
-          this.setState({inline: {enabled: true, editidx: null, editval: {}, currentval: null}});
+          this.setState({inline: {enabled: true, editidx: null, editval: {}, currentval: null}}, () =>
+            this.props.onDataChange({disableSave: false}));
         } else {
           // its a new row, so delete it!
           this._ActionDelete(this.state.inline.editidx);
@@ -528,7 +544,7 @@ export class ListMain extends Component {
   componentWillReceiveProps (nextProps) {
     console.log ("ListMain componentWillReceiveProps");
     if (nextProps.value) {
-      this.setState ({value: nextProps.value, editrow: false});
+      this.setState ({editrow: false});
     }
   }
 
@@ -540,7 +556,7 @@ export class ListMain extends Component {
   render() {
     console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
     let self = this,
-        {status, records} = this.state.value,
+        {status, records} = this.state.inline && this.state.inlineData || this.props.value,
         nonchildformfields = this.props.view.fields.filter(m => m.type !== 'childform' && m.type !== 'dropdown_options' && m.type !== 'relatedlist' && m.type !== 'dynamic');
 
     let header = React.createElement (SectionHeader, Object.assign ({key: +this.props.view._id, view: this.props.view}, this.props.selected && {
@@ -560,7 +576,11 @@ export class ListMain extends Component {
                     { !self.props.viewonly &&
                     <th className="slds-row-select" scope="col">
                       { self.state.inline.enabled &&
-                      <span className="slds-truncate"><a onClick={this._ActionEdit.bind(this, -1, false)} style={{marginRight: "5px"}}><SvgIcon spriteType="utility" spriteName="new" small={true}/></a>add</span>
+                      <span className="slds-truncate">
+                        <a onClick={this._inLineEdit.bind(this, -1)} style={{marginRight: "5px"}}>
+                          <SvgIcon spriteType="utility" spriteName="new" small={true}/>
+                        </a>add
+                      </span>
                       ||
                       <span className="slds-truncate">del edit</span>
                       }
@@ -581,15 +601,20 @@ export class ListMain extends Component {
 
                           { self.props.selected &&
                             <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
-                          || (self.state.inline.enabled && self.state.inline.editidx == i) &&
+                          ||  self.state.inline.editidx == i &&
                             <div className="slds-button-group">
-                            <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)}>save </button>
-                            <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, false)}>cancel </button>
+                              <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)}>save </button>
+                              <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, false)}>cancel </button>
                             </div>
+                          || self.state.inline.enabled &&
+                            <div className="slds-button-group">
+                              <a onClick={self._inLineDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </a>
+                              <a onClick={self._inLineEdit.bind(self, i, false)} disabled={self.state.inline.editidx} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </a>
+                           </div>
                           ||
                              <div className="slds-button-group">
                                <a onClick={self._ActionDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </a>
-                               <a onClick={self._ActionEdit.bind(self, i, false)} disabled={self.state.inline.editidx} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </a>
+                               <a onClick={self._ActionEdit.bind(self, i, false)} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </a>
                             </div>
                           }
 
@@ -672,7 +697,7 @@ export class RecordPage extends Component {
   }
 
   _dataChanged() {
-    console.log ('RecordPage componentDidMount query database : ');
+    console.log ('RecordPage _dataChanged');
     let df = DynamicForm.instance;
     if (this.state.crud == 'u' || this.state.crud == 'r') {
       if (this.state.metaview.collection)
@@ -834,7 +859,7 @@ export class SectionHeader extends Component {
               </button>
               }
               { typeof this.props.saveButton !== "undefined" &&
-              <button onClick={this.props.saveButton}  className="slds-button slds-button--small slds-button--brand" >
+              <button onClick={this.props.saveButton}  disabled={this.props.saveButtonDisable} className="slds-button slds-button--small slds-button--brand" >
                 save
               </button>
               }
@@ -849,3 +874,7 @@ export class SectionHeader extends Component {
     );
   }
 }
+SectionHeader.propTypes = {
+  saveButtonDisable: React.PropTypes.bool
+};
+SectionHeader.defaultProps = { saveButtonDisable: false };

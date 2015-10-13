@@ -37,6 +37,8 @@ export default class Router extends Component {
     if (comp) routeJson.hash = comp;
     if (form) routeJson.params.gid = form + (record && ("-"+record) || "");
     if (params) Object.assign (routeJson.params, params);
+
+    console.log ('Router.URLFor : ' + JSON.stringify(routeJson));
     return Router._encodeHash (routeJson);
   }
 

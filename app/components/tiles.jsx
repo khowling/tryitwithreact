@@ -54,8 +54,9 @@ export class AdminTileList extends Component {
         console.log ('TileList render : ' + metaview.length);
         return (
               <ul className="slds-wrap slds-list--horizontal slds-has-cards">
-                    {metaview.map(function(row, i) {  return (
-                        <Tile key={row._id} meta={row}/>
+                    {this.props.formids.map(function(fid, i) {  
+                      return (
+                        <Tile key={fid} meta={df.getForm(fid)}/>
                     );})}
               </ul>
         )

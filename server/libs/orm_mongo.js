@@ -3,7 +3,8 @@
 /**
  * Created by keith on 17/10/14.
  */
- var System = require('es6-module-loader').System;
+var System = require('es6-module-loader').System;
+System.transpiler = 'babel';
 
 var   express = require('express')
     , router = express.Router()
@@ -15,9 +16,10 @@ var   express = require('express')
     , jexl = require('jexl');
 
 var typecheckFn;
-System.import('../../shared/dform.es6').then(function(dform) {
+System.import('./shared/dform.es6').then(function(dform) {
+  console.log ('Setting shared module typecheckFn ' + dform);
   typecheckFn = dform.typecheckFn;
-});
+}, errval => console.log ('Setting shared module typecheckFn error ' + errval));
 
 
 
@@ -354,7 +356,7 @@ module.exports = function(options) {
         }, function (err) {
             reject ('find() Cannot find form definitions ' + err);
         }).catch(function (err) {
-            reject ('find() catch error ' + err);
+            reject ('find() Program Error: ' + err);
         });
       });
     };
@@ -481,11 +483,11 @@ module.exports = function(options) {
                   // create formfield object keyed on fieldname
 
 
-                  let fldsByPropname = {};
-                  for (let f of form.fields) {
-                    fldsByPropname[f.name] = f;
-                  }
-                  console.log ("Save: validateSetFields, looping through save records: " + reqval.length);
+                //  let fldsByPropname = {};
+                //  for (let f of form.fields) {
+                //    fldsByPropname[f.name] = f;
+                //  }
+                  //console.log ("Save: validateSetFields, looping through save records: " + reqval.length);
                   for (let rv of reqval) { // for each data record
                     let tv = {};  // target validated object
 
@@ -504,13 +506,12 @@ module.exports = function(options) {
                       tv._updateDate = new Date();
                       tv._updatedBy = userid;
                     }
-                    console.log ("Save: validateSetFields, looping through record propities");
+                    //console.log ("Save: validateSetFields, looping through record propities");
                     for (let propname in rv) { // for each property in data object
                       let fval = rv[propname], // store the requrested property value
                           tprop = embedField && embedfield+'.$.'+propname || propname;  // format the target property name for mongo
 
-                      console.log ("Save: validateSetFields, validating field: " + propname);
-                      let tcres = typecheckFn (fldsByPropname[propname], propname, fval);
+                      let tcres = typecheckFn (form, propname, fval, (fid) => meta.findFormById(FORM_DATA, fid), ObjectID);
                       if ('error' in tcres)
                         return tcres;
                       else if ('validated_value' in tcres)
@@ -526,10 +527,10 @@ module.exports = function(options) {
                           // create formfield object keyed on fieldname
                           let cform = tcres.childform_field.child_form && meta.findFormById(FORM_DATA, tcres.childform_field.child_form._id);
                           if (!cform) return {error: "data contains childform field, but no child_form defined for the field: " + propname};
-                          let cfldsByPropname = {};
-                          for (let f of cform.fields) {
-                            cfldsByPropname[f.name] = f;
-                          }
+                      //    let cfldsByPropname = {};
+                      //    for (let f of cform.fields) {
+                      //      cfldsByPropname[f.name] = f;
+                      //    }
 
                           for (let cval of tcres.childform_array) {
                             let ctv = {};  // target validated object
@@ -539,8 +540,7 @@ module.exports = function(options) {
 
                             for (let cpropname in cval) {
                               let cfval = cval[cpropname]; // store the requrested property value
-                              console.log ("Save: validateSetFields, validating childform field: " + cpropname);
-                              let ctcres = typecheckFn (cfldsByPropname[propname], cpropname, cfval);
+                              let ctcres = typecheckFn (cform, cpropname, cfval, (fid) => meta.findFormById(FORM_DATA, fid), ObjectID);
                               if ('error' in ctcres)
                                 return ctcres;
                               else if ('validated_value' in ctcres)
@@ -662,7 +662,7 @@ module.exports = function(options) {
             }
         }, function (err) {
             reject ('save() Cannot find form definitions ' + err);
-        });
+        }).catch (err => reject ('save() Program Error ' + err));
       });
     };
 

@@ -71,38 +71,32 @@ export class Login extends Component {
 }
 
 export class AuthState extends Component {
-
-  constructor(props) {
-    super(props);
-    this.state = {user: props.user, app: props.currentApp};
-  }
-
   _changeapp(appid) {
     this.props.onchange(appid);
   }
 
   render () {
     let self = this;
-    if (this.state.user)
+    if (this.props.user)
       return (
         <div className="slds-dropdown-trigger" aria-haspopup="true">
             <div className="slds-button slds-button--neutral">
-              {this.state.user.name} ({this.state.app.name}) <SvgIcon classOverride="header-icons" small={true} spriteType="utility" spriteName="down"/>
+              {this.props.user.name} ({this.props.currentApp.name}) <SvgIcon classOverride="header-icons" small={true} spriteType="utility" spriteName="down"/>
             </div>
             <div className="slds-dropdown slds-dropdown--nubbin-top slds-dropdown--menu" style={{left: "35%"}}>
              <ul className="slds-dropdown__list" role="menu">
-               { this.state.user.apps && this.state.user.apps.map(function(val, i) { return (
-               <li key={i} className="slds-dropdown__item" style={{whiteSpace: "nowrap"}}>
+               { this.props.user.apps && this.props.user.apps.map(function(val, i) { return (
+               <li key={i} className="slds-dropdown__item" style={{whiteSpace: "nowrap"}} role="menuitem">
                    <a href={Router.URLfor(val.app._id)} className="slds-truncate">{val.app.search_ref[Object.keys(val.app.search_ref)[1]]}</a>
                </li>
              );})}
-               <li className="slds-dropdown__item" >
+               <li className="slds-dropdown__item" role="menuitem">
                  <a onClick={this.props.onLogout} className="slds-truncate">logout</a>
                </li>
              </ul>
            </div>
          </div>);
     else
-      return <div><a href='#Login'>Login</a> ({this.state.app && this.state.app.name || ""})</div>;
+      return <div><a href='#Login'>Login</a> ({this.props.currentApp && this.props.currentApp.name || ""})</div>;
   }
 }
