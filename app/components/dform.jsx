@@ -747,7 +747,8 @@ export class RecordPage extends Component {
     return (
         <div className="slds-grid slds-wrap">
             <div className="slds-col slds-size--1-of-1">
-              { this.props.urlparam && <PageHeader view={this.state.metaview}/> }
+              { //this.props.urlparam && <PageHeader view={this.state.metaview}/>
+              }
             </div>
 
           { this.state.value.status === "error" &&
@@ -787,46 +788,6 @@ export class RecordPage extends Component {
     }
 }
 
-export class PageHeader extends Component {
-  render() {
-    let df = DynamicForm.instance,
-        isformmeta = this.props.view == "303030303030303030313030";
-
-    console.log ("Form " + this.props.view.name + ", icon :" + this.props.view.icon);
-    return (
-      <div className="slds-page-header ">
-        <div className="slds-grid">
-          <div className="slds-col slds-has-flexi-truncate">
-
-            <div className="slds-media">
-              <div className="slds-media__figure">
-                <a  href={ Router.URLfor(true, "ListPage", this.props.view._id)}>
-                <IconField value={this.props.view.icon} large={true}/>
-                </a>
-              </div>
-              <div className="slds-media__body">
-                <p className="slds-text-heading--label">Record Type</p>
-                <div className="slds-grid">
-                  <h1 className="slds-text-heading--medium slds-m-right--small slds-truncate slds-align-middle">{this.props.view.name}</h1>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="slds-col slds-no-flex slds-align-bottom">
-            <div className="slds-grid">
-              { !isformmeta &&
-              <a className="slds-button slds-button--icon-more slds-shrink-none slds-m-left--large" href={ Router.URLfor("admin", "RecordPage", "303030303030303030313030", this.props.view._id)}>
-                <SvgIcon spriteType="utility" spriteName="settings" small={true} classOverride="slds-button__icon icon-utility"/>
-              </a>
-              }
-            </div>
-          </div>
-        </div>
-        <p className="slds-text-body--small slds-m-top--x-small">10 items, sorted by name</p>
-      </div>
-    );
-  }
-}
 
 export class SectionHeader extends Component {
   render() {

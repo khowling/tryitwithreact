@@ -662,6 +662,12 @@ module.exports = function(options) {
                   search_form: { _id: exps.forms.AppSearch},
                   required: true,
                   _id: new ObjectID('000000000901')
+              },
+              {
+                  name: "appuserdata",
+                  title: "Application User Data",
+                  type: "dynamic",
+                  dynamic_fields: "rec.app._id|get('App').userfields",
               }
             ]
         },
@@ -801,6 +807,14 @@ module.exports = function(options) {
                     createnew_form: { _id: exps.forms.AppPageComponent},
                     child_form: { _id: exps.forms.AppPageComponent},
                     _id: new ObjectID('000000000a02'),
+                },
+                {
+                    name: "userfields",
+                    title: "User Dynamic Fields",
+                    type: "childform",
+                    layout: "list",
+                    child_form: { _id: exps.forms.FormFieldMetadata},
+                    _id: new ObjectID('000000000a03')
                 }
             ]
         },

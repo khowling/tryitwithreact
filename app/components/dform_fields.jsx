@@ -312,7 +312,7 @@ export class FieldReference extends Component {
         field = (<span/>);
       }
     } else {
-
+      console.log ('referencefield get search_form : ' + JSON.stringify(this.props.fielddef.search_form));
       let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id),
           cform = this.props.fielddef.createnew_form && df.getForm (this.props.fielddef.createnew_form._id);
       if (sform) {
@@ -373,7 +373,7 @@ export class FieldReference extends Component {
                 }
               </span>;
       } else {
-        field = <Alert type="error" message={"no search_form " + this.props.fielddef.search_form}/>;
+        field = <Alert type="error" message={"no search_form found in app " + (this.props.fielddef.search_form && this.props.fielddef.search_form._id)}/>;
       }
     }
     return field;

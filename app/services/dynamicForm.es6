@@ -1,6 +1,11 @@
 'use strict';
 
-import { range, seq, compose, map, filter } from 'transducers.js';
+import jexl from 'jexl';
+jexl.addTransform('get', function(ids, view) {
+  let df = DynamicForm.instance;
+  return df.get(df.getFormByName(view)._id, ids);
+});
+
 
 let instance = null;
 export default class DynamicForm {
