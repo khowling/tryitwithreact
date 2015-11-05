@@ -41,7 +41,7 @@ export class FieldImage extends Component {
       var self = this,
         df = DynamicForm.instance;
       if (this.props.fielddef.type === 'image' && this.props.edit) {
-        this.line = new ProgressBar.Line(React.findDOMNode(this.refs.progressline), {color: '#FCB03C'})
+        this.line = new ProgressBar.Line(this.refs.progressline, {color: '#FCB03C'})
       }
   }
 
@@ -50,7 +50,7 @@ export class FieldImage extends Component {
   }
 
   _clickFile() {
-    React.findDOMNode(this.refs.imageinput).click();
+    this.refs.imageinput.click();
   }
 
   _fileuploadhtml5(e) {
@@ -213,7 +213,6 @@ export class FieldReference extends Component {
     let lookupval,
         resetLookup = {visible: false, values: [] };
 
-    //React.findDOMNode(this.refs.lookupinput).value = "";
 
     if (!data) {
       console.log ('Field _handleLookupSelectOption, clear field state, then update parent ['+this.props.fielddef.name+']');
@@ -233,7 +232,7 @@ export class FieldReference extends Component {
 
   _newLookupRecord(row) {
     console.log ("Field _newLookupRecord got new lookup record : " + JSON.stringify (row));
-    React.findDOMNode(this.refs.lookupinput).value = "";
+    this.refs.lookupinput.value = "";
     this.setState({value: row, lookup: {create: false, visible: false, values:[]}}, () => {
       if (this.props.onChange)
         this.props.onChange ({[this.props.fielddef.name]: row});
@@ -362,9 +361,9 @@ export class FieldReference extends Component {
 
                     { this.state.lookup.offercreate && cform &&
                     <li className="slds-lookup__item ">
-                       <a onClick={this._openCreate.bind(this, React.findDOMNode(this.refs.lookupinput).value)} role="option">
+                       <a onClick={this._openCreate.bind(this, this.refs.lookupinput.value)} role="option">
                          <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride="icon-utility"/>
-                         Create {cform.name + ' "' + React.findDOMNode(this.refs.lookupinput).value + '"'}
+                         Create {cform.name + ' "' + this.refs.lookupinput.value + '"'}
                        </a>
                      </li>
                     }

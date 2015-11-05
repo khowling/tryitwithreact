@@ -6,6 +6,7 @@ import 'babel-core/polyfill';
 import './styles/main.scss';
 
 import React, {Component} from 'react';
+import ReactDOM from 'react-dom';
 import App from "./app.jsx";
 
- React.render(React.createElement(App, {buildprops: buildprops}), document.getElementById('app'));
+ ReactDOM.render(React.createElement(App, {buildprops: buildprops}), document.getElementById('app'));

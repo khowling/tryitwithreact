@@ -101,7 +101,7 @@ export  class TimeLine extends Component {
   componentDidMount() {
 
     Velocity.animate(
-      React.findDOMNode(this.refs.timeline).children,
+      this.refs.timeline.children,
       "transition.slideLeftIn", { stagger: 50 });
 
   }

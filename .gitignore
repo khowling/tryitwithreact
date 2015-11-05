@@ -1,0 +1,8 @@
+assets
+assets/*
+node_modules
+node_modules/*
+.module-cache
+.module-cache/*
+mongo_data
+mongo_data/*
