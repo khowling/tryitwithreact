@@ -1,6 +1,10 @@
 
 
+/* $line-height-text: 1.1;
+*/
+
 @import '~@salesforce-ux/design-system/scss/index.scss';
+
 
 [class*="text-heading--label"], .slds-max-medium-table--stacked-horizontal td:before {
    font-size: 0.75rem;
@@ -61,9 +65,6 @@
  }
 
  /*  layout */
- html {
-   //background-color: rgb(244, 246, 249);
- }
 
  .site-banner {
    position: fixed;

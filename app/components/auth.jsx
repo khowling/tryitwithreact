@@ -91,6 +91,9 @@ export class AuthState extends Component {
                </li>
              );})}
                <li className="slds-dropdown__item" role="menuitem">
+                 <a href={Router.URLfor(true,"RecordPage", "303030303030303030363030", this.props.user._id)} className="slds-truncate">my profile</a>
+               </li>
+               <li className="slds-dropdown__item" role="menuitem">
                  <a onClick={this.props.onLogout} className="slds-truncate">logout</a>
                </li>
              </ul>

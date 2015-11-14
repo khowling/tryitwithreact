@@ -8,7 +8,8 @@ import Router from './router.jsx';
 
 import ProgressBar from 'progressbar.js'
 import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
-import {PageHeader, ListMain, FormMain, RecordMain}       from './dform.jsx';
+import {ListMain, FormMain, RecordMain}       from './dform.jsx';
+import {FormHeader}       from './headers.jsx';
 
 import DynamicForm from '../services/dynamicForm.es6';
 
@@ -136,7 +137,7 @@ export class FieldImage extends Component {
             <Modal>
               <div className="slds-modal__container w95">
                 <div style={{padding: "0.5em", background: "white"}}>
-                  <PageHeader view={this.state.filemeta}/>
+                  <FormHeader view={this.state.filemeta}/>
                 </div>
                 <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
                   <ListMain view={this.state.filemeta} value={this.state.picFileList} selected={this._selectedFile}/>
@@ -338,7 +339,7 @@ export class FieldReference extends Component {
                 <Modal>
                   <div className="slds-modal__container w95">
                     <div style={{padding: "0.5em", background: "white"}}>
-                      <PageHeader view={cform}/>
+                      <FormHeader view={cform}/>
                     </div>
                     <div className="slds-modal__content" style={{padding: "0", minHeight: "350px"}}>
                       <FormMain key={"model-"+this.props.fielddef.name} view={cform} value={this.state.lookup.createValue} crud="c" onComplete={this._newLookupRecord.bind(this)}/>

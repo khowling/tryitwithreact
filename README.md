@@ -1,19 +1,27 @@
 
-Latest incarnation of 'myapp'
+### Latest incarnation of **myapp**
 
-this time, with express, mongo, react, es6, custom router, and adminlte.
-
--------------------------------
-
-Directory Structure
-
-server :
-    holds the express server and the API implementation
-app:
-    the core of the app and everything in there can be rendered on the server or the client
+this time, with `express`, `mongo`, `react`, `es6`, my custom html router, and `salesforce lightning design system`.
 
 
-transducers.js (transform and reduce)
+---
+
+##### Directory Structure
+
+`server` holds the express server and the API implementation
+
+`app` the core of the app and everything in there can be rendered on the server or the client
+
+`shared` can run on client or server!
+
+
+---
+Notes
+
+
+
+---
+`transducers.js` (transform and reduce)
 work with any data structure (arrays, objects, iterators, immutable data structures)
 
 seq(coll, xform) — A generalized method that will return the same data type that was passed in as coll, with xform applied. You will usually use this unless you know you want an array, object, or iterator

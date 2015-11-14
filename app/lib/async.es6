@@ -14,9 +14,11 @@ export default function async(makeGenerator){
       if (result.done) return Promise.resolve(result.value);
 
       return Promise.resolve(result.value).then(function (res){
-        return handle(generator.next(res));
+        return handle(generator.next({val: res}));
       }, function (err){
-        return handle(generator.throw(err));
+        console.log ('async got error : ' +err );
+        //return handle(generator.throw(err));
+        return handle(generator.next({error: err}));
       });
     }
 

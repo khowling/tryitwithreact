@@ -3,8 +3,6 @@
 /**
  * Created by keith on 17/10/14.
  */
-var System = require('es6-module-loader').System;
-System.transpiler = 'babel';
 
 var   express = require('express')
     , router = express.Router()
@@ -15,11 +13,14 @@ var   express = require('express')
     , ObjectID = require('mongodb').ObjectID
     , jexl = require('jexl');
 
+
 var typecheckFn;
+var System = require('es6-module-loader').System;
+System.transpiler = 'babel'; // use babel 5.x.x NOT 6
 System.import('./shared/dform.es6').then(function(dform) {
   console.log ('Setting shared module typecheckFn ' + dform);
   typecheckFn = dform.typecheckFn;
-}, errval => console.log ('Setting shared module typecheckFn error ' + errval));
+}, errval => console.log ('Setting shared module typecheckFn ' + errval));
 
 
 
@@ -774,6 +775,8 @@ module.exports = function(options) {
                 retadminmeta.add(adminmeta[exps.forms.FileMeta.toString()]); // apps that need to work with files
                 retadminmeta.add(adminmeta[exps.forms.iconSearch.toString()]); // apps that need to work with icons
                 retadminmeta.add(adminmeta[exps.forms.UserSearch.toString()]); // apps that need to work with users
+                retadminmeta.add(adminmeta[exps.forms.App.toString()]); // apps that need to work with users app-specific dynamicfiles
+                
                 if (false) for (let admins in exps.forms) { // Get out of Jail!!
                   retadminmeta.add(adminmeta[exps.forms[admins].toString()]);
                 }

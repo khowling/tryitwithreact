@@ -104,9 +104,7 @@ export class RecordHeader extends Component {
               <dt>
                 <p className="slds-text-heading--label slds-truncate" title="Field2 (3)">Field 2 (3)
                   <button className="slds-button slds-button--icon-bare">
-                    <svg aria-hidden="true" className="slds-button__icon slds-button__icon--small">
-                      <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#down"></use>
-                    </svg>
+                    <SvgIcon spriteType="utility" spriteName="down" small={true} classOverride="slds-button__icon icon-utility"/>
                     <span className="slds-assistive-text">More Actions</span>
                   </button>
                 </p>
@@ -137,9 +135,6 @@ export class RecordHeader extends Component {
             </dl>
           </div>
         </div>
-
-
-
       </div>
     );
   }

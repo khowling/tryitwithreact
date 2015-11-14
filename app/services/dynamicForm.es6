@@ -2,8 +2,12 @@
 
 import jexl from 'jexl';
 jexl.addTransform('get', function(ids, view) {
-  let df = DynamicForm.instance;
-  return df.get(df.getFormByName(view)._id, ids);
+  let df = DynamicForm.instance,
+      f = df.getFormByName(view);
+  if (f)
+    return df.get(f._id, ids);
+  else
+    return Promise.reject(`cannot find view ${view}`);
 });
 
 
