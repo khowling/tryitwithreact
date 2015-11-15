@@ -120,6 +120,40 @@ module.exports = function(options) {
 
     exps.Compoments = [
       {
+        _id: "RecordPage",
+        name: "RecordPage",
+        desc: "View Records",
+        props: [
+          {
+              name: "view",
+              title: "Data view",
+              type: "reference",
+              search_form: { _id: exps.forms.metaSearch}
+          },
+          {
+              name: "xid",
+              title: "Record Expression",
+              type: "formula",
+              placeholder: ""
+          },
+          {
+              name: "edit",
+              title: "Edit Mode",
+              type: "dropdown",
+              dropdown_options: [
+                  {
+                      name: "Yes",
+                      key: "true"
+                  },
+                  {
+                      name: "No",
+                      key: "false"
+                  }
+              ]
+          }
+        ]
+      },
+      {
         _id: "ListPage",
         name: "ListPage",
         desc: "List of records in a table",
@@ -327,6 +361,10 @@ module.exports = function(options) {
                         {
                           name: "JSON",
                           key: "jsonarea"
+                        },
+                        {
+                          name: "Formula",
+                          key: "formula"
                         },
                         {
                           name: "Dropdown",

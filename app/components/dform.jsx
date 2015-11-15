@@ -5,6 +5,7 @@ import React, {Component} from 'react';
 import jexl from 'jexl';
 import Router from './router.jsx';
 import {Field} from './dform_fields.jsx';
+import {RecordHeader, FormHeader} from './headers.jsx';
 import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
@@ -281,12 +282,12 @@ export class FormMain extends Component {
                   return (<Alert message={`dynamic field expression error ${dflds.error}`}/>);
                 else if (fc.visible.val) return getFieldDOM(i, field, record[field.name], edit, fc);
               } else if (field.type === 'dynamic') {
-                console.log ('dynimic field ' + field.name);
                 let dflds = formcontrol.flds[field.name].dynamic_fields;
+                console.log (`dynamic field ${field.name}, dflds : ${JSON.stringify(dflds)}`);
                 if (dflds) {
                   if (dflds.error)
                     return (<Alert message={`dynamic field expression error ${dflds.error}`}/>);
-                  else
+                  else if (dflds.val)
                     return dflds.val.map(function(dfield, i) {
                       let fc = {visible: {val: true}, invalid: false};
                       if (fc.visible.val) return  getFieldDOM(i, dfield, record[field.name] && record[field.name][dfield.name], edit, fc, field.name);
@@ -405,7 +406,7 @@ export class ListPage extends Component {
       return (
         <div className="slds-grid slds-wrap">
           <div className="slds-col slds-size--1-of-1">
-          { // this.props.urlparam && <PageHeader view={this.state.metaview}/>
+          { <FormHeader view={this.state.metaview}/>
           }
           </div>
           { this.state.value.status === "error" &&
@@ -687,10 +688,12 @@ export class RecordPage extends Component {
     super(props);
 
     let df = DynamicForm.instance,
-          metaview = df.getForm (props.urlparam.view);
+//          metaview = df.getForm (props.urlparam.view);
+        metaview = df.getForm (props.view._id);
 
     this.state = {
-      crud: !props.urlparam.id && "c" || props.urlparam.e && "u" || "r",
+      //crud: !props.urlparam.id && "c" || props.urlparam.e && "u" || "r",
+      crud: props.edit && "u" || "r",
       metaview: metaview,
       childformfields: metaview.fields.filter(m => m.type === 'childform'),
       relatedlistfields: metaview.fields.filter(m => m.type === 'relatedlist'),
@@ -708,7 +711,8 @@ export class RecordPage extends Component {
     let df = DynamicForm.instance;
     if (this.state.crud == 'u' || this.state.crud == 'r') {
       if (this.state.metaview.collection)
-        df.get (this.state.metaview._id, this.props.urlparam.id).then(succVal => {
+        //df.get (this.state.metaview._id, this.props.urlparam.id).then(succVal => {
+        jexl.eval(`${this.props.xid}|get(${this.state.metaview.name})`).then(succVal => {
             this.setState({ value: {status: "ready", record: succVal}});
         }, errval => {
           this.setState({ value: {status: "error", message: errval}});
@@ -754,7 +758,7 @@ export class RecordPage extends Component {
     return (
         <div className="slds-grid slds-wrap">
             <div className="slds-col slds-size--1-of-1">
-              { //this.props.urlparam && <PageHeader view={this.state.metaview}/>
+              { <RecordHeader view={this.state.metaview}/>
               }
             </div>
 

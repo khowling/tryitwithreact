@@ -16,7 +16,7 @@ export class FormHeader extends Component {
 
     console.log ("Form " + this.props.view.name + ", icon :" + this.props.view.icon);
     return (
-      <div className="slds-page-header ">
+      <div className="slds-page-header "  role="banner">
         <div className="slds-grid">
           <div className="slds-col slds-has-flexi-truncate">
 
@@ -92,7 +92,7 @@ export class RecordHeader extends Component {
           <div className="slds-col--padded slds-size--1-of-4">
             <dl>
               <dt>
-                <p className="slds-truncate" title="Field 1">Field 1</p>
+                <p className="slds-text-heading--label slds-truncate" title="Field 1">Field 1</p>
               </dt>
               <dd>
                 <p className="slds-text-body--regular slds-truncate" title="Description that demonstrates truncation with a long text field">Description that demonstrates truncation with a long text field</p>

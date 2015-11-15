@@ -16,6 +16,12 @@ this time, with `express`, `mongo`, `react`, `es6`, my custom html router, and `
 
 
 ---
+using jexl
+
+example  : user.apps[.app._id = app._id].appuserdata.mysquad._id
+
+
+---
 Notes
 
 

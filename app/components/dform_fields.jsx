@@ -490,6 +490,7 @@ export class Field extends Component {
         case 'text':
         case 'email':
         case 'textarea':
+        case 'formula':
           field = (<span>{this.props.value}</span>);
           break;
         case 'jsonarea':
@@ -529,6 +530,7 @@ export class Field extends Component {
           field =  <input type="text" className="slds-input" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}/>;
           break;
         case 'textarea':
+        case 'formula':
           field = <textarea className="slds-input" rows="3" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}></textarea>;
             break;
         case 'jsonarea':

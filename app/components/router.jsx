@@ -38,7 +38,7 @@ export default class Router extends Component {
     if (form) routeJson.params.gid = form + (record && ("-"+record) || "");
     if (params) Object.assign (routeJson.params, params);
 
-    console.log ('Router.URLFor : ' + JSON.stringify(routeJson));
+    // console.log ('Router.URLFor : ' + JSON.stringify(routeJson));
     return Router._encodeHash (routeJson);
   }
 
@@ -157,10 +157,14 @@ export default class Router extends Component {
 
     console.log ('Router: chng_route_fn ['+ this.props.currentApp._id +']  current appid: ' + currentApp._id);
     if (currentApp._id === newroute.appid) {
-      console.log ('Router: chng_route_fn, same app, updating state with newroute: ' + JSON.stringify(newroute));
+      console.log ('Router: chng_route_fn, SAME app, updating state with newroute: ' + JSON.stringify(newroute));
+
+      // inform parent 'App' we are updating the route
       if (updateRouteFn) updateRouteFn (newroute);
+
       // Save current route before overriding for backURL
       if (this.state) Router.backUrl = this.state.newroute;
+
       if (typeof popfn === "function")
         this.setState({newroute: newroute, popfn: popfn});
       else {
@@ -204,13 +208,19 @@ export default class Router extends Component {
     }
     console.log ('Router: render newroute');
     if (!this.state.newroute.hash) { // landingpage
-      let page = df.app.landingpage && df.app.landingpage[0],
-          comp = page && this.props.componentFactories[page.component._id] || null;
-      if (comp) {
-        console.log (`Router: rendering component ${page.component._id} with props ${JSON.stringify(page.props)}`);
-        return template3((<div></div>),comp(page.props), (<div></div>) );
+      let comps = [];
+      if (df.app.landingpage) for (let pagecomp of df.app.landingpage) {
+        let cf = this.props.componentFactories[pagecomp.component._id];
+        if (cf) {
+          console.log (`Router: rendering component ${pagecomp.component._id} with props ${JSON.stringify(pagecomp.props)}`);
+          comps.push (cf(pagecomp.props));
+        } else
+          comps.push(<Alert message={`Cannot find component ${pagecomp.component._id}`}/>);
+      }
+      if (comps.length >0) {
+        return template3((<div></div>),comps, (<div></div>) );
       } else
-        return (<Alert message={page && ("Unknown Compoent " + JSON.stringify(page.component)) || "No landing page defined for app"} alert={true}/>);
+        return (<Alert message="No landing page defined for app" alert={true}/>);
     } else {
       let Routefactory = this.props.componentFactories[this.state.newroute.hash];
       if (Routefactory) {
