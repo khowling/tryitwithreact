@@ -5,6 +5,8 @@ import React, {Component} from 'react';
 import DynamicForm from '../services/dynamicForm.es6';
 import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 
+import t from 'transducers.js';
+const { into, range, seq, compose, map, filter } = t;
 
 const DEFAULT_LANDING = 'TileList';
 
@@ -32,11 +34,11 @@ export default class Router extends Component {
     else
       effectiveappid = appid || false;
 
-    let routeJson = {appid: effectiveappid, params: {}};
+    let routeJson = {appid: effectiveappid, hash: comp, props: Object.assign({form: form && {_id: form}, xid: record && `"${record}"`}, params)};
 
-    if (comp) routeJson.hash = comp;
-    if (form) routeJson.params.gid = form + (record && ("-"+record) || "");
-    if (params) Object.assign (routeJson.params, params);
+//    if (comp) routeJson.hash = comp;
+//    if (form) routeJson.params.gid = form + (record && ("-"+record) || "");
+//    if (params) Object.assign (routeJson.params, params);
 
     // console.log ('Router.URLFor : ' + JSON.stringify(routeJson));
     return Router._encodeHash (routeJson);
@@ -52,26 +54,25 @@ export default class Router extends Component {
   }
 
   static _encodeHash (routeJson) {
-    let array = [],
-        {appid, hash, params} = routeJson;
+    let {appid, hash, props} = routeJson;
 
-    for(var key in params) {
-      if (params[key]) {
-        array.push(encodeURIComponent(key) + "=" + encodeURIComponent(params[key]));
-      }
-    }
-    //console.log ("Router._encodeHash got params " + array.length + " : " + JSON.stringify(array));
-    return "#" + (appid && (appid+"/") || "") + (hash || "") + ((array.length > 0) &&  ("?" + array.join("&")) || "");
+//    for(var key in params) {
+//      if (params[key]) {
+//        array.push(encodeURIComponent(key) + "=" + encodeURIComponent(params[key]));
+//      }
+//    }
+    console.log ("Router._encodeHash got params : " + JSON.stringify(routeJson));
+//    return "#" + (appid && (appid+"/") || "") + (hash || "") + ((array.length > 0) &&  ("?" + array.join("&")) || "");
+    return "#" + (appid && (appid+"/") || "") + (hash || "") + ((props) &&  ("?props=" + encodeURIComponent(btoa(JSON.stringify(props)))));
   }
 
   static _decodeHash (hashuri) {
     //console.log ('Router._decodeHash value : ' + hashuri);
-    let retval = {appid: null, hash: null, params: null},
-        paramjson = {};
+    let retval = {appid: null, hash: null, props: {}, urlparms: []};
 
     // url format: #[<appid>/]<compoment>
     if (hashuri &&  hashuri !== "undefined") {
-      let [main, parms] = hashuri.split('?');
+      let [main, urlparms] = hashuri.split('?');
 
       if (main) {
         if (main.indexOf("/") > -1) {
@@ -82,6 +83,21 @@ export default class Router extends Component {
           retval.hash = main;
         }
       }
+      // params to props
+      if (urlparms) {
+        let objparam = into({},
+            map(p => p.split("=")),
+           urlparms.split("&"));
+        for (let p in objparam) {
+          if (p === "props") {
+            retval.props = JSON.parse(atob(decodeURIComponent(objparam[p])));
+          } else {
+            retval.urlparms[p] = objparam[p];
+          }
+        }
+      }
+
+      /*
       // url params ?gid=<view>[:<id>]
       if (parms) {
         let tfn = x => {
@@ -100,8 +116,9 @@ export default class Router extends Component {
           tfn (parms);
         retval.params = paramjson;
       }
+      */
     }
-    //console.log ('Router._decodeHash return value : ' + JSON.stringify(retval));
+    console.log ('Router._decodeHash return value : ' + JSON.stringify(retval));
     return (retval);
   }
 
@@ -194,40 +211,47 @@ export default class Router extends Component {
 
   render() {
     let df = DynamicForm.instance,
-        template3 = (head,content,side) => {
+        template3 = (comps) => {
       return (
-        <div className="slds-grid slds-wrap">
-          <div className="slds-col slds-size--1-of-1">{head}
+      <div className="slds-grid slds-wrap">
+        { comps.head && <div className="slds-col slds-size--1-of-1">{comps.head}
           </div>
-          <div className="slds-col slds-size--1-of-1 slds-medium-size--2-of-3">{content}
+        }
+        { comps.main && <div className="slds-col slds-size--1-of-1 slds-medium-size--2-of-3">{comps.main}
           </div>
-          <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-3">{side}
-          </div>
+        }
+        { comps.side && <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-3">{comps.side}
+        </div>
+        }
+        { comps.foot && <div className="slds-col slds-size--1-of-1">{foot}
+        </div>
+        }
       </div>
         );
     }
-    console.log ('Router: render newroute');
+    console.log ('Router: render');
     if (!this.state.newroute.hash) { // landingpage
-      let comps = [];
+      let comps = {};
       if (df.app.landingpage) for (let pagecomp of df.app.landingpage) {
         let cf = this.props.componentFactories[pagecomp.component._id];
+        console.log (`Router: got component "${pagecomp.component._id}", for position "${pagecomp.position}"`);
+        if (!comps[pagecomp.position]) comps[pagecomp.position] = [];
         if (cf) {
           console.log (`Router: rendering component ${pagecomp.component._id} with props ${JSON.stringify(pagecomp.props)}`);
-          comps.push (cf(pagecomp.props));
+          comps[pagecomp.position].push (cf(Object.assign({key: pagecomp.component._id}, pagecomp.props)));
         } else
-          comps.push(<Alert message={`Cannot find component ${pagecomp.component._id}`}/>);
+          comps[pagecomp.position].push (<Alert message={`Cannot find component ${pagecomp.component._id}`}/>);
       }
-      if (comps.length >0) {
-        return template3((<div></div>),comps, (<div></div>) );
+    //  console.log (`Router: rendering components : ${JSON.stringify(comps)}`);
+      if (Object.keys(comps).length >0) {
+        return template3(comps);
       } else
         return (<Alert message="No landing page defined for app" alert={true}/>);
     } else {
-      let Routefactory = this.props.componentFactories[this.state.newroute.hash];
-      if (Routefactory) {
-          return Routefactory(
-            {key: JSON.stringify(this.state.newroute.params),
-              view: {_id: this.state.newroute.params.view},
-             urlparam: this.state.newroute.params});
+      // component direct
+      let cf = this.props.componentFactories[this.state.newroute.hash];
+      if (cf) {
+          return cf(Object.assign({key: JSON.stringify(this.state.newroute.props)}, this.state.newroute.props));
       } else return (<Alert message={"Unknown Compoent " + this.state.newroute.hash} alert={true}/>);
     }
   }

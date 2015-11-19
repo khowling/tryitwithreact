@@ -169,8 +169,8 @@ module.exports = function(options) {
               objectids.push(perm.form._id); //.add[perm.form];
               //perm.crud
             }
-            orm.getFormMeta(objectids).then (function (sucval) {
-              res.json({user: req.user, app: apprec, appMeta: sucval});
+            orm.getFormMeta(objectids).then (function (appMeta) {
+              res.json({user: req.user, app: apprec, appMeta: appMeta});
             }, errfn).catch(errfn);
         }, errfn)
       }

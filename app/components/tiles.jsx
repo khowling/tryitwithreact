@@ -26,23 +26,20 @@ export class Tile extends Component {
             iclass = "ion " + 'ion-stats-bars';
 
         return (
-          <li className="slds-list__item" style={{maxWidth: "250px"}}>
-            <div className="grid-card">
 
-              <div className="slds-grid slds-grid--align-spread">
-                <IconField value={meta.icon} />
-                <h3 className="site-text-heading--label-weak-large slds-align-middle">{meta.name}</h3>
-
-              </div>
-
-              <hr className="hr hr--pink"/>
-              <p>{meta.desc}</p>
-              <div className="slds-button-group">
-                <a className="slds-button slds-button--neutral" href={Router.URLfor(true, "ListPage", meta._id)}>list</a>
-                <a className="slds-button slds-button--neutral" href={Router.URLfor(true, "RecordPage", meta._id)}>new</a>
+          <div className="slds-media slds-tile">
+            <div className="slds-media__figure">
+              <IconField value={meta.icon} />
+            </div>
+            <div className="slds-media__body">
+              <p className="slds-tile__title slds-truncate"><a href={Router.URLfor(true, "ListPage", meta._id)}>{meta.name}</a></p>
+              <div className="slds-tile__detail slds-text-body--small">
+                <p className="slds-truncate">26 Records</p>
               </div>
             </div>
-          </li>
+          </div>
+
+
         );
     }
 }
@@ -50,15 +47,19 @@ export class Tile extends Component {
 export class AdminTileList extends Component {
     render () {
         let df = DynamicForm.instance,
-            metaview = df.getForm ();
+            metaview = df.getForm (),
+            fids = this.props.formids || seq(df.appMeta, map(x => x._id));
+
         console.log ('TileList render : ' + metaview.length);
         return (
-              <ul className="slds-wrap slds-list--horizontal slds-has-cards">
-                    {this.props.formids.map(function(fid, i) {  
-                      return (
-                        <Tile key={fid} meta={df.getForm(fid)}/>
-                    );})}
-              </ul>
+          <div className="grid-card">
+            <ul className="slds-list--vertical slds-has-cards">
+                  {fids.map(function(fid, i) {
+                    return (
+                      <Tile key={fid} meta={df.getForm(fid)}/>
+                  );})}
+            </ul>
+          </div>
         )
     }
 }

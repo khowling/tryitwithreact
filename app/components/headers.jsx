@@ -12,9 +12,9 @@ import DynamicForm from '../services/dynamicForm.es6';
 export class FormHeader extends Component {
   render() {
     let df = DynamicForm.instance,
-        isformmeta = this.props.view == "303030303030303030313030";
+        isformmeta = this.props.form == "303030303030303030313030";
 
-    console.log ("Form " + this.props.view.name + ", icon :" + this.props.view.icon);
+    console.log ("Form " + this.props.form.name + ", icon :" + this.props.form.icon);
     return (
       <div className="slds-page-header "  role="banner">
         <div className="slds-grid">
@@ -22,15 +22,15 @@ export class FormHeader extends Component {
 
             <div className="slds-media">
               <div className="slds-media__figure">
-                <a  href={ Router.URLfor(true, "ListPage", this.props.view._id)}>
-                <IconField value={this.props.view.icon} large={true}/>
+                <a  href={ Router.URLfor(true, "ListPage", this.props.form._id)}>
+                <IconField value={this.props.form.icon} large={true}/>
                 </a>
               </div>
 
               <div className="slds-media__body">
                 <p className="slds-text-heading--label">Record Type</p>
                 <div className="slds-grid">
-                  <h1 className="slds-text-heading--medium slds-m-right--small slds-truncate slds-align-middle">{this.props.view.name}</h1>
+                  <h1 className="slds-text-heading--medium slds-m-right--small slds-truncate slds-align-middle">{this.props.form.name}</h1>
                 </div>
               </div>
             </div>
@@ -38,7 +38,7 @@ export class FormHeader extends Component {
           <div className="slds-col slds-no-flex slds-align-bottom">
             <div className="slds-grid">
               { !isformmeta &&
-              <a className="slds-button slds-button--icon-more slds-shrink-none slds-m-left--large" href={ Router.URLfor("admin", "RecordPage", "303030303030303030313030", this.props.view._id)}>
+              <a className="slds-button slds-button--icon-more slds-shrink-none slds-m-left--large" href={ Router.URLfor("admin", "RecordPage", "303030303030303030313030", this.props.form._id)}>
                 <SvgIcon spriteType="utility" spriteName="settings" small={true} classOverride="slds-button__icon icon-utility"/>
               </a>
               }
@@ -55,9 +55,9 @@ export class FormHeader extends Component {
 export class RecordHeader extends Component {
   render() {
     let df = DynamicForm.instance,
-        isformmeta = this.props.view == "303030303030303030313030";
+        isformmeta = this.props.form == "303030303030303030313030";
 
-    console.log ("Form " + this.props.view.name + ", icon :" + this.props.view.icon);
+    console.log ("Form " + this.props.form.name + ", icon :" + this.props.form.icon);
     return (
       <div className="slds-page-header ">
         <div className="slds-grid">
@@ -65,15 +65,15 @@ export class RecordHeader extends Component {
 
             <div className="slds-media">
               <div className="slds-media__figure">
-                <a  href={ Router.URLfor(true, "ListPage", this.props.view._id)}>
-                <IconField value={this.props.view.icon} large={true}/>
+                <a  href={ Router.URLfor(true, "ListPage", this.props.form._id)}>
+                <IconField value={this.props.form.icon} large={true}/>
                 </a>
               </div>
 
               <div className="slds-media__body">
                 <p className="slds-text-heading--label">Record Type</p>
                 <div className="slds-grid">
-                  <h1 className="slds-text-heading--medium slds-m-right--small slds-truncate slds-align-middle">{this.props.view.name}</h1>
+                  <h1 className="slds-text-heading--medium slds-m-right--small slds-truncate slds-align-middle">{this.props.form.name}</h1>
                 </div>
               </div>
             </div>
@@ -81,7 +81,7 @@ export class RecordHeader extends Component {
           <div className="slds-col slds-no-flex slds-align-bottom">
             <div className="slds-grid">
               { !isformmeta &&
-              <a className="slds-button slds-button--icon-more slds-shrink-none slds-m-left--large" href={ Router.URLfor("admin", "RecordPage", "303030303030303030313030", this.props.view._id)}>
+              <a className="slds-button slds-button--icon-more slds-shrink-none slds-m-left--large" href={ Router.URLfor("admin", "RecordPage", "303030303030303030313030", this.props.form._id)}>
                 <SvgIcon spriteType="utility" spriteName="settings" small={true} classOverride="slds-button__icon icon-utility"/>
               </a>
               }

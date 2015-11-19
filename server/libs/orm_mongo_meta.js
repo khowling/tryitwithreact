@@ -125,8 +125,8 @@ module.exports = function(options) {
         desc: "View Records",
         props: [
           {
-              name: "view",
-              title: "Data view",
+              name: "form",
+              title: "Data Form",
               type: "reference",
               search_form: { _id: exps.forms.metaSearch}
           },
@@ -137,7 +137,7 @@ module.exports = function(options) {
               placeholder: ""
           },
           {
-              name: "edit",
+              name: "e",
               title: "Edit Mode",
               type: "dropdown",
               dropdown_options: [
@@ -159,8 +159,8 @@ module.exports = function(options) {
         desc: "List of records in a table",
         props: [
           {
-              name: "view",
-              title: "Data view",
+              name: "form",
+              title: "Data Form",
               type: "reference",
               search_form: { _id: exps.forms.metaSearch}
           },
@@ -882,46 +882,30 @@ module.exports = function(options) {
                   dynamic_fields: "rec.component.search_ref.props",
               },
               {
-                  name: "filter",
-                  title: "Data Filter",
+                  name: "position",
+                  title: "Page Position",
                   type: "dropdown",
                   required: true,
+                  default_value: "1col",
                   dropdown_options: [
                       {
-                          name: "Filter Clause",
-                          key: "filter"
+                          name: "Header",
+                          key: "head"
                       },
                       {
-                          name: "Top X",
-                          key: "topx"
+                          name: "Sidebar",
+                          key: "side"
                       },
                       {
-                          name: "Other Page Component",
-                          key: "page"
+                          name: "Main",
+                          key: "main"
                       },
                       {
-                          name: "xxx",
-                          key: "xxx"
+                          name: "Footer",
+                          key: "foot"
                       }
-                    ]
-                },
-                {
-                    name: "columns",
-                    title: "# of Columns",
-                    type: "dropdown",
-                    required: true,
-                    default_value: "1col",
-                    dropdown_options: [
-                        {
-                            name: "1 Column",
-                            key: "1col"
-                        },
-                        {
-                            name: "2 Column",
-                            key: "2col"
-                        }
-                    ]
-                }
+                  ]
+              }
             ]
         },
         {
@@ -1075,9 +1059,8 @@ module.exports = function(options) {
             ],
         landingpage: [
           {
-            columns: "1col",
+            position: "head",
             component: {_id: "AdminTileList"},
-            filter: "topx",
             title: "Admin Tile List",
             props: {
               formids: [exps.forms.formMetadata, exps.forms.Users, exps.forms.App, exps.forms.ImportMeta]

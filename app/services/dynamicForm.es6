@@ -2,6 +2,7 @@
 
 import jexl from 'jexl';
 jexl.addTransform('get', function(ids, view) {
+  console.log ('jexl.Transform : ' + ids);
   let df = DynamicForm.instance,
       f = df.getFormByName(view);
   if (f)
@@ -41,6 +42,10 @@ export default class DynamicForm {
   }
   get appMeta() {
     return this._appMeta;
+  }
+  get appUserData() {
+    let userapprec = this.user.apps.find (a => a.app._id === this.app._id);
+     return userapprec && userapprec.appuserdata || {};
   }
 
   _callServer(path, mode = 'GET', body) {

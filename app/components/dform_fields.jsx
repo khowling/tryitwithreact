@@ -137,10 +137,10 @@ export class FieldImage extends Component {
             <Modal>
               <div className="slds-modal__container w95">
                 <div style={{padding: "0.5em", background: "white"}}>
-                  <FormHeader view={this.state.filemeta}/>
+                  <FormHeader form={this.state.filemeta}/>
                 </div>
                 <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
-                  <ListMain view={this.state.filemeta} value={this.state.picFileList} selected={this._selectedFile}/>
+                  <ListMain form={this.state.filemeta} value={this.state.picFileList} selected={this._selectedFile}/>
                 </div>
                 <div className="slds-modal__footer"></div>
               </div>
@@ -339,10 +339,10 @@ export class FieldReference extends Component {
                 <Modal>
                   <div className="slds-modal__container w95">
                     <div style={{padding: "0.5em", background: "white"}}>
-                      <FormHeader view={cform}/>
+                      <FormHeader form={cform}/>
                     </div>
                     <div className="slds-modal__content" style={{padding: "0", minHeight: "350px"}}>
-                      <FormMain key={"model-"+this.props.fielddef.name} view={cform} value={this.state.lookup.createValue} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
+                      <FormMain key={"model-"+this.props.fielddef.name} form={cform} value={this.state.lookup.createValue} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
                     </div>
                     <div className="slds-modal__footer">
                     </div>
@@ -502,7 +502,7 @@ export class Field extends Component {
           break;
         case "dropdown_options":
           let cform = this.props.fielddef.child_form && df.getForm(this.props.fielddef.child_form._id);
-          field = (<ListMain view={cform} value={{status: "ready", records: this.props.value}} parent={{field: this.props.fielddef}} viewonly={true}/>);
+          field = (<ListMain form={cform} value={{status: "ready", records: this.props.value}} parent={{field: this.props.fielddef}} viewonly={true}/>);
           break;
         case "datetime":
           field = (<span>{this.props.value && new Date(this.props.value).toLocaleDateString() || ""}</span>);
