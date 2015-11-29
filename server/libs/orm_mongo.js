@@ -190,39 +190,40 @@ module.exports = function(options) {
         /* Harvest lookup ids from primary document for foriegn key lookup */
         /* if subq is specified, update the docs with the lookup values */
         /* RETURNS: {'form_id': {form: <JSON form>, keys: ['id', 'id']}} */
-        var processlookupids = function (lookups, docs, subq) {
+        var processlookupids = function (fieldsandlookups, docs, subq) {
             let harvest = !subq,
                 processFn = (doc, lookup, lookupkeys, subq, dynamicField) => {
-                  let harvest = !subq;
+                  let harvest = !subq,
+                      fval = doc[lookup.reference_field_name];
 
-                  if (doc[lookup.reference_field_name]) {
+                  if (fval) {
                     if (harvest) { //--------------------- harvest mode
                       try {
-  //                      console.log ("find() processlookupids (harvest), need to find ["+lookup.search_form_id+"]["+lookup.reference_field_name+"] val: " + JSON.stringify(doc[lookup.field]));
+                        console.log ("find() processlookupids (harvest), need to find ["+lookup.search_form_id+"]["+lookup.reference_field_name+"] val: " + JSON.stringify(fval));
                         if (dynamicField) {
-                          if (doc[lookup.reference_field_name][dynamicField]._id) {
-                            lookupkeys[lookup.search_form_id].add(doc[lookup.reference_field_name][dynamicField]._id);
+                          if (fval[dynamicField]._id) {
+                            lookupkeys[lookup.search_form_id].add(fval[dynamicField]._id);
                           } else {
-                            doc[lookup.reference_field_name][dynamicField] = {error: `no _id`};
+                            fval[dynamicField] = {error: `no _id`};
                           }
                         } else {
-                          if (doc[lookup.reference_field_name]._id) {
-                            lookupkeys[lookup.search_form_id].add(doc[lookup.reference_field_name]._id);
+                          if (fval._id) {
+                            lookupkeys[lookup.search_form_id].add(fval._id);
                           } else {
-                            doc[lookup.reference_field_name] = {error: `no _id`};
+                            fval = {error: `no _id`};
                           }
                         }
                       } catch (e) {
-                        console.log (e + ' Warning : lookup value not in format of ObjectId:  field : ' + lookup.reference_field_name + ', val: ' + JSON.stringify(doc[lookup.reference_field_name]));
+                        console.log (e + ' Warning : lookup value not in format of ObjectId:  field : ' + lookup.reference_field_name + ', val: ' + JSON.stringify(fval));
                       }
                     } else { //----------------------------  update mode
-//                      console.log ("find() processlookupids (update), setting ["+lookup.field+"] val: " + JSON.stringify(doc[lookup.field]));
+                      console.log ("find() processlookupids (update), setting ["+lookup.reference_field_name+"] val: " + JSON.stringify(fval));
                       if (dynamicField) {
-                        if (lookup.search_form_id && !doc[lookup.reference_field_name][dynamicField].error)
-                            doc[lookup.reference_field_name][dynamicField] = subq[lookup.search_form_id][doc[lookup.reference_field_name][dynamicField]._id] || {error:`missing id ${JSON.stringify(doc[lookup.reference_field_name])}`};
+                        if (lookup.search_form_id && !fval[dynamicField].error)
+                            doc[lookup.reference_field_name][dynamicField] = subq[lookup.search_form_id][fval[dynamicField]._id] || {error:`missing id ${JSON.stringify(fval)}`};
                       } else {
-                        if (lookup.search_form_id && !doc[lookup.reference_field_name].error)
-                            doc[lookup.reference_field_name] = subq[lookup.search_form_id][doc[lookup.reference_field_name]._id] || {error:`missing id ${JSON.stringify(doc[lookup.reference_field_name])}`};
+                        if (lookup.search_form_id && !fval.error)
+                            doc[lookup.reference_field_name] = subq[lookup.search_form_id][fval._id] || {error:`missing id ${JSON.stringify(fval)}`};
                       }
                     }
                   }
@@ -230,31 +231,34 @@ module.exports = function(options) {
 
             var lookupkeys = {};
             for (var doc of docs) { // for each data row
-              if (harvest) for (let d of dynamics) {
+/*
+              if (harvest) for (let d of fieldsandlookups.dynamics) {
 
                 let dynamic_fields = yield jexl.eval(d.dynamic_form_ex, {rec: doc, appMeta: FORM_DATA});
                 if (dynamic_fields.error) {
                   return {error: 'find() error execting dynamic field expression  ['+d.dynamic_form_ex+'] : ' + JSON.stringify(dynamic_fields.error)};
                 } else if (dynamic_fields) {
-
-                  let dynamicfieldsandLookups = findFieldsandLookups (FORM_DATA, {fields: dynamic_fields}, d.parent_field_name /*parentFieldName */,  false/*ignoreLookups*/, false/*getsystemfields*/, d.reference_field_name /* dynamicField*/ );
-
+*/
+//                  let dynamicfieldsandLookups = findFieldsandLookups (FORM_DATA, {fields: dynamic_fields}, d.parent_field_name /*parentFieldName */,  false/*ignoreLookups*/, false/*getsystemfields*/, d.reference_field_name /* dynamicField*/ );
+/*
                   for (let l of dynamicfieldsandLookups.lookups) {
                     if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
-                    if (l.parent_field_name) for (var edidx in doc[l.parent_field_name]) {
-                      processFn(doc[l.parent_field_name][edidx], l, lookupkeys, subq, l.dynamic_field_name);
+                    if (l.parent_field_name) for (let edoc of doc[l.parent_field_name]) {
+                      processFn(edoc, l, lookupkeys, subq, l.dynamic_field_name);
                     } else // if field is NOT in an embedded-document, just add id to lookupkeys
                       processFn(doc, l, lookupkeys, subq, l.dynamic_field_name);
                   }
+
                 }
               }
-
-              for (let l of lookups) { // for each 'reference' field from 'findFieldsandLookups'
+*/
+              for (let l of fieldsandlookups.lookups) { // for each 'reference' field from 'findFieldsandLookups'
                 //if (harvest && !l.search_form_id) continue; // no recorded search form, so dont run subquery
                 // if in harvest mode, initialise lookupkeys array
                 if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
-                if (l.parent_field_name) for (var edidx in doc[l.parent_field_name]) {
-                  processFn(doc[l.parent_field_name][edidx], l, lookupkeys, subq);
+                console.log (`ok ${l.parent_field_name} ${doc[l.parent_field_name]}`);
+                if (l.parent_field_name && Array.isArray(doc[l.parent_field_name])) for (let edoc of doc[l.parent_field_name]) {
+                  processFn(edoc, l, lookupkeys, subq);
                 } else // if field is NOT in an embedded-document, just add id to lookupkeys
                   processFn(doc, l, lookupkeys, subq);
               }
@@ -280,7 +284,7 @@ module.exports = function(options) {
                   if (err) reject(err);
                   else {
 
-                    processlookupids (fieldsandlookups.lookups, docs, []);
+                    //processlookupids (fieldsandlookups.lookups, docs, []);
                     // if less results than expected and using 'formMeta' lookup to the formMetadata object, include the META_DATA, as there may be a reference.
                     // need to call processlookupids in update mode to format the reference fields
                     // TODO: Should this be done on the client??
@@ -423,13 +427,13 @@ module.exports = function(options) {
     //                    processlookupids (fieldsandlookups.lookups, findone && [doc] || doc, []);
                         return resolve(doc);
                       } else {
-                          var lookupkeys = processlookupids(fieldsandlookups.lookups, findone && [doc] || doc);
+                          var lookupkeys = processlookupids(fieldsandlookups, findone && [doc] || doc);
     //                      console.log("find() got query for foriegn key lookup "); // + JSON.stringify(lookupkeys));
 
                           runallsubqueries(FORM_DATA, fieldsandlookups.lookups, lookupkeys).then(function (succVal) {
                             if (succVal) {
   //                           console.log("find() runallsubqueries success, now processlookupids, recs:" + (findone && "1" || doc.length));
-                              processlookupids (fieldsandlookups.lookups, findone && [doc] || doc, succVal);
+                              processlookupids (fieldsandlookups, findone && [doc] || doc, succVal);
                             }
                             return resolve(doc);
                           }, function (errVal) {
