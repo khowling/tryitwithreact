@@ -1,6 +1,5 @@
 "use strict"
 
-
 export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)  {
   let fldmeta = formmeta.fields.find(f => f.name === propname);
   console.log (`typecheckFn: validating  ${propname}<${fldmeta && fldmeta.type}>`);
@@ -50,19 +49,20 @@ export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)
     if (fval && !fval._id) return {error: "data contains reference field with recognised _id: " + propname};
     if (sform.store === "mongo" && mongoObjectId) {
       try {
-        return {validated_value: fval && new mongoObjectId(fval._id) || null};
+        return {validated_value: fval && {_id: new mongoObjectId(fval._id)} || null};
       } catch (e) {  return {error: "data contains reference field with invalid _id: " + propname + "  : " + fval._id + ", e: " + e};}
     } else {
-      return {validated_value: fval && fval._id || null};
+      return {validated_value: fval && {_id: fval._id} || null};
     }
   } else if (fldmeta.type === "childform") {
     if (!Array.isArray(fval))
       return {error: "data contains childform field, but data is not array: " + propname};
     else
-      return {childform_field: fldmeta, childform_array: fval};
+      return {childform_field: fldmeta, value: fval};
   } else if (fldmeta.type === "dynamic") {
-    if (fval && typeof fval !== 'object') return {error: "data contains value of incorrect type : " + propname};
-    // TODO - need to validate the dynamic data
-    return {validated_value: fval || null};
+    if (fval && typeof fval !== 'object')
+      return {error: "data contains dynamic value of incorrect type : " + propname};
+    else
+      return {dynamic_field: fldmeta,  value: fval};
   } else return {error: "data contains unknown field type: " + fldmeta.type};
 };

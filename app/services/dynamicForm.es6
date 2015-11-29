@@ -47,6 +47,9 @@ export default class DynamicForm {
     let userapprec = this.user.apps.find (a => a.app._id === this.app._id);
      return userapprec && userapprec.appuserdata || {};
   }
+  getComponentMeta(cname) {
+    return this.getFormByName("ComponentMetadata")._data.find(cm => cm.name === cname);
+  }
 
   _callServer(path, mode = 'GET', body) {
     return new Promise( (resolve, reject) => {
@@ -116,17 +119,10 @@ export default class DynamicForm {
     else
       return this._appMeta.find(f => f.name === fid);
   }
-  _queryParams(source) {
-    var array = [];
-    for(var key in source) {
-       array.push(encodeURIComponent(key) + "=" + encodeURIComponent(source[key]));
-    }
-    return array.join("&");
-  }
   // get 1 or many by ID
   get(viewid, ids) {
     if (!Array.isArray(ids)) ids = [ids];
-    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (ids && ("?id=" + ids.join(",")) || ''));
+    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (ids && ("?_id=" + ids.join(",")) || ''));
   }
   // search by name (primary)
   search(viewid, str) {
@@ -134,13 +130,14 @@ export default class DynamicForm {
   }
   // full query
   query(viewid, q) {
-    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (q && ("?q=" + JSON.stringify(q)) || ''));
+    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (q && ("?q=" + encodeURIComponent(JSON.stringify(q))) || ''));
   }
-  save(req) {
-    return this._callServer(this.ROUTES.dform + 'db/' + req.form + (req.parent && "?"+this._queryParams(req.parent) || ''), 'POST', req.body);
+  save(viewid, body, parent) {
+    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (parent && "?parent="+encodeURIComponent(JSON.stringify(parent)) || ''), 'POST', body);
   }
-  delete(req) {
-    return this._callServer(this.ROUTES.dform + 'db/' + req.form + '/' + req.id + (req.parent && "?"+this._queryParams(req.parent) || ''), 'DELETE');
+  delete(viewid, ids, parent) {
+    if (!Array.isArray(ids)) ids = [ids];
+    return this._callServer(this.ROUTES.dform + 'db/' + viewid + "?_id=" + ids.join(",") + (parent && "&parent="+encodeURIComponent(JSON.stringify(parent)) || ''), 'DELETE');
   }
   listFiles() {
     return this._callServer(this.ROUTES.dform + 'filelist');

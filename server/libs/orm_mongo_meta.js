@@ -138,18 +138,8 @@ module.exports = function(options) {
           },
           {
               name: "e",
-              title: "Edit Mode",
-              type: "dropdown",
-              dropdown_options: [
-                  {
-                      name: "Yes",
-                      key: "true"
-                  },
-                  {
-                      name: "No",
-                      key: "false"
-                  }
-              ]
+              title: "Edit",
+              type: "boolean"
           }
         ]
       },
@@ -276,7 +266,7 @@ module.exports = function(options) {
         },
         {
             _id: exps.forms.ComponentMetadata,
-            name: "Compoment Metadata",
+            name: "Component Metadata",
             desc: "This is you compoments",
             collection: "compomentmeta",
             store: "metadata",
@@ -357,6 +347,10 @@ module.exports = function(options) {
                         {
                           name: "Textarea",
                           key: "textarea"
+                        },
+                        {
+                          name: "Checkbox",
+                          key: "boolean"
                         },
                         {
                           name: "JSON",
@@ -484,7 +478,7 @@ module.exports = function(options) {
                     ]
                 },
                 {
-                  name: "dynamic_fields",
+                  name: "fieldmeta_el",
                   title: "Fields (EL)",
                   show_when: "rec['type'] == 'dynamic'",
                   placeholder: "context vars: rec, user, appMeta",
@@ -705,7 +699,7 @@ module.exports = function(options) {
                   name: "appuserdata",
                   title: "Application User Data",
                   type: "dynamic",
-                  dynamic_fields: "rec.app._id|get('App').userfields",
+                  fieldmeta_el: "rec.app._id|get('App').userfields",
               }
             ]
         },
@@ -879,7 +873,8 @@ module.exports = function(options) {
                   name: "props",
                   title: "Component Properties",
                   type: "dynamic",
-                  dynamic_fields: "rec.component.search_ref.props",
+              //    fieldmeta_el: "appMeta[.name == 'Component Metadata']._data[._id == rec.component._id].props"
+                  fieldmeta_el: "rec.component.props"
               },
               {
                   name: "position",
@@ -1019,20 +1014,7 @@ module.exports = function(options) {
             ]
         }
     ];
-/*
-    exps.defaultData =   [
-      {
-        _id: "LoadApp001",
-        name: "Admin App",
-        metadata: [
-          {
-            form: {_id: exps.forms.App, search_ref: {name: "App"}},
-            load: [ exps.adminApp  ]
-          }
-        ]
-      }
-    ];
-*/
+
     exps.adminApp = {_id: "admin",
         name: "Admin App",
         type: "deployed",
@@ -1094,7 +1076,7 @@ module.exports = function(options) {
         }
         return;
     }
-
+/*
     exps.findFieldById = function (meta, name) {
       try {
         var oname = new ObjectID(name);
@@ -1115,6 +1097,6 @@ module.exports = function(options) {
       }
         return;
     }
-
+*/
     return exps;
 }

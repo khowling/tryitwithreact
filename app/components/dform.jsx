@@ -10,7 +10,7 @@ import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
 import DynamicForm from '../services/dynamicForm.es6';
-import async from '../lib/async.es6';
+import async from '../../shared/async.es6';
 
 /*****************************************************************************
   ** Called from Form Route (top), or within List (embedded),
@@ -60,8 +60,8 @@ export class FormMain extends Component {
 
         if (fld.type === 'dynamic') {
           //console.log ('eval dynamic_fields')
-          fctrl.dynamic_fields = yield jexl.eval(fld.dynamic_fields, {rec: val, appMeta: DynamicForm.instance.appMeta}) || [];
-          //console.log (`eval dynamic_fields ${fld.dynamic_fields}, res: ${fctrl.dynamic_fields}`);
+          fctrl.dynamic_fields = yield jexl.eval(fld.fieldmeta_el, {rec: val, appMeta: DynamicForm.instance.appMeta}) || [];
+          //console.log (`eval dynamic_fields ${fld.fieldmeta_el}, res: ${fctrl.dynamic_fields}`);
         }
 
         //console.log (`fctrl ${fld.name}, show_when ${JSON.stringify(fctrl)}`);
@@ -109,7 +109,8 @@ export class FormMain extends Component {
   _fieldChange(dynamicFieldName, d) {
     console.log (`--------- FormMain _fieldChange got field update, [${dynamicFieldName}] ${JSON.stringify(d)}`);
     if (dynamicFieldName) {
-      d = {[dynamicFieldName]: Object.assign({}, this.props.value.record[dynamicFieldName], d)};
+      //d = {[dynamicFieldName]: Object.assign({}, this.props.value.record[dynamicFieldName], d)};
+      d = {[dynamicFieldName]: Object.assign(this.state.changedata[dynamicFieldName] || {}, d)};
     }
 
     let changedata = Object.assign({}, this.state.changedata, d);
@@ -125,20 +126,20 @@ export class FormMain extends Component {
   _save(succfn) {
     let self = this,
         df = DynamicForm.instance,
-        saveopt = {
-          form: this.props.form._id,
-          body: this.props.value.record._id && Object.assign({_id: this.props.value.record._id}, this.state.changedata) || this.state.changedata
-        };
+        body =  this.props.value.record._id && Object.assign({_id: this.props.value.record._id}, this.state.changedata) || this.state.changedata;
+/*
     // if its a childform - add parent details to the save for mongo & nav back to parent
     if (this.props.parent) {
       let {view, recordid, field} = this.props.parent;
       saveopt.parent = {
-        parentid: recordid,
-        parentfieldid: field
+        form_id: view,
+        query: {_id: recordid},
+        field_id: field
       };
     }
     console.log ('FormMain _save : '+ JSON.stringify(saveopt));
-    df.save (saveopt).then(succval => {
+*/
+    df.save (this.props.form._id, body, this.props.parent).then(succval => {
       console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
       return succfn (succval);
     }, errval => {
@@ -149,7 +150,9 @@ export class FormMain extends Component {
   _delete(succfn) {
     if (window.confirm("Sure?")) {
       var self = this,
-          df = DynamicForm.instance,
+          df = DynamicForm.instance;
+
+      /*
           saveopt = {
             form: this.props.form._id,
             id: this.props.value.record._id
@@ -158,13 +161,15 @@ export class FormMain extends Component {
       if (this.props.parent) {
         let {view, recordid, field} = this.props.parent;
         saveopt.parent = {
-          parentid: recordid,
-          parentfieldid: field
+          form_id: view,
+          query: {_id: recordid},
+          field_id: field
         };
       }
 
       console.log ('FormMain _delete : '+ JSON.stringify(saveopt));
-      df.delete (saveopt).then(succval => {
+      */
+      df.delete (this.props.form._id, this.props.value.record._id, this.props.parent).then(succval => {
         return succfn (succval);
       });
     }
@@ -189,14 +194,8 @@ export class FormMain extends Component {
   _inlineDataFinished(save) {
     let updateState = {changedata: {}, manageData: false,  inlineData: null, serverError: null};
     if (save) {
-      let df = DynamicForm.instance,
-          saveopt = {
-            form: this.props.form._id,
-            body: Object.assign({_id: this.props.value.record._id}, {"_data": this._saveInlineData})
-          };
-
-      console.log ('FormMain _inlineDataFinished : '+ JSON.stringify(saveopt));
-      df.save (saveopt).then(succval => {
+      let df = DynamicForm.instance;
+      df.save (this.props.form._id, Object.assign({_id: this.props.value.record._id}, {"_data": this._saveInlineData})).then(succval => {
         console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
         if (this.props.onDataChange) {
           // this will re-load the data at the parent, and in turn send new props
@@ -226,7 +225,7 @@ export class FormMain extends Component {
       if (edit) {
         // form in edit mode
         saveButton = this._save.bind(this, succval => {
-          this.props.onComplete({_id: succval._id, search_ref: this.state.changedata});
+          this.props.onComplete({_id: succval._id}); // , search_ref: this.state.changedata});
         });
       } else {
         headerButtons.cancelButton = cancelButton;
@@ -246,10 +245,11 @@ export class FormMain extends Component {
     }
 
     let getFieldDOM = (key, field, value, edit, fc, dynamicFieldName) => {
+      console.log (`getFieldDOM ${field.name}`);
       return (
         <div key={key} className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
           <div className={"slds-form-element " + (edit && "  " || " field-seperator ") + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
-              <label className="slds-form-element__label">{field.title}</label>
+              <label className="slds-form-element__label form-element__label--small">{field.title}</label>
               <div className="slds-form-element__control"  style={{marginLeft: edit && '0' || "15px"}}>
                 <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
                     { (!edit && offerdata && field.name === "store") &&
@@ -280,17 +280,17 @@ export class FormMain extends Component {
                 let fc = formcontrol.flds[field.name] || {visible: {val: true}, invalid: false};
                 if (fc.visible.error)
                   return (<Alert message={`dynamic field expression error ${dflds.error}`}/>);
-                else if (fc.visible.val) return getFieldDOM(i, field, record[field.name], edit, fc);
+                else if (fc.visible) return getFieldDOM(i, field, record[field.name], edit, fc);
               } else if (field.type === 'dynamic') {
                 let dflds = formcontrol.flds[field.name].dynamic_fields;
                 console.log (`dynamic field ${field.name}, dflds : ${JSON.stringify(dflds)}`);
                 if (dflds) {
                   if (dflds.error)
                     return (<Alert message={`dynamic field expression error ${dflds.error}`}/>);
-                  else if (dflds.val)
-                    return dflds.val.map(function(dfield, i) {
+                  else if (dflds)
+                    return dflds.map(function(dfield, i) {
                       let fc = {visible: {val: true}, invalid: false};
-                      if (fc.visible.val) return  getFieldDOM(i, dfield, record[field.name] && record[field.name][dfield.name], edit, fc, field.name);
+                      if (fc.visible) return  getFieldDOM(i, dfield, record[field.name] && record[field.name][dfield.name], edit, fc, field.name);
                     })
                 }
               }
@@ -299,9 +299,9 @@ export class FormMain extends Component {
             {(record._updatedBy && !edit) &&
               <div  className="slds-col slds-col--padded slds-size--2-of-2 slds-medium-size--2-of-2 slds-x-small-size--1-of-1">
                 <div className="slds-form-element field-seperator ">
-                  <label className="slds-form-element__label">Last Updated</label>
+                  <label className="slds-form-element__label form-element__label--small">Last Updated</label>
                   <div className="slds-form-element__control"  style={{marginLeft: "15px"}}>
-                    <UpdatedBy user={record._updatedBy.search_ref} date={record._updateDate}/>
+                    <UpdatedBy user={record._updatedBy} date={record._updateDate}/>
                   </div>
                 </div>
               </div>
@@ -361,9 +361,9 @@ FormMain.propTypes = {
   }),
   // used by childform
   parent: React.PropTypes.shape({
-    view: React.PropTypes.string.isRequired,
-    field: React.PropTypes.string.isRequired,
-    recordid: React.PropTypes.string
+    form_id: React.PropTypes.string.isRequired,
+    field_id: React.PropTypes.string.isRequired,
+    record_id: React.PropTypes.string
   }),
   // used by lookup and childform (if no onComplete, assume top)
   onComplete: React.PropTypes.func,
@@ -445,7 +445,8 @@ export class ListMain extends Component {
   _ActionDelete (rowidx) {
     let row = this.props.value.records[rowidx];
     if (window.confirm("Sure?")) {
-      let df = DynamicForm.instance,
+      let df = DynamicForm.instance;
+      /*
           saveopt = {
             form: this.props.form._id,
             id: row._id
@@ -454,11 +455,13 @@ export class ListMain extends Component {
         let {view, recordid, field} = this.props.parent;
         saveopt.parent = {
           parentid: recordid,
+          query: {_id: recordid},
           parentfieldid: field
         };
       }
       console.log ('ListMain _delete : '+ JSON.stringify(saveopt));
-      df.delete (saveopt).then(succVal => {
+      */
+      df.delete (this.props.form._id, row._id, this.props.parent).then(succVal => {
         if (this.props.onDataChange) {
           // this will re-load the data at the parent, and in turn send new props
           this.props.onDataChange();
@@ -668,9 +671,9 @@ ListMain.propTypes = {
   }),
   // used by childform, to inform data operations
   parent: React.PropTypes.shape({
-    view: React.PropTypes.string.isRequired,
-    field: React.PropTypes.string.isRequired,
-    recordid: React.PropTypes.string
+    form_id: React.PropTypes.string.isRequired,
+    field_id: React.PropTypes.string.isRequired,
+    record_id: React.PropTypes.string
   }),
   // used by inline edit dropdown, and child forms to inform parent component of data change (parent handles that event)
   onDataChange: React.PropTypes.func,
@@ -690,10 +693,10 @@ export class RecordPage extends Component {
     let df = DynamicForm.instance,
 //          metaview = df.getForm (props.urlparam.view);
         metaview = df.getForm (props.form._id);
-    console.log ('RecordPage constructor props ' + (props.e));
+    console.log ('RecordPage constructor props: ' + JSON.stringify(props));
     this.state = {
       //crud: !props.urlparam.id && "c" || props.urlparam.e && "u" || "r",
-      crud: (props.e) &&  "u" || "r",
+      crud: !this.props.xid && "c" || (props.e) &&  "u" || "r",
       metaview: metaview,
       childformfields: metaview.fields.filter(m => m.type === 'childform'),
       relatedlistfields: metaview.fields.filter(m => m.type === 'relatedlist'),
@@ -780,12 +783,13 @@ export class RecordPage extends Component {
               {this.state.crud === "r"  && this.state.childformfields.map(function(field, i) {
                 let cform = field.child_form && df.getForm(field.child_form._id);
                 if (cform) return (
-                <div key={`${cform._id}${i}`} style={{padding: "0.5em"}}>
-                  <ListMain title={field.title} parent={{view: self.state.metaview._id, recordid: status == 'ready' && record._id || "new", field: field._id }} form={cform} value={{status: status, records: status === "ready" && record[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
-                </div>
-              ); else return (
-                <Alert key={`err${field.name}`} message={`RecordPage: no childform found in application : ${field.name}`}/>
-              );})}
+                  <div key={`${cform._id}${i}`} style={{padding: "0.5em"}}>
+                    <ListMain title={field.title} parent={{form_id: self.state.metaview._id, record_id: status == 'ready' && record._id || "new", field_id: field._id }} form={cform} value={{status: status, records: status === "ready" && record[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
+                  </div>
+                  );
+                else return (
+                  <Alert key={`err${field.name}`} message={`RecordPage: no childform found in application : ${field.name}`}/>
+                );})}
             </div>
           }
           { this.state.value.status !== "error" &&

@@ -28,7 +28,7 @@ module.exports = function (passport, options) {
     passport.deserializeUser(function (id, done) {
         console.log(`-------- passport.deserializeUser : ${id}`);
 
-        orm.find(meta.forms.Users, {id: id}, true, false).then( user => {
+        orm.find(meta.forms.Users, null, {_id: id}, true, false).then( user => {
             console.log("-------- passport.deserializeUser : got user");
             done(null, user);
         }, err => res.status(400).send(err)).catch (err => res.status(400).send(err));
@@ -61,7 +61,7 @@ module.exports = function (passport, options) {
     ));
 
     var gotSocialLoginDetails = function(mappedUserObj, provider, provider_id, done) {
-      orm.find(meta.forms.Users, {q: {'provider.provider_id': provider_id}}, true, false).then(function success(existinguser) {
+      orm.find(meta.forms.Users, null, {q: {'provider.provider_id': provider_id}}, true, false).then(function success(existinguser) {
 
           if (!existinguser) {
               mappedUserObj.provider = [{type: provider, provider_id: provider_id }]

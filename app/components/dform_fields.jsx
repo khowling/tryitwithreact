@@ -211,8 +211,7 @@ export class FieldReference extends Component {
 
 
   _handleLookupSelectOption (data) {
-    let lookupval,
-        resetLookup = {visible: false, values: [] };
+    let resetLookup = {visible: false, values: [] };
 
 
     if (!data) {
@@ -222,11 +221,11 @@ export class FieldReference extends Component {
           this.props.onChange ({[this.props.fielddef.name]: null});
       });
     } else {
-      lookupval ={_id: data._id, search_ref: data} ;
+      //lookupval ={_id: data._id, search_ref: data} ;
       console.log ('Field _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
-      this.setState ({value: lookupval, lookup: resetLookup}, () => {
+      this.setState ({value: data, lookup: resetLookup}, () => {
         if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: lookupval}); // {_id: data._id}}); (this is so dynamic data works!!!)
+          this.props.onChange ({[this.props.fielddef.name]: {_id: data._id}}); // lookupval}); //  (this is so dynamic data works!!!)
       });
     }
   }
@@ -249,8 +248,8 @@ export class FieldReference extends Component {
 
     // function to generate reference search form (for seleced value in edit and view modes, and list values)
     let referenceForm = (sform, rec) => {
-      if (typeof rec === "undefined") {
-        return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>no search_ref</span>;
+      if (!rec) {
+        return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>no data</span>;
       } else if (rec.error) {
         return  <span key={rec._id} style={{color: "red"}}><IconField value={sform.icon} small={true}/>{rec.error}</span>;
       } else {
@@ -292,18 +291,18 @@ export class FieldReference extends Component {
         if (sform) {
           // this is here for the "metadata" - inline edit screen!
           if (this.state.value._id && sform.store === "metadata") {
-            this.state.value.search_ref = sform._data.find(x => x._id === this.state.value._id);
+            this.state.value = sform._data.find(x => x._id === this.state.value._id) || { error: `missing id ${this.state.value._id}`};
           }
 
           if (this.props.fielddef.createnew_form)
             field = (<span className="slds-pill">
                         <a href={Router.URLfor(true,"RecordPage", this.props.fielddef.createnew_form._id, this.state.value._id)} className="slds-pill__label">
-                          { referenceForm(sform, self.state.value.search_ref) }
+                          { referenceForm(sform, self.state.value) }
                         </a>
                       </span>);
           else
             field = (<span className="slds-pill">
-                        <span className="slds-pill__label">{ referenceForm(sform, self.state.value.search_ref) }</span>
+                        <span className="slds-pill__label">{ referenceForm(sform, self.state.value) }</span>
                       </span>);
         } else
           field = <Alert type="error" message={"Missing Metadata: " + this.props.fielddef.search_form}/>;
@@ -324,7 +323,7 @@ export class FieldReference extends Component {
                   { this.state.value &&
                   <span className="slds-pill" style={{padding: "0.15rem", margin: "0.18rem"}}>
                     <a href={cform && Router.URLfor(true, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
-                      { referenceForm(sform, self.state.value.search_ref) }
+                      { referenceForm(sform, self.state.value) }
                     </a>
                     <button onClick={self._handleLookupSelectOption.bind (self, null)} className="slds-button slds-button--icon-bare">
                       <SvgIcon spriteType="utility" spriteName="close" small={true} classOverride="slds-button__icon icon-utility"/>
@@ -468,7 +467,10 @@ export class Field extends Component {
 
   handleValueChange(event) {
     let newval = event.target.value;
-    console.log ('Field handleValueChange : ' + newval);
+    if (this.props.fielddef.type === "boolean") {
+      newval = event.target.checked;
+    }
+    console.log (`Field handleValueChange <${typeof newval}>:  ${newval}`);
     this.setState ({value: newval}, () => {
       if (this.props.onChange)
         this.props.onChange ({[this.props.fielddef.name]: newval});
@@ -492,6 +494,9 @@ export class Field extends Component {
         case 'textarea':
         case 'formula':
           field = (<span>{this.props.value}</span>);
+          break;
+        case 'boolean':
+          field = (<input name="checkbox" type="checkbox" checked={this.props.value} disabled="1" />);
           break;
         case 'jsonarea':
           field = (<span>{JSON.stringify(this.props.value, null, 4)}</span>);
@@ -533,6 +538,9 @@ export class Field extends Component {
         case 'formula':
           field = <textarea className="slds-input" rows="3" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}></textarea>;
             break;
+        case 'boolean':
+          field = (<input type="checkbox" checked={this.state.value} onChange={this.handleValueChange.bind(this)} />);
+          break;
         case 'jsonarea':
             field = <textarea className="slds-input" rows="3" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}></textarea>;
             break;

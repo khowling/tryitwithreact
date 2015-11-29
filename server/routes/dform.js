@@ -23,63 +23,79 @@ module.exports = function(options) {
     console.log ('setting up dform routes ');
     var db = options.db;
 
+    var queryURLtoJSON = (urlquery) => {
+      if (!urlquery)
+        return;
+      else if (urlquery._id)
+        return  {_id: urlquery._id.indexOf(",") > -1 && urlquery._id.split(",") || urlquery._id};
+      else if (urlquery.p)
+        return  {p: urlquery.p};
+      else if (urlquery.q) try {
+        return  {q: JSON.parse(urlquery.q)};
+      } catch (e) {
+        return {error: `cannot parse request : ${urlquery.q}`};
+      }
+      return;
+    }
+    var parentURLtoJSON = (parent) => {
+      if (!parent)
+        return;
+      else try {
+        let p = JSON.parse(parent);
+        if (p.record_id) p.query = {_id: p.record_id};
+        return p;
+      } catch (e) {
+        return {error: `cannot parse parent : ${parent}`};
+      }
+    }
 
+//--------------------------------------------------------- FIND
     router.get('/db/:form', function(req, res) {
       let formparam = req.params["form"],
-          query;
-
-      console.log (`----------------  /db/${formparam}: query:  ${JSON.stringify(req.query)}, user: ${JSON.stringify(req.user)}`);
-
-      if (req.query) {
-        if (req.query.id) {
-          query =  {id: req.query.id.indexOf(",") > -1 && req.query.id.split(",") || req.query.id};
-        } else if (req.query.p)
-          query =  {p: req.query.p};
-        else if (req.query.q)
-          query =  {q: JSON.parse(req.query.q)};
+          query = queryURLtoJSON(req.query);
+      if (query && query.error) {
+        res.status(400).send(query.error);
+      } else {
+        let parent = null, findOne = query && query._id && !Array.isArray(query._id);
+        console.log (`/db/:form query <${findOne}>: ${JSON.stringify(query)}`);
+        orm.find(formparam, parent, query, findOne).then((j) => { res.json(j); }, (e) => {
+          console.log ("find err : " + e);
+          res.status(400).send(e);
+        }).catch(function error(e) {
+          console.log ("catch err : " + e);
+          res.status(400).send(e);
+        })
       }
-      console.log ("/db/:form query: " + JSON.stringify(query));
-      orm.find(formparam, query, (query && query.id && !Array.isArray(query.id))).then(function success(j) {
-          res.json(j);
-      }, function error(e) {
-        console.log ("find err : " + e);
-        res.status(400).send(e);
-      }).catch(function error(e) {
-        console.log ("catch err : " + e);
-        res.status(400).send(e);
-      })
     });
 
+//--------------------------------------------------------- DELETE
+    router.delete('/db/:form',  function(req, res) {
+        let formparam = req.params["form"],
+            query = queryURLtoJSON(req.query);
 
-    router.delete('/db/:form/:id',  function(req, res) {
-        var formparam = req.params["form"],
-            recid = req.params["id"],
-            parentfieldid = req.query.parentfieldid,
-            parentid = req.query.parentid;
-
-        if (!req.user)
+        if (query && query.error) {
+          res.status(400).send(query.error);
+        } else if (!req.user)
           res.status(400).send("Permission Denied");
         else {
-          orm.delete (formparam, recid, parentfieldid, parentid, function success(j) {
+          orm.delete (formparam, parentURLtoJSON(req.query.parent), query).then((j) => {
               res.json(j);
-          }, function error(e) {
+          }, (e) => {
               res.status(400).send(e);
           });
         }
     });
 
-
+//--------------------------------------------------------- SAVE
     router.post('/db/:form',  function(req, res) {
     	var formparam = req.params["form"],
-            parentfieldid = req.query.parentfieldid,
-    	    parentid = req.query.parentid,
-    		//userdoc = JSON.parse(JSON.stringify(req.body).replace(/<DOLLAR>/g,'$'));
     	    userdoc = req.body;
 
       if (!req.user)
         res.status(400).send("Permission Denied");
       else {
-        orm.save (formparam, parentfieldid,parentid, userdoc, req.user._id).then((j) => {
+        console.log (`-----  post: calling save with ${formparam} ${req.query.parent}`);
+        orm.save (formparam, parentURLtoJSON(req.query.parent), userdoc, req.user).then((j) => {
           console.log ('save() : responding : ' + JSON.stringify(j));
           res.json(j);
         }, (e) => {
@@ -126,6 +142,10 @@ module.exports = function(options) {
       });
     });
 
+    /* ------------------------------------- BOOT THE APP
+     *
+     */
+
     router.get('/loadApp', function(req, res) {
       let urlappid = req.query["appid"],
           appid = null,
@@ -133,11 +153,11 @@ module.exports = function(options) {
                 res.status(400).send(errval);
             };
 
-      console.log (`----------------  /loadApp: urlappid: ${urlappid}, user: " ${JSON.stringify(req.user)}`);
+      console.log (`----------------  /loadApp: urlappid: ${urlappid}, user: ${JSON.stringify(req.user)}`);
 
       if (req.user) {
 
-        if (req.user.role === "manager") req.user.apps.push({app: {_id: orm.adminApp._id, search_ref: orm.adminApp}});
+        if (req.user.role === "manager") req.user.apps.push({app: orm.adminApp});
         let userapps = req.user.apps  || [];
         if (urlappid) {
           // app requested, so provide it.
@@ -162,10 +182,10 @@ module.exports = function(options) {
           res.json({user: req.user, app: orm.adminApp,  appMeta: adminmetafiltered});
       } else {
         console.log ("/formdata: user logged on and authorised for the apps : " + appid);
-        orm.find(orm.forms.App, { id: appid}, true, true).then((apprec) => {
+        orm.find(orm.forms.App, null, { _id: appid}, true, true).then((apprec) => {
             let objectids = [];
             if (apprec && apprec.appperms) for (let perm of apprec.appperms) {
-              console.log ("/formdata: adding form app ["+apprec.name+"]: " + perm.form);
+              console.log ("/formdata: adding form app ["+perm.name+"]: " + JSON.stringify(perm.form._id));
               objectids.push(perm.form._id); //.add[perm.form];
               //perm.crud
             }
@@ -176,6 +196,9 @@ module.exports = function(options) {
       }
     });
 
+    /* ------------------------------------- TODO: Build appmeta repo
+     *
+     */
   router.get('/defaultData', function(req, res) {
     let id = req.query._id;
     if (id) {

@@ -20,6 +20,19 @@ using jexl
 
 example  : user.apps[.app._id = app._id].appuserdata.mysquad._id
 
+---
+mongo HANDLING
+
+db.<Collection>.find(query, projection)
+// Use dot '<field.field>' in the query to match the field in the embedded array doc, althou mongo still returns ALL docs in array!! you can use '$' in the projection
+// Use '<field.0>' in the query to match only the first element in the array
+// Use '<field>.$' in the projection  to limit the contents of the <field> array from the query results to contain only the first element matching the query document (one findone usecase)
+// Use '<field>.1' in the
+ // LIMIT, CANNIT use multiple '$' in projection, ie ({"fields.$.name": 1, "fields.$.desc": 1})
+db.COLLECTION.find({_id: ObjectId("XXX"), "fields._id":  ObjectId("XXX")}, {"fields.$": 1})
+
+// aggrigations (command) : only way to bring back selected fields from a single array embedded document
+db.collection.aggregate([ { '$match': {_id: ObjectId("XXX"), "fields._id":  ObjectId("XXX")}, { '$project': { 'fields' : { '$map': { 'input': '$fields', 'as': 'field', 'in': { 'name': '$$field.name' }}}}}])
 
 ---
 Notes

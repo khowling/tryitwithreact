@@ -87,7 +87,7 @@ export class AuthState extends Component {
              <ul className="slds-dropdown__list" role="menu">
                { this.props.user.apps && this.props.user.apps.map(function(val, i) { return (
                <li key={i} className="slds-dropdown__item" style={{whiteSpace: "nowrap"}} role="menuitem">
-                   <a href={Router.URLfor(val.app._id)} className="slds-truncate">{val.app.search_ref[Object.keys(val.app.search_ref)[1]]}</a>
+                   <a href={Router.URLfor(val.app._id)} className="slds-truncate">{val.app[Object.keys(val.app)[1]]}</a>
                </li>
              );})}
                <li className="slds-dropdown__item" role="menuitem">

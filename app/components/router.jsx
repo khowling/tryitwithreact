@@ -34,11 +34,12 @@ export default class Router extends Component {
     else
       effectiveappid = appid || false;
 
-    let routeJson = {appid: effectiveappid, hash: comp, props: Object.assign({form: form && {_id: form}, xid: record && `"${record}"`}, params)};
-
-//    if (comp) routeJson.hash = comp;
-//    if (form) routeJson.params.gid = form + (record && ("-"+record) || "");
-//    if (params) Object.assign (routeJson.params, params);
+    let props = {}, routeJson = {appid: effectiveappid};
+    if (comp) routeJson.hash = comp;
+    if (form) props.form = {_id: form};
+    if (record) props.xid =  `"${record}"`;
+    if (params) props = Object.assign(props, params);
+    if (Object.keys(props).length > 0) routeJson.props = props;
 
     // console.log ('Router.URLFor : ' + JSON.stringify(routeJson));
     return Router._encodeHash (routeJson);
@@ -63,7 +64,12 @@ export default class Router extends Component {
 //    }
     console.log ("Router._encodeHash got params : " + JSON.stringify(routeJson));
 //    return "#" + (appid && (appid+"/") || "") + (hash || "") + ((array.length > 0) &&  ("?" + array.join("&")) || "");
-    return "#" + (appid && (appid+"/") || "") + (hash || "") + ((props) &&  ("?props=" + encodeURIComponent(btoa(JSON.stringify(props)))));
+    let ulrstr = "#";
+    if (appid) ulrstr+= appid ;
+    ulrstr+=  "/";
+    if (hash)  ulrstr+= hash;
+    if (props) ulrstr+= "?props=" + encodeURIComponent(btoa(JSON.stringify(props)));
+    return ulrstr;
   }
 
   static _decodeHash (hashuri) {
@@ -234,10 +240,10 @@ export default class Router extends Component {
       let comps = {};
       if (df.app.landingpage) for (let pagecomp of df.app.landingpage) {
         let cf = this.props.componentFactories[pagecomp.component._id];
-        console.log (`Router: got component "${pagecomp.component._id}", for position "${pagecomp.position}"`);
+        console.log (`Router: render:  component "${pagecomp.component._id}", for position "${pagecomp.position}"`);
         if (!comps[pagecomp.position]) comps[pagecomp.position] = [];
         if (cf) {
-          console.log (`Router: rendering component ${pagecomp.component._id} with props ${JSON.stringify(pagecomp.props)}`);
+          console.log (`Router: render: component ${pagecomp.component._id} with props ${JSON.stringify(pagecomp.props)}`);
           comps[pagecomp.position].push (cf(Object.assign({key: pagecomp.component._id}, pagecomp.props)));
         } else
           comps[pagecomp.position].push (<Alert message={`Cannot find component ${pagecomp.component._id}`}/>);
@@ -251,7 +257,8 @@ export default class Router extends Component {
       // component direct
       let cf = this.props.componentFactories[this.state.newroute.hash];
       if (cf) {
-          return cf(Object.assign({key: JSON.stringify(this.state.newroute.props)}, this.state.newroute.props));
+        console.log (`Router: render: component ${this.state.newroute.hash} with props ${JSON.stringify(this.state.newroute.props)}`);
+        return cf(Object.assign({key: JSON.stringify(this.state.newroute.props)}, this.state.newroute.props));
       } else return (<Alert message={"Unknown Compoent " + this.state.newroute.hash} alert={true}/>);
     }
   }
