@@ -3,10 +3,29 @@
 import React, {Component} from 'react';
 
 import Router from './router.jsx'
-import {RecordList, Form} from './dform.jsx'
+import {FormMain} from './dform.jsx'
 import { SvgIcon } from './utils.jsx';
 
 import DynamicForm from '../services/dynamicForm.es6';
+
+export class Register extends Component {
+
+  _onFinished() {
+  }
+
+  render() {
+    let df = DynamicForm.instance,
+        userform = df.getFormByName("Users"),
+        passform = df.getFormByName("AuthProviders"),
+        provider_field = userform.fields.find(f => f.name === "provider");
+    return (
+      <div>
+        <FormMain form={userform} crud="c" onComplete={this._onFinished.bind(this)}/>
+        <FormMain form={passform} value={{status: "ready", record: {type:"password", provider_id: "this"}}} parent={{form_id: userform._id, field_id: provider_field._id, record_id: null}} crud="c" onComplete={this._onFinished.bind(this)}/>
+      </div>
+    );
+  }
+}
 
 export class Login extends Component {
   constructor (props) {
@@ -62,7 +81,7 @@ export class Login extends Component {
               </div>
 
               <a href="#">I forgot my password</a><br/>
-              <a href="#/UserReg" className="text-center">Register a new membership</a>
+              <a href={Router.URLfor(true,"Register")} className="text-center">Register a new membership</a>
             </div>
           </div>
         </div>
@@ -100,6 +119,6 @@ export class AuthState extends Component {
            </div>
          </div>);
     else
-      return <div><a href='#Login'>Login</a> ({this.props.currentApp && this.props.currentApp.name || ""})</div>;
+      return <div><a href={Router.URLfor(true,"Login")}>Login</a> ({this.props.currentApp && this.props.currentApp.name || ""})</div>;
   }
 }

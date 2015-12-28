@@ -22,7 +22,7 @@ export class FormMain extends Component {
     this.state =  {
       edit: props.crud == "c" || props.crud == "u",
       manageData: false,
-      changedata:  props.crud == "c" && props.value.record || {}, // keep all data changes in the state
+      changedata:  (props.crud == "c" && props.value) && props.value.record || {}, // keep all data changes in the state
       errors: null};
     console.log ('FormMain constructor setState : ' + JSON.stringify(this.state));
   }
@@ -85,7 +85,7 @@ export class FormMain extends Component {
   }
 
   componentWillMount() {
-    this._formControlState (this.state.edit, this.props.form.fields, this.props.value.record).then(succval => {
+    this._formControlState (this.state.edit, this.props.form.fields, this.props.value && this.props.value.record || {}).then(succval => {
       this.setState ({
         formcontrol: succval
       });
@@ -115,7 +115,7 @@ export class FormMain extends Component {
 
     let changedata = Object.assign({}, this.state.changedata, d);
     console.log (`--------- FormMain _fieldChange full changedata ${JSON.stringify(changedata)}`);
-    this._formControlState (this.state.edit, this.props.form.fields, Object.assign({}, this.props.value.record , changedata), this.state.formcontrol).then(succval => {
+    this._formControlState (this.state.edit, this.props.form.fields, Object.assign({}, this.props.value && this.props.value.record || {}, changedata), this.state.formcontrol).then(succval => {
       this.setState({
         changedata: changedata,
         formcontrol: succval
@@ -123,41 +123,13 @@ export class FormMain extends Component {
     });
   }
 
-  _save(succfn) {
-    let self = this,
-        df = DynamicForm.instance,
-        body =  this.props.value.record._id && Object.assign({_id: this.props.value.record._id}, this.state.changedata) || this.state.changedata;
-/*
-    // if its a childform - add parent details to the save for mongo & nav back to parent
-    if (this.props.parent) {
-      let {view, recordid, field} = this.props.parent;
-      saveopt.parent = {
-        form_id: view,
-        query: {_id: recordid},
-        field_id: field
-      };
-    }
-    console.log ('FormMain _save : '+ JSON.stringify(saveopt));
-*/
-    df.save (this.props.form._id, body, this.props.parent).then(succval => {
-      console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
-      return succfn (succval);
-    }, errval => {
-        self.setState({formcontrol: Object.assign (this.state.formcontrol, {serverError: JSON.stringify(errval), change: true })});
-    });
-  }
-
-  _delete(succfn) {
-    if (window.confirm("Sure?")) {
-      var self = this,
-          df = DynamicForm.instance;
-
-      /*
-          saveopt = {
-            form: this.props.form._id,
-            id: this.props.value.record._id
-          };
-
+  _save() {
+    return new Promise((resolve, reject) => {
+      let self = this,
+          df = DynamicForm.instance,
+          body =  (this.props.value && this.props.value.record._id) && Object.assign({_id: this.props.value.record._id}, this.state.changedata) || this.state.changedata;
+  /*
+      // if its a childform - add parent details to the save for mongo & nav back to parent
       if (this.props.parent) {
         let {view, recordid, field} = this.props.parent;
         saveopt.parent = {
@@ -166,9 +138,23 @@ export class FormMain extends Component {
           field_id: field
         };
       }
+      console.log ('FormMain _save : '+ JSON.stringify(saveopt));
+  */
+      df.save (this.props.form._id, body, this.props.parent).then(succval => {
+        console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
+        resolve(succval);
+        //return succfn (succval);
+      }, errval => {
+          self.setState({formcontrol: Object.assign (this.state.formcontrol, {serverError: JSON.stringify(errval), change: true })});
+          reject (errval);
+      });
+    });
+  }
 
-      console.log ('FormMain _delete : '+ JSON.stringify(saveopt));
-      */
+  _delete(succfn) {
+    if (window.confirm("Sure?")) {
+      var self = this,
+          df = DynamicForm.instance;
       df.delete (this.props.form._id, this.props.value.record._id, this.props.parent).then(succval => {
         return succfn (succval);
       });
@@ -213,11 +199,29 @@ export class FormMain extends Component {
 
     let self = this,
         edit = this.state.edit,
-        {state, record} = this.props.value,
-        offerdata = !edit && this.props.form._id == "303030303030303030313030" && record.store === "metadata",
-        formcontrol = this.state.formcontrol;
+        {state, record} = this.props.value || {state: "ready", record: {}},
+        formcontrol = this.state.formcontrol,
+        buttons =[
+          {
+            show: edit && "F", label: "Save",
+            action: this._save.bind(this),
+            then: this.props.onComplete ? (succval) => this.props.onComplete({_id: succval._id}) : (succval) => Router.navTo(true, "RecordPage", this.props.form._id, succval._id, false, true)
+          }, {
+            show: edit ? "F" : this.props.onComplete && "H", label: "Cancel",
+            action: this.props.onComplete ?  this.props.onComplete : Router.URLfor(true, record._id && "RecordPage" || "ListPage", this.props.form._id, record._id && record._id || null, null, true)
+          }, {
+            show: !edit && "H", label: "Delete",
+            action: this._delete.bind(this),
+            then: self.props.onFinished ? (succval) => self.props.onFinished('delete', succval) : (succval) => Router.navTo(true, "ListPage", this.props.form._id)
+          }, {
+            show: !edit && "H" , label: "Edit",
+            action: this.props.onComplete ? this.setState ({edit: true}) : Router.URLfor(true,"RecordPage", this.props.form._id, record._id, {e: true})
+          }, {
+            show: (!edit && this.props.form._id == "303030303030303030313030" && record.store === "metadata") && "H" , label: `Manage Data (${record._data && record._data.length})`,
+            action: self._manageData.bind(self)
+          }];
 
-
+/*
     let headerButtons  = {}, saveButton, cancelButton;
     if (this.props.onComplete) {
       cancelButton = () => this.props.onComplete(null);
@@ -243,33 +247,13 @@ export class FormMain extends Component {
         headerButtons.editButton = () => Router.navTo(true,"RecordPage", this.props.form._id, record._id, {e: true});
       }
     }
-
-    let getFieldDOM = (key, field, value, edit, fc, dynamicFieldName) => {
-      console.log (`getFieldDOM ${field.name}`);
-      return (
-        <div key={key} className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
-          <div className={"slds-form-element " + (edit && "  " || " field-seperator ") + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
-              <label className="slds-form-element__label form-element__label--small">{field.title}</label>
-              <div className="slds-form-element__control"  style={{marginLeft: edit && '0' || "15px"}}>
-                <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
-                    { (!edit && offerdata && field.name === "store") &&
-                     <button className="slds-button slds-button--neutral slds-button--brand" onClick={self._manageData.bind(self)}>edit data ({record._data.length})</button>
-                    ||
-                    <Field fielddef={field} value={value} edit={edit} onChange={self._fieldChange.bind(self, dynamicFieldName)}/>
-                    }
-                </span>
-              </div>
-          </div>
-        </div>
-      );
-    }
-
+*/
     console.log (`FormMain render ${this.props.form.name} `); //, state : ' + JSON.stringify(this.state));
     return (
       <div className={this.props.inModal && "slds-modal__container w95"} >
 
         <div style={{padding: "0.5em", background: "white"}}>
-          { React.createElement (SectionHeader, Object.assign ({title: this.props.form.name}, headerButtons)) }
+          { React.createElement (SectionHeader, {title: this.props.form.name, buttons: buttons.filter(b => b.show === "H")}) }
         </div>
 
         <div className={this.props.inModal && "slds-modal__content" || "" + " slds-form--stacked"} style={{padding: "0.5em", minHeight: this.props.inModal && "400px" || "auto"}}>
@@ -280,7 +264,7 @@ export class FormMain extends Component {
                 let fc = formcontrol.flds[field.name] || {visible: {val: true}, invalid: false};
                 if (fc.visible.error)
                   return (<Alert message={`dynamic field expression error ${dflds.error}`}/>);
-                else if (fc.visible) return getFieldDOM(i, field, record[field.name], edit, fc);
+                else if (fc.visible) return (<FieldWithLabel key={i} field={field} value={record[field.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, null)}/>);
               } else if (field.type === 'dynamic') {
                 let dflds = formcontrol.flds[field.name].dynamic_fields;
                 console.log (`dynamic field ${field.name}, dflds : ${JSON.stringify(dflds)}`);
@@ -290,7 +274,7 @@ export class FormMain extends Component {
                   else if (dflds)
                     return dflds.map(function(dfield, i) {
                       let fc = {visible: {val: true}, invalid: false};
-                      if (fc.visible) return  getFieldDOM(i, dfield, record[field.name] && record[field.name][dfield.name], edit, fc, field.name);
+                      if (fc.visible) return  (<FieldWithLabel key={i} field={dfield} value={record[field.name] && record[field.name][dfield.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, field.name)}/>);
                     })
                 }
               }
@@ -336,11 +320,12 @@ export class FormMain extends Component {
         </div>
 
         <div className={this.props.inModal && "slds-modal__footer" || "slds-col slds-col--padded slds-size--1-of-1"} style={{padding: "0.5em", textAlign: "right"}}>
-          { edit &&
-              <button className="slds-button slds-button--neutral" onClick={cancelButton}>Cancel</button>
+          { buttons.filter(b => b.show === "F").map(function(button, i) { return (  <Button definition={button}/>  )
+            })
           }
-          { edit &&
-              <button className="slds-button slds-button--neutral slds-button--brand" onClick={saveButton}>Save</button>
+          { //edit && <button className="slds-button slds-button--neutral" onClick={cancelButton}>Cancel</button>
+          }
+          {// edit && <button className="slds-button slds-button--neutral slds-button--brand" onClick={saveButton}>Save</button>
           }
         </div>
 
@@ -351,7 +336,7 @@ export class FormMain extends Component {
 FormMain.propTypes = {
   // Core
   crud: React.PropTypes.string.isRequired,
-  view: React.PropTypes.shape({
+  form: React.PropTypes.shape({
     store: React.PropTypes.string.isRequired,
     fields: React.PropTypes.array.isRequired
   }),
@@ -367,9 +352,46 @@ FormMain.propTypes = {
   }),
   // used by lookup and childform (if no onComplete, assume top)
   onComplete: React.PropTypes.func,
+  onFinished: React.PropTypes.func,
   inModal: React.PropTypes.bool
 };
 FormMain.defaultProps = { inModal: false};
+
+// stateless function components
+// always use this for components that doesnt need any state or lifecycle methods!
+export const FieldWithLabel = ({key, field, value, edit, fc, onChange}) => {
+  return (
+    <div key={key} className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
+      <div className={"slds-form-element " + (edit && "  " || " field-seperator ") + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
+          <label className="slds-form-element__label form-element__label--small">{field.title}</label>
+          <div className="slds-form-element__control"  style={{marginLeft: edit && '0' || "15px"}}>
+            <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
+                <Field fielddef={field} value={value} edit={edit} onChange={onChange}/>
+            </span>
+          </div>
+      </div>
+    </div>
+  );
+}
+
+export const Button = ({definition}) => {
+    let runAction = () => {
+      if (definition.hasOwnProperty('then')) {
+        definition.action().then(definition.then);
+      } else {
+        definition.action();
+      }
+    }
+    if (typeof definition.action ===  'function') {
+      return (
+        <button className="slds-button slds-button--neutral" onClick={runAction}>{definition.label}</button>
+      );
+    } else if (typeof definition.action ===  'string') {
+      return (
+        <a className="slds-button slds-button--neutral" href={definition.action}>{definition.label}</a>
+      );
+    }
+}
 
 // RecordList - list of records, supports inline editing of embedded docs.
 export class ListPage extends Component {
@@ -446,21 +468,6 @@ export class ListMain extends Component {
     let row = this.props.value.records[rowidx];
     if (window.confirm("Sure?")) {
       let df = DynamicForm.instance;
-      /*
-          saveopt = {
-            form: this.props.form._id,
-            id: row._id
-          };
-      if (this.props.parent) {
-        let {view, recordid, field} = this.props.parent;
-        saveopt.parent = {
-          parentid: recordid,
-          query: {_id: recordid},
-          parentfieldid: field
-        };
-      }
-      console.log ('ListMain _delete : '+ JSON.stringify(saveopt));
-      */
       df.delete (this.props.form._id, row._id, this.props.parent).then(succVal => {
         if (this.props.onDataChange) {
           // this will re-load the data at the parent, and in turn send new props
@@ -818,6 +825,8 @@ export class SectionHeader extends Component {
               <h3 className="slds-text-heading--small" style={{marginTop: "8px"}}>{this.props.title}</h3>
             </div>
             <div className="slds-col slds-col--padded slds-no-flex slds-align-top" style={{marginBottom: "4px"}}>
+
+              { this.props.buttons && this.props.buttons.map(function(button, i) { return (  <Button definition={button}/>  );})}
 
               { typeof this.props.deleteButton !== "undefined" &&
               <button onClick={this.props.deleteButton}  className="slds-button slds-button--small slds-button--neutral" >

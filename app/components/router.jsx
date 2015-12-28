@@ -15,7 +15,7 @@ export default class Router extends Component {
 
   constructor (props) {
     super (props);
-    console.log ('Router: constructor for : ' + props.currentApp._id);
+    console.log ('Router: constructor for : ' + props.currentApp && props.currentApp._id || 'none');
   }
 
   static set backUrl(val) {
@@ -236,7 +236,7 @@ export default class Router extends Component {
         );
     }
     console.log ('Router: render');
-    if (!this.state.newroute.hash) { // landingpage
+    if (df.app && !this.state.newroute.hash) { // app landingpage
       let comps = {};
       if (df.app.landingpage) for (let pagecomp of df.app.landingpage) {
         let cf = this.props.componentFactories[pagecomp.component._id];

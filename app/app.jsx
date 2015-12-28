@@ -9,7 +9,7 @@ import Router                       from './components/router.jsx';
 import {AdminTileList}                   from './components/tiles.jsx';
 import {ListMain, ListPage, RecordPage}       from './components/dform.jsx';
 import {TimeLine}                   from './components/timeline.jsx';
-import {Login, LogMeIn, AuthState}  from './components/auth.jsx';
+import {Login, Register, AuthState}  from './components/auth.jsx';
 
 import DynamicForm from './services/dynamicForm.es6';
 
@@ -18,8 +18,8 @@ export default class App extends Component {
    constructor (props) {
      super(props);
      console.log ('App: constructor');
-     this.appComponents = App.createFactories (ListMain, AdminTileList, ListPage, RecordPage, TimeLine, LogMeIn);
-     this.nonAppComponents = App.createFactories (Login);
+     this.appComponents = App.createFactories (ListMain, AdminTileList, ListPage, RecordPage, TimeLine, Register, Login, Register);
+     //this.nonAppComponents = App.createFactories (Login, Register);
      this.dynamicForm = new DynamicForm(props.buildprops.server_url);
      this.state = { booted: false, booterr: false,  bootmsg: "not booted", user: null, currentApp: null};
    }
@@ -43,11 +43,11 @@ export default class App extends Component {
 
    _loadApp(newroute) {
      console.log ("App: _loadApp: loading app with route : " + JSON.stringify(newroute));
-     if (!newroute.appid && newroute.hash && newroute.hash in this.nonAppComponents.factories) {
-       console.log ('App: componentWillMount, no appid, Hash is a non-app related page :' + newroute.hash);
-       this.dynamicForm.clearApp();
-       this.setState({ booted: true, currentApp: null, nonAppPage: newroute.hash});
-     } else {
+  //   if (!newroute.appid) { // && newroute.hash && newroute.hash in this.nonAppComponents.factories) {
+  //     console.log ('App: componentWillMount, no appid, Hash is a non-app related page :' + newroute.hash);
+  //     this.dynamicForm.clearApp();
+  //     this.setState({ booted: true, currentApp: null});// , nonAppPage: newroute.hash});
+  //   } else {
        console.log ("App: _loadApp: setting up services for requested route");
        this.dynamicForm.loadApp(newroute.appid).then ((val) => {
          if (this.dynamicForm.app) {
@@ -58,7 +58,7 @@ export default class App extends Component {
        }, (error) => {
            this.setState ({ booterr: true, bootmsg: 'Error loading app : ' + JSON.parse(error).message});
        });
-     }
+//     }
    }
 
    componentWillMount() {
@@ -109,11 +109,12 @@ export default class App extends Component {
             <div style={{height: "3.5rem"}}></div>
 
             <div className="container">
-              { this.state.currentApp &&
-              <Router key={this.state.currentApp._id} componentFactories={this.appComponents.factories} currentApp={this.state.currentApp} updateRoute={this.routeUpdated.bind(this)}/>
+              { //this.state.currentApp &&
+              <Router key={this.state.currentApp && this.state.currentApp._id || 'none'} componentFactories={this.appComponents.factories} currentApp={this.state.currentApp} updateRoute={this.routeUpdated.bind(this)}/>
               }
 
-              { this.state.nonAppPage && this.nonAppComponents.factories[this.state.nonAppPage]({key: this.state.nonAppPage}) }
+              { //this.state.nonAppPage && this.nonAppComponents.factories[this.state.nonAppPage]({key: this.state.nonAppPage})
+             }
             </div>
 
          </div>
