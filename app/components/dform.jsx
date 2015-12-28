@@ -215,45 +215,18 @@ export class FormMain extends Component {
             then: self.props.onFinished ? (succval) => self.props.onFinished('delete', succval) : (succval) => Router.navTo(true, "ListPage", this.props.form._id)
           }, {
             show: !edit && "H" , label: "Edit",
-            action: this.props.onComplete ? this.setState ({edit: true}) : Router.URLfor(true,"RecordPage", this.props.form._id, record._id, {e: true})
+            action: this.props.onComplete ? () => this.setState ({edit: true}) : Router.URLfor(true,"RecordPage", this.props.form._id, record._id, {e: true})
           }, {
             show: (!edit && this.props.form._id == "303030303030303030313030" && record.store === "metadata") && "H" , label: `Manage Data (${record._data && record._data.length})`,
             action: self._manageData.bind(self)
           }];
 
-/*
-    let headerButtons  = {}, saveButton, cancelButton;
-    if (this.props.onComplete) {
-      cancelButton = () => this.props.onComplete(null);
-      //notify parent screen
-      if (edit) {
-        // form in edit mode
-        saveButton = this._save.bind(this, succval => {
-          this.props.onComplete({_id: succval._id}); // , search_ref: this.state.changedata});
-        });
-      } else {
-        headerButtons.cancelButton = cancelButton;
-        headerButtons.editButton = () =>  this.setState ({edit: true});
-        headerButtons.deleteButton= this._delete.bind(this,  () =>  self.props.onFinished('delete', succVal));
-      }
-    } else {
-      if (edit) {
-        cancelButton = () => Router.navTo(true, record._id && "RecordPage" || "ListPage", this.props.form._id, record._id && record._id || null, null, true);
-        saveButton = this._save.bind(this, succval => {
-          Router.navTo(true, "RecordPage", this.props.form._id, succval._id, false, true);
-        });
-      } else {
-        headerButtons.deleteButton = this._delete.bind(this, () =>   Router.navTo(true, "ListPage", this.props.form._id));
-        headerButtons.editButton = () => Router.navTo(true,"RecordPage", this.props.form._id, record._id, {e: true});
-      }
-    }
-*/
     console.log (`FormMain render ${this.props.form.name} `); //, state : ' + JSON.stringify(this.state));
     return (
       <div className={this.props.inModal && "slds-modal__container w95"} >
 
         <div style={{padding: "0.5em", background: "white"}}>
-          { React.createElement (SectionHeader, {title: this.props.form.name, buttons: buttons.filter(b => b.show === "H")}) }
+          <SectionHeader title={this.props.form.name} buttons={buttons.filter(b => b.show === "H")} />
         </div>
 
         <div className={this.props.inModal && "slds-modal__content" || "" + " slds-form--stacked"} style={{padding: "0.5em", minHeight: this.props.inModal && "400px" || "auto"}}>
@@ -301,7 +274,7 @@ export class FormMain extends Component {
               <Modal>
                 <div className="slds-modal__container w95">
                   <div style={{padding: "0.5em", background: "white"}}>
-                    <SectionHeader title={this.props.value.record.name} saveButton={this._inlineDataFinished.bind(this, true)} saveButtonDisable={this.state.inlineDataDisbleSave} cancelButton={this._inlineDataFinished.bind(this, null)}/>
+                    <SectionHeader title={this.props.value.record.name} buttons={[{label: "Cancel", action: this._inlineDataFinished.bind(this, null) }, {label: "Save", disable: this.state.inlineDataDisbleSave, action: this._inlineDataFinished.bind(this, true)}]} />
                   </div>
                   <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
                     <ListMain inline={true} form={this.props.value.record} value={{status: "ready", records: this.state.inlineData}}  onDataChange={this._inlineDataChange.bind(this)}/>
@@ -322,10 +295,6 @@ export class FormMain extends Component {
         <div className={this.props.inModal && "slds-modal__footer" || "slds-col slds-col--padded slds-size--1-of-1"} style={{padding: "0.5em", textAlign: "right"}}>
           { buttons.filter(b => b.show === "F").map(function(button, i) { return (  <Button definition={button}/>  )
             })
-          }
-          { //edit && <button className="slds-button slds-button--neutral" onClick={cancelButton}>Cancel</button>
-          }
-          {// edit && <button className="slds-button slds-button--neutral slds-button--brand" onClick={saveButton}>Save</button>
           }
         </div>
 
@@ -374,24 +343,6 @@ export const FieldWithLabel = ({key, field, value, edit, fc, onChange}) => {
   );
 }
 
-export const Button = ({definition}) => {
-    let runAction = () => {
-      if (definition.hasOwnProperty('then')) {
-        definition.action().then(definition.then);
-      } else {
-        definition.action();
-      }
-    }
-    if (typeof definition.action ===  'function') {
-      return (
-        <button className="slds-button slds-button--neutral" onClick={runAction}>{definition.label}</button>
-      );
-    } else if (typeof definition.action ===  'string') {
-      return (
-        <a className="slds-button slds-button--neutral" href={definition.action}>{definition.label}</a>
-      );
-    }
-}
 
 // RecordList - list of records, supports inline editing of embedded docs.
 export class ListPage extends Component {
@@ -575,17 +526,21 @@ export class ListMain extends Component {
     console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
     let self = this,
         {status, records} = this.state.inline && this.state.inlineData || this.props.value,
-        nonchildformfields = this.props.form.fields.filter(m => m.type !== 'childform' && m.type !== 'dropdown_options' && m.type !== 'relatedlist' && m.type !== 'dynamic');
-
-    let header = React.createElement (SectionHeader, Object.assign ({key: +this.props.form._id, title: this.props.title || this.props.form.name}, this.props.selected && {
-          closeButton: this._handleSelect.bind(this, null)
-        } || {
-          newButton: this._ActionEdit.bind(this, -1, false)
-        }));
+        nonchildformfields = this.props.form.fields.filter(m => m.type !== 'childform' && m.type !== 'dropdown_options' && m.type !== 'relatedlist' && m.type !== 'dynamic'),
+        buttons =[
+          {
+            show: this.props.selected && "H", label: "Close",
+            action: this._handleSelect.bind(this, null)
+          },{
+            show: !this.props.selected && "H", label: "New",
+            action: this._ActionEdit.bind(this, -1, false)
+          }];
 
     return (
       <div className="">
-          { !self.state.inline.enabled && header }
+          {  !self.state.inline.enabled &&
+            <SectionHeader title={this.props.title || this.props.form.name} buttons={buttons.filter(b => b.show === "H")} />
+          }
           <div className="box-body table-responsive no-padding">
             <div className="slds-scrollable--x">
               <table className="slds-table slds-table--bordered">
@@ -815,56 +770,38 @@ export class RecordPage extends Component {
     }
 }
 
-
-export class SectionHeader extends Component {
-  render() {
-    return (
-      <div className="slds- col slds-col-- padded slds -size--1-of-1 ">
-          <div className="slds-grid form-seperator">
-            <div className="slds-col slds-col--padded slds-has-flexi-truncate">
-              <h3 className="slds-text-heading--small" style={{marginTop: "8px"}}>{this.props.title}</h3>
-            </div>
-            <div className="slds-col slds-col--padded slds-no-flex slds-align-top" style={{marginBottom: "4px"}}>
-
-              { this.props.buttons && this.props.buttons.map(function(button, i) { return (  <Button definition={button}/>  );})}
-
-              { typeof this.props.deleteButton !== "undefined" &&
-              <button onClick={this.props.deleteButton}  className="slds-button slds-button--small slds-button--neutral" >
-                delete
-              </button>
-              }
-              { typeof this.props.newButton !== "undefined" &&
-              <button onClick={this.props.newButton}  className="slds-button slds-button--small slds-button--brand" >
-                new
-              </button>
-              }
-              { typeof this.props.editButton !== "undefined" &&
-              <button onClick={this.props.editButton}  className="slds-button slds-button--small slds-button--brand" >
-                edit
-              </button>
-              }
-              { typeof this.props.cancelButton !== "undefined" &&
-              <button onClick={this.props.cancelButton}  className="slds-button slds-button--small slds-button--brand" >
-                cancel
-              </button>
-              }
-              { typeof this.props.saveButton !== "undefined" &&
-              <button onClick={this.props.saveButton}  disabled={this.props.saveButtonDisable} className="slds-button slds-button--small slds-button--brand" >
-                save
-              </button>
-              }
-              { typeof this.props.closeButton !== "undefined" &&
-              <button onClick={this.props.closeButton}  className="slds-button slds-button--small slds-button--brand" >
-                close
-              </button>
-              }
-            </div>
+export const SectionHeader = ({title, buttons}) => {
+  return (
+    <div className="slds- col slds-col-- padded slds -size--1-of-1 ">
+        <div className="slds-grid form-seperator">
+          <div className="slds-col slds-col--padded slds-has-flexi-truncate">
+            <h3 className="slds-text-heading--small" style={{marginTop: "8px"}}>{title}</h3>
           </div>
-      </div>
+          <div className="slds-col slds-col--padded slds-no-flex slds-align-top" style={{marginBottom: "4px"}}>
+            { buttons && buttons.map(function(button, i) { return (
+              <Button key={i} definition={button}/>
+            );})}
+          </div>
+        </div>
+    </div>
+  );
+}
+
+export const Button = ({definition}) => {
+  let runAction = () => {
+    if (definition.hasOwnProperty('then')) {
+      definition.action().then(definition.then);
+    } else {
+      definition.action();
+    }
+  }
+  if (typeof definition.action ===  'function') {
+    return (
+      <button className="slds-button slds-button--neutral" onClick={runAction}  disabled={definition.disable || false}>{definition.label}</button>
+    );
+  } else if (typeof definition.action ===  'string') {
+    return (
+      <a className="slds-button slds-button--neutral" href={definition.action}>{definition.label}</a>
     );
   }
 }
-SectionHeader.propTypes = {
-  saveButtonDisable: React.PropTypes.bool
-};
-SectionHeader.defaultProps = { saveButtonDisable: false };
