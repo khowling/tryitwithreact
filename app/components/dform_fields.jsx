@@ -225,7 +225,7 @@ export class FieldReference extends Component {
       console.log ('Field _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
       this.setState ({value: data, lookup: resetLookup}, () => {
         if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: {_id: data._id}}); // lookupval}); //  (this is so dynamic data works!!!)
+          this.props.onChange ({[this.props.fielddef.name]: data}); // {_id: data._id}});  //  IMPORTANT: This is so dynamic data works!!!
       });
     }
   }

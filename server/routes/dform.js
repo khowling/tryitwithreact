@@ -56,9 +56,9 @@ module.exports = function(options) {
       if (query && query.error) {
         res.status(400).send(query.error);
       } else {
-        let parent = null, findOne = query && query._id && !Array.isArray(query._id);
+        let parent = null, findOne = query && query._id && !Array.isArray(query._id), ingorelookups = false;
         console.log (`/db/:form query <${findOne}>: ${JSON.stringify(query)}`);
-        orm.find(formparam, parent, query, findOne).then((j) => { res.json(j); }, (e) => {
+        orm.find(formparam, parent, query, findOne, ingorelookups, req.session.context).then((j) => { res.json(j); }, (e) => {
           console.log ("find err : " + e);
           res.status(400).send(e);
         }).catch(function error(e) {
@@ -150,10 +150,11 @@ module.exports = function(options) {
       let urlappid = req.query["appid"],
           appid = null,
           errfn = function (errval) {
-                res.status(400).send(errval);
-            };
+            console.log ('/loadApp error: ' + errval);
+            res.status(400).send(errval);
+          };
 
-      console.log (`----------------  /loadApp: urlappid: ${urlappid}, user: ${JSON.stringify(req.user)}`);
+      console.log (`----------------  /loadApp: [urlappid: ${urlappid}] [user: ${JSON.stringify(req.user.name)}]`);
 
       if (req.user) {
 
@@ -179,20 +180,26 @@ module.exports = function(options) {
         // no user, no appid, return the admin app!
         let adminmetabyId = orm.adminMetabyId(),
             adminmetafiltered = orm.adminApp.appperms.map(ap => { return adminmetabyId[ap.form._id.toString()]});
-          res.json({user: req.user, app: orm.adminApp,  appMeta: adminmetafiltered});
+        req.session.context = {user: req.user, app: orm.adminApp,  appMeta: adminmetafiltered};
+        res.json(req.session.context);
       } else {
         console.log ("/formdata: user logged on and authorised for the apps : " + appid);
         orm.find(orm.forms.App, null, { _id: appid}, true, true).then((apprec) => {
             let objectids = [];
             if (apprec && apprec.appperms) for (let perm of apprec.appperms) {
-              console.log ("/formdata: adding form app ["+perm.name+"]: " + JSON.stringify(perm.form._id));
-              objectids.push(perm.form._id); //.add[perm.form];
+              console.log (`/formdata: adding form app [${perm.name}]: ${JSON.stringify(perm.form._id)}`);
+              if (perm.form) objectids.push(perm.form._id); //.add[perm.form];
               //perm.crud
             }
+            console.log (`/formdata: getFormMeta ${objectids.length}`);
             orm.getFormMeta(objectids).then (function (appMeta) {
-              res.json({user: req.user, app: apprec, appMeta: appMeta});
+              req.session.context = {user: req.user, app: apprec,  appMeta: appMeta};
+              res.json(req.session.context);
             }, errfn).catch(errfn);
-        }, errfn)
+        }, errfn).catch((e) => {
+          console.error ('/loadApp program error retrieving application for user', e);
+          res.status(400).send(e);
+        });
       }
     });
 

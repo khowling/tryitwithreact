@@ -28,7 +28,7 @@ module.exports = function (passport, options) {
     passport.deserializeUser(function (id, done) {
         console.log(`-------- passport.deserializeUser : ${id}`);
 
-        orm.find(meta.forms.Users, null, {_id: id}, true, false).then( user => {
+        orm.find(meta.forms.Users /* formid */, null /* parent */, {_id: id} /* query */, true /* findone */, false /* ignorelookups */).then( user => {
             console.log("-------- passport.deserializeUser : got user");
             done(null, user);
         }, err => res.status(400).send(err)).catch (err => res.status(400).send(err));

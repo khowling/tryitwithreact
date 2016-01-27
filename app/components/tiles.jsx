@@ -48,7 +48,7 @@ export class AdminTileList extends Component {
     render () {
         let df = DynamicForm.instance,
             metaview = df.getForm (),
-            fids = this.props.formids || seq(df.appMeta, map(x => x._id));
+            fids = this.props.formids || seq(df.appMeta, compose(filter (x => x.store === "mongo" || x.store === "metadata"), map(x => x._id)));
 
         console.log ('TileList render : ' + metaview.length);
         return (

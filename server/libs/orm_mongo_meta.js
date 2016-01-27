@@ -699,7 +699,8 @@ module.exports = function(options) {
                   name: "appuserdata",
                   title: "Application User Data",
                   type: "dynamic",
-                  fieldmeta_el: "rec.app._id|get('App').userfields",
+                  fieldmeta_el: "rec.app._id|get('App').userfields"
+              //    fieldmeta_el: "rec.app._id|get('App').userfields",
               }
             ]
         },

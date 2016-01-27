@@ -1,3 +1,5 @@
+"use strict"
+
 const express = require('express');
 const session    = require('express-session');
 const MongoStore = require('connect-mongo')(session);
@@ -7,62 +9,37 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 
-
 //var herokuMemcachedStore = require('connect-heroku-memcached')(express);
 var MongoClient = require('mongodb').MongoClient;
 var ObjectID = require('mongodb').ObjectID;
-
+var mongoPool = { db: null};
 var app = express();
 
-MongoClient.connect(process.env.MONGO_DB || "mongodb://localhost:27017/mydb01", function(err, db) {
+
+let pdb = new Promise((resolve, reject) => {
+
+  MongoClient.connect(process.env.MONGO_DB || "mongodb://localhost:27017/mydb01", function(err, database) {
     if (err) throw err;
+    mongoPool.db = database;
 
-    // view engine setup
-    //app.set('views', path.join(__dirname, 'views'));
-    //app.set('view engine', 'hjs');
-
-    //app.use(favicon());
-    //app.use(logger('dev'));
-
-    // This is requried if serving client app from react hot loader, and server from node (different ports)
-    app.all('/*', function(req, res, next) {
-      res.header("Access-Control-Allow-Origin", "http://localhost:8000");
-      res.header("Access-Control-Allow-Credentials", "true");
-      res.header("Access-Control-Allow-Headers", "X-Requested-With,Authorization,Content-Type");
-      res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE");
-      //res.header("Access-Control-Allow-Headers", "Authorization");
-      //res.header("Access-Control-Allow-Headers", "application/json;charset=UTF-8");
-      next();
-    });
-
-    var bowerurl = path.join(__dirname, '../bower_components'),
-        sldsurl = path.join(__dirname, '../slds080/assets');
-    console.log ('serving static :'  + bowerurl);
-    //app.use(express.static(path.join(__dirname, '../static')));
-    //app.use('/bower_components', express.static(bowerurl));
-    app.use('/assets', express.static(sldsurl));
-
-    app.use(bodyParser.json());
-    app.use(bodyParser.urlencoded({extended: true}));
-    app.use(cookieParser());
-
+    // session
     app.use(session({
             secret: '99hashfromthis99',
-            store:  new MongoStore({ db: db}),
+            store:  new MongoStore(mongoPool),
             saveUninitialized: true,
             resave: true
          //   store: new herokuMemcachedStore({   servers: ["localhost:11211"],  username: "",   password: ""})
         })
     );
 
-
     // use passport session (allows user to be captured in req.user)
     app.use(passport.initialize());
     app.use(passport.session());
 
+    // routes
     // routes are the last thing to be initialised!
-    app.use('/auth', require('./routes/auth')(passport, {  db: db }));
-    app.use('/dform', require('./routes/dform')({  db: db }));
+    app.use('/auth', require('./routes/auth')(passport, mongoPool));
+    app.use('/dform', require('./routes/dform')(mongoPool));
 
     /// catch 404 and forward to error handler
     app.use(function (req, res, next) {
@@ -94,6 +71,35 @@ MongoClient.connect(process.env.MONGO_DB || "mongodb://localhost:27017/mydb01", 
           });
       });
     }
+    resolve(database);
+  });
+})
+
+// Start the application after the database connection is ready
+// This is requried if serving client app from react hot loader, and server from node (different ports)
+app.all('/*', function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "http://localhost:8000");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Headers", "X-Requested-With,Authorization,Content-Type");
+  res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE");
+  //res.header("Access-Control-Allow-Headers", "Authorization");
+  //res.header("Access-Control-Allow-Headers", "application/json;charset=UTF-8");
+  next();
 });
+
+
+app.use('/assets', express.static(path.join(__dirname, '../assets')));
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: true}));
+app.use(cookieParser());
+
+app.get('/dbready', (req,res) => {
+  pdb.then((db) => res.json({"gotdb": 1}));
+})
+
+app.listen(process.env.PORT || 3000);
+console.log("Listening on port 3000");
+
 
 module.exports = app;

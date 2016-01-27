@@ -14,6 +14,7 @@ var   express = require('express')
     , jexl = require('jexl');
 
 
+
 var typecheckFn, asyncfn;
 var System = require('es6-module-loader').System;
 System.transpiler = 'babel'; // use babel 5.x.x NOT 6
@@ -97,16 +98,16 @@ module.exports = function(options) {
           }
         } else return {error: "query parameter needs to be an objet"};
       }
-      console.log (`find(), genquery ${JSON.stringify(query)} ${parentFieldname} : res : ${JSON.stringify(mquery)}`);
+      //console.log (`find(), genquery ${JSON.stringify(query)} ${parentFieldname} : res : ${JSON.stringify(mquery)}`);
       return mquery;
     }
 
-    exps.find = function (formid, parent, query, findone, ignoreLookups) {
+    exps.find = function (formid, parent, query, findone, ignoreLookups, context) {
       return new Promise(function (resolve, reject)  {
-        console.log (`find() starting with params <${formid}> <${JSON.stringify (parent)}> <${JSON.stringify (query)}> <${findone}> <${ignoreLookups}>`);
-
+        let appMeta =  meta.FORMMETA.concat (context && context.appMeta || []);
+        console.log (`find() with appMeta ${appMeta.length}`);
         /* search form meta-data for 'reference' fields to resolve (also search through 'childform' subforms) */
-        var findFieldsandLookups = function (FORM_DATA, form, parentField, ignoreLookups, getsystemfields, dynamicField) {
+        var findFieldsandLookups = function (form, parentField, ignoreLookups, getsystemfields, dynamicField) {
 
 //            console.log(`find() findFieldsandLookups form:<${form.name}> parent:<${parentField}>  ignoreLookups:<${ignoreLookups}> system:<${getsystemfields}> `);
             var result = {findField: {}, lookups: [], dynamics: []};
@@ -158,13 +159,13 @@ module.exports = function(options) {
                     result.lookups.push(v);
                   }
                 } else if (field.type === 'childform') {
-                    var childform = field.child_form && meta.findFormById(FORM_DATA, field.child_form._id);
+                    var childform = field.child_form && appMeta.find((d) => String(d._id) === String (field.child_form._id));
                     if (!childform) {
                         return {error: 'find() Cannot find childform definitions on field ['+fullfieldname+'] : ' + JSON.stringify(field.child_form)};
                     } else {
                         //console.log('find() findFieldsandLookups: found a childform, recurse onit! name :' + field.child_form._id + ' : ' + childform.name);
-                        //result = yield findFieldsandLookups(FORM_DATA, childform, fullfieldname, ignoreLookups, getsystemfields,  result);
-                        let child_result = findFieldsandLookups(FORM_DATA, childform, fullfieldname, ignoreLookups, getsystemfields, dynamicField);
+                        //result = yield findFieldsandLookups(childform, fullfieldname, ignoreLookups, getsystemfields,  result);
+                        let child_result = findFieldsandLookups(childform, fullfieldname, ignoreLookups, getsystemfields, dynamicField);
 //                        console.log (`child_result ${JSON.stringify(child_result)}`);
                         if (child_result.error)
                           return child_result;
@@ -191,72 +192,68 @@ module.exports = function(options) {
         /* if subq is specified, update the docs with the lookup values */
         /* RETURNS: {'form_id': {form: <JSON form>, keys: ['id', 'id']}} */
         var processlookupids = function (fieldsandlookups, docs, subq) {
+          return asyncfn(function *(fieldsandlookups, docs, subq) {
+
             let harvest = !subq,
                 processFn = (doc, lookup, lookupkeys, subq, dynamicField) => {
                   let harvest = !subq,
-                      fval = doc[lookup.reference_field_name];
+                      fval = dynamicField && doc[dynamicField][lookup.reference_field_name] || doc[lookup.reference_field_name];
 
                   if (fval) {
                     if (harvest) { //--------------------- harvest mode
                       try {
-                        console.log ("find() processlookupids (harvest), need to find ["+lookup.search_form_id+"]["+lookup.reference_field_name+"] val: " + JSON.stringify(fval));
-                        if (dynamicField) {
-                          if (fval[dynamicField]._id) {
-                            lookupkeys[lookup.search_form_id].add(fval[dynamicField]._id);
-                          } else {
-                            fval[dynamicField] = {error: `no _id`};
-                          }
-                        } else {
+                        console.log (`find() processlookupids (harvest) [find: ${lookup.reference_field_name}] [val: ${JSON.stringify(fval)}]`);
                           if (fval._id) {
                             lookupkeys[lookup.search_form_id].add(fval._id);
                           } else {
                             fval = {error: `no _id`};
                           }
-                        }
                       } catch (e) {
                         console.log (e + ' Warning : lookup value not in format of ObjectId:  field : ' + lookup.reference_field_name + ', val: ' + JSON.stringify(fval));
                       }
                     } else { //----------------------------  update mode
-                      console.log ("find() processlookupids (update), setting ["+lookup.reference_field_name+"] val: " + JSON.stringify(fval));
-                      if (dynamicField) {
-                        if (lookup.search_form_id && !fval[dynamicField].error)
-                            doc[lookup.reference_field_name][dynamicField] = subq[lookup.search_form_id][fval[dynamicField]._id] || {error:`missing id ${JSON.stringify(fval)}`};
-                      } else {
-                        if (lookup.search_form_id && !fval.error)
-                            doc[lookup.reference_field_name] = subq[lookup.search_form_id][fval._id] || {error:`missing id ${JSON.stringify(fval)}`};
-                      }
+
+                        if (lookup.search_form_id && !fval.error) {
+                          let lookupresult = subq[lookup.search_form_id][fval._id] || {error:`missing id ${JSON.stringify(fval)}`};
+                          console.log (`find() processlookupids (update) [set: ${lookup.reference_field_name}] [val: ${lookupresult.name || lookupresult.error}]`);
+                          doc[lookup.reference_field_name] = lookupresult;
+                        }
                     }
                   }
                 };
 
             var lookupkeys = {};
             for (var doc of docs) { // for each data row
-/*
-              if (harvest) for (let d of fieldsandlookups.dynamics) {
 
-                let dynamic_fields = yield jexl.eval(d.dynamic_form_ex, {rec: doc, appMeta: FORM_DATA});
-                if (dynamic_fields.error) {
+              if (harvest) for (let d of fieldsandlookups.dynamics) {
+                console.log (`find() processlookupids (harvest) got dynamic [field: ${d.parent_field_name}.${d.reference_field_name}] [${d.dynamic_form_ex}]`);
+            //    console.log (`find() processlookupids ${JSON.stringify(doc, null, 2)}`);
+                let dynamic_fields = yield jexl.eval(d.dynamic_form_ex, Object.assign({rec: d.parent_field_name && doc[d.parent_field_name] || doc}, context));
+          //      console.log (`find() processlookupids (harvest) : got dynamics result ${JSON.stringify(dynamic_fields, null, 2)}`);
+                if (dynamic_fields && dynamic_fields.error) {
                   return {error: 'find() error execting dynamic field expression  ['+d.dynamic_form_ex+'] : ' + JSON.stringify(dynamic_fields.error)};
                 } else if (dynamic_fields) {
-*/
-//                  let dynamicfieldsandLookups = findFieldsandLookups (FORM_DATA, {fields: dynamic_fields}, d.parent_field_name /*parentFieldName */,  false/*ignoreLookups*/, false/*getsystemfields*/, d.reference_field_name /* dynamicField*/ );
-/*
+                  console.log (`find()  processlookupids : validate dynamic fields data ${d.reference_field_name}`);
+                  let dynamicfieldsandLookups = findFieldsandLookups ({fields: dynamic_fields}, d.parent_field_name /*parentFieldName */,  false/*ignoreLookups*/, false/*getsystemfields*/, d.reference_field_name /* dynamicField*/ );
                   for (let l of dynamicfieldsandLookups.lookups) {
                     if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
                     if (l.parent_field_name) for (let edoc of doc[l.parent_field_name]) {
+            //          console.log (`find() processlookupids (harvest) : got dynamics process ${l.reference_field_name} ${JSON.stringify(edoc)}`);
                       processFn(edoc, l, lookupkeys, subq, l.dynamic_field_name);
                     } else // if field is NOT in an embedded-document, just add id to lookupkeys
                       processFn(doc, l, lookupkeys, subq, l.dynamic_field_name);
                   }
 
+                } else {
+                  console.log ('find() ')
                 }
               }
-*/
+
               for (let l of fieldsandlookups.lookups) { // for each 'reference' field from 'findFieldsandLookups'
                 //if (harvest && !l.search_form_id) continue; // no recorded search form, so dont run subquery
                 // if in harvest mode, initialise lookupkeys array
                 if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
-                console.log (`ok ${l.parent_field_name} ${doc[l.parent_field_name]}`);
+                //console.log (`find() processlookupids found lookup, harvest id ${l.reference_field_name} [parent: ${doc[l.parent_field_name]}]`);
                 if (l.parent_field_name && Array.isArray(doc[l.parent_field_name])) for (let edoc of doc[l.parent_field_name]) {
                   processFn(edoc, l, lookupkeys, subq);
                 } else // if field is NOT in an embedded-document, just add id to lookupkeys
@@ -269,24 +266,25 @@ module.exports = function(options) {
             } else {
               return docs;
             }
+          })(fieldsandlookups, docs, subq);
         };
 
         /* run subquery */
-        var runsubquery = function (FORM_DATA, form, objids, pfld) {
+        var runsubquery = function (form, objids, pfld) {
           return new Promise(function (resolve, reject)  {
             let q = { _id: { $in: objids }};
 
-            let fieldsandlookups = findFieldsandLookups(FORM_DATA, form, null, true, false);
+            let fieldsandlookups = findFieldsandLookups(form, null, true, false);
 
-//              console.log('find() runsubquery() find  ' + form.collection + ' : query : ' + JSON.stringify(q) + ' :  fields : ' + JSON.stringify(fieldsandlookups.findField));
+              console.log(`find() runsubquery() find in collection: ${form.collection}, query: ${JSON.stringify(q)}`);
 
               db.collection(form.collection).find(q, fieldsandlookups.findField).toArray(function (err, docs) {
                   if (err) reject(err);
                   else {
 
-                    //processlookupids (fieldsandlookups.lookups, docs, []);
+                    //process lookupids (fieldsandlookups.lookups, docs, []);
                     // if less results than expected and using 'formMeta' lookup to the formMetadata object, include the META_DATA, as there may be a reference.
-                    // need to call processlookupids in update mode to format the reference fields
+                    // need to call process lookupids in update mode to format the reference fields
                     // TODO: Should this be done on the client??
 
                     if (objids.length > docs.length && form._id === meta.forms.metaSearch) {
@@ -294,7 +292,7 @@ module.exports = function(options) {
                       for (let lid of objids) {
                         if (docs.filter(r => r._id === lid).length == 0)  {
 //                         console.log ('finding in metasearch: ' + lid);
-                          let lidform = meta.findFormById(FORM_DATA, lid);
+                          let lidform = appMeta.find((d) => String(d._id) === String(lid));
                           if (lidform) {
                             let filteredform = {_id: lidform._id};
                             for (let f in fieldsandlookups.findField)
@@ -311,7 +309,7 @@ module.exports = function(options) {
         };
 
         /* flow control - run sub queries in parrallel & call alldonefn(docs) when done! */
-        var runallsubqueries = function (FORM_DATA, lookups, lookupkeys) {
+        var runallsubqueries = function (lookups, lookupkeys) {
           return new Promise(function (resolve, reject)  {
             let subq_res = {};
             if (Object.keys(lookupkeys).length == 0) {
@@ -319,9 +317,10 @@ module.exports = function(options) {
             } else {
               let promises = []
               for (var formid in lookupkeys) {
-                  let form = meta.findFormById(FORM_DATA, formid),
-                      keys = Array.from(lookupkeys[formid]);
+                let form = appMeta.find((d) => String(d._id) === String (formid)),
+                    keys = Array.from(lookupkeys[formid]);
 
+                if (form) {
                   if (keys.length >0) {
                     if (form.store === "metadata") {
 //                      console.log ('find() runallsubqueries, metadata searchform, use form to resolve lookups : ' + form.name + ' _data#=' + (form._data? form._data.length : "0"));
@@ -333,11 +332,14 @@ module.exports = function(options) {
                       }
                     } else if (form.store === "mongo") {
 //                      console.log ('find() runallsubqueries, mongo searchform, use form to resolve lookups : ' + form.name);
-                      promises.push(runsubquery (FORM_DATA, form, keys));
+                      promises.push(runsubquery (form, keys));
                     } else {
                       subq_res[form._id] = {};
                     }
-                 }
+                  }
+                } else {
+                  console.error ("ERROR find() runallsubqueries: Cannot access lookup Form definition: " + formid);
+                }
               }
 
               Promise.all(promises).then(function (succVal) {
@@ -356,116 +358,118 @@ module.exports = function(options) {
           });
         }
 
+        let form = appMeta.find((d) =>  String(d._id) === String (formid)),
+            collection, parent_form = null, parent_field  = null;
 
-        exps.getFormMeta(formid).then(function(FORM_DATA) {
-//            console.log("\n\nfind() FORM_DATA ["+formid+"] #=" + FORM_DATA.length);
-            let form = meta.findFormById(FORM_DATA, formid),
-                collection, parent_form = null, parent_field  = null;
+        if (!form) {
+          return reject ("find() form not Found or no defined collection : " + formid);
+        }
+        if (form.store ===  'mongo') {
+          collection = form.collection;
+          if (parent)  return reject ("find() cannot supply parent parameter for top level form : " + form.name);
+        } else if (form.store ===  'fromparent') {
+          if (!(parent && parent.field_id && parent.form_id && parent.query))  return reject ("find() got child form, but not complete parent data : " + JSON.stringify(parent));
+          parent_form = appMeta.find((d) => String(d._id) === String (parent.form_id));
+          if (!parent_form) {
+            return reject ("find() parent form not Found : " + parent.form_id);
+          } else {
+            collection = parent_form.collection;
+            parent_field = parent_form.fields.find(f => f._id == parent.field_id);
+            if (!(parent_field && parent_field.child_form && parent_field.child_form._id == formid))
+               return reject ('find() childform not assosiated to parent (check your schema child_form): ' + parent.field_id);
+          }
+        }
 
-            if (!form) {
-              return reject ("find() form not Found or no defined collection : " + formid);
-            }
-            if (form.store ===  'mongo') {
-              collection = form.collection;
-              if (parent)  return reject ("find() cannot supply parent parameter for top level form : " + form.name);
-            } else if (form.store ===  'fromparent') {
-              if (!(parent && parent.field_id && parent.form_id && parent.query))  return reject ("find() got child form, but not complete parent data : " + JSON.stringify(parent));
-              parent_form = meta.findFormById(FORM_DATA, parent.form_id);
-              if (!parent_form) {
-                return reject ("find() parent form not Found : " + parent.form_id);
-              } else {
-                collection = parent_form.collection;
-                parent_field = parent_form.fields.find(f => f._id == parent.field_id);
-                if (!(parent_field && parent_field.child_form && parent_field.child_form._id == formid))
-                   return reject ('find() childform not assosiated to parent (check your schema child_form): ' + parent.field_id);
-              }
-            }
-
-            let mquery;
-            if (parent_field) {
-              mquery = genQuery(parent.query, parent_form);
-              Object.assign(mquery, genQuery(query, form, parent_field.name));
-            } else {
-              mquery = genQuery(query, form);
-            }
+        let mquery;
+        if (parent_field) {
+          mquery = genQuery(parent.query, parent_form);
+          Object.assign(mquery, genQuery(query, form, parent_field.name));
+        } else {
+          mquery = genQuery(query, form);
+        }
 
 //            console.log("find() create the mongo query : " + JSON.stringify(mquery));
-            if (mquery.error) return reject(`query ${mquery.error}`);
+        if (mquery.error) return reject(`query ${mquery.error}`);
 
 //            console.log('find() calling findFieldsandLookups');
-            let fieldsandlookups = findFieldsandLookups(FORM_DATA, form, parent_field && parent_field.name, ignoreLookups, true);
+        let fieldsandlookups = findFieldsandLookups(form, parent_field && parent_field.name, ignoreLookups, true);
 
 //           console.log('find() calling findFieldsandLookups finished ' + JSON.stringify(fieldsandlookups)); // + JSON.stringify(fieldsandlookups));
 
-            if (fieldsandlookups.error) {
-              reject(fieldsandlookups.error)
-            } else {
+        if (fieldsandlookups.error) {
+          reject(fieldsandlookups.error)
+        } else {
 
-              let retfn = function (err, doc) {
-                  if (err ) {
-                    console.log('find() find ERROR :  ' + err);
-                    reject (err);
-                  } else if ((findone && doc == null) || (!findone && doc.length == 0)) {
-                    console.log("find() no records retuned") // ' + JSON.stringify(doc));
-                    resolve(doc);
-                  } else {
-
-  //                  console.log("find() got records") // ' + JSON.stringify(doc));
-
-                      // finding all forms, so return our hardwired also
-                      /* - ERROR - this code mutates doc!!!
-                      console.log ('debug: ' + form._id + " === " + exps.forms["metaSearch"]);
-                      if (Object.is(form._id,exps.forms["metaSearch"])) {
-                        if (!findone) {
-                          doc = doc.concat( FORM_DATA) ;
-                        }
-                      }
-                      */
-                      if (ignoreLookups) {
-    //                    console.log ('resolve: ' );
-                        // need to call processlookupids in update mode to format the reference fields
-    //                    processlookupids (fieldsandlookups.lookups, findone && [doc] || doc, []);
-                        return resolve(doc);
-                      } else {
-                          var lookupkeys = processlookupids(fieldsandlookups, findone && [doc] || doc);
-    //                      console.log("find() got query for foriegn key lookup "); // + JSON.stringify(lookupkeys));
-
-                          runallsubqueries(FORM_DATA, fieldsandlookups.lookups, lookupkeys).then(function (succVal) {
-                            if (succVal) {
-  //                           console.log("find() runallsubqueries success, now processlookupids, recs:" + (findone && "1" || doc.length));
-                              processlookupids (fieldsandlookups, findone && [doc] || doc, succVal);
-                            }
-                            return resolve(doc);
-                          }, function (errVal) {
-                            console.log("find() runallsubqueries error " + errVal);
-                            return reject(errVal)
-                          }).catch(function error(e) {
-                            console.log ("catch err : " + e);
-                            return reject(e);
-                          });
-                      }
-                  }
-              };
-
-
-              // its find one, DOESNT RETURN A CURSOR
-              if (findone) {
-                  console.log(`find() findOne for ${collection} query:  ${JSON.stringify(mquery)}, projection: ${JSON.stringify(fieldsandlookups.findField)}`);
-                  db.collection(collection).findOne(mquery, fieldsandlookups.findField, retfn);
-
+          let retfn = function (err, doc) {
+              if (err ) {
+                console.log('find() find ERROR :  ' + err);
+                reject (err);
+              } else if ((findone && doc == null) || (!findone && doc.length == 0)) {
+                console.log("find() no records retuned") // ' + JSON.stringify(doc));
+                resolve(doc);
               } else {
-                  console.log(`find() find for ${collection} query:  ${JSON.stringify(mquery)}, projection: ${JSON.stringify(fieldsandlookups.findField)}`);
-                  db.collection(collection).find(mquery, fieldsandlookups.findField, {}).toArray(retfn);
-              }
-            }
 
-        }, function (err) {
-            reject ('find() Cannot find form definitions ' + err);
-        }).catch(function (err) {
-          console.log (`find() ${typeof err} ${JSON.stringify(err)}`);
-          reject (`find() catch program Error: ${JSON.stringify(err)}`);
-        });
-      })
+                console.log("find() got records"); // ' + JSON.stringify(doc));
+
+                  // finding all forms, so return our hardwired also
+                  /* - ERROR - this code mutates doc!!!
+                  console.log ('debug: ' + form._id + " === " + exps.forms["metaSearch"]);
+                  if (Object.is(form._id,exps.forms["metaSearch"])) {
+                    if (!findone) {
+                      doc = doc.concat( FORM_DATA) ;
+                    }
+                  }
+                  */
+                  if (ignoreLookups) {
+                    console.log ('find() ignoreLookups so resolve');
+                    // need to call process lookupids in update mode to format the reference fields
+//                    process lookupids (fieldsandlookups.lookups, findone && [doc] || doc, []);
+                    return resolve(doc);
+                  } else {
+                      processlookupids(fieldsandlookups, findone && [doc] || doc).then(lookupkeys => {
+                        console.log("find() got query for foriegn key lookup, now run subqueries"); // + JSON.stringify(lookupkeys));
+
+                        runallsubqueries(fieldsandlookups.lookups, lookupkeys).then(function (succVal) {
+                          if (succVal) {
+//                           console.log("find() runallsubqueries success, now process lookupids, recs:" + (findone && "1" || doc.length));
+                            processlookupids (fieldsandlookups, findone && [doc] || doc, succVal).then(() => resolve(doc));
+                          } else
+                            return resolve(doc);
+                        }, function (errVal) {
+                          console.log("find() runallsubqueries error " + errVal);
+                          return reject(errVal)
+                        }).catch(function error(e) {
+                          console.log ("find() catch runallsubqueries err : " + e);
+                          return reject(e);
+                        });
+                      }, (errVal) => {
+                        console.log("find() processlookupids error " + errVal);
+                        return reject(errVal);
+                      }).catch((e) => {
+                        console.log ("find() catch processlookupids err : " + e);
+                        return reject(e);
+                      });
+                  }
+              }
+          };
+
+
+          // its find one, DOESNT RETURN A CURSOR
+          if (findone) {
+              console.log(`find() findOne in collection: ${collection} [query:  ${JSON.stringify(mquery)}]`);
+              db.collection(collection).findOne(mquery, fieldsandlookups.findField, retfn);
+          } else {
+              console.log(`find() find in collection: ${collection} [query:  ${JSON.stringify(mquery)}]`);
+              db.collection(collection).find(mquery, fieldsandlookups.findField, {}).toArray(retfn);
+          }
+        }
+
+    }, function (err) {
+        reject ('find() Cannot find form definitions ' + err);
+    }).catch(function (err) {
+      console.log (`find() catch program error: ${err}`);
+      return Promise.reject (`find() catch program Error: ${err}`);
+    });
     };
 
     exps.delete = function(formid, parent, query) {
@@ -931,6 +935,20 @@ module.exports = function(options) {
         }
       }).catch(err => console.log ("getFormMeta : error : " + err));
     }
+
+    jexl.addTransform('get', function(ids, view) {
+      console.log ('jexl.Transform : ' + ids + ' : ' + view);
+      // TODO : needs to seach ALL Form meta, not just hardwired
+      let f = meta.FORMMETA.find(meta => meta.name === view);
+      if (f) {
+        console.log ('jexl.Transform finding : ' + f._id + ' : ' + ids);
+        if (ids)
+          return exps.find(f._id, null, {_id:ids}, true, true);
+        else
+          return Promise.resolve();
+      } else
+        return Promise.reject(`cannot find view ${view}`);
+    });
 
     return exps;
 }

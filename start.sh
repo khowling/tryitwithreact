@@ -1,2 +1,3 @@
 
-MONGO_DB=mongodb://localhost:27017/myappdb node server/main
+DEBUG=express:* MONGO_DB=mongodb://localhost:27017/myappdb nodemon server/app.js
+

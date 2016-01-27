@@ -59,9 +59,9 @@ export class FormMain extends Component {
         };
 
         if (fld.type === 'dynamic') {
-          //console.log ('eval dynamic_fields')
+          //console.log (`eval dynamic_fields ${fld.fieldmeta_el}`);
           fctrl.dynamic_fields = yield jexl.eval(fld.fieldmeta_el, {rec: val, appMeta: DynamicForm.instance.appMeta}) || [];
-          //console.log (`eval dynamic_fields ${fld.fieldmeta_el}, res: ${fctrl.dynamic_fields}`);
+          console.log (`eval dynamic_fields ${fld.fieldmeta_el}, res: ${fctrl.dynamic_fields}`);
         }
 
         //console.log (`fctrl ${fld.name}, show_when ${JSON.stringify(fctrl)}`);
