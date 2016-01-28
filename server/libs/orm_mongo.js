@@ -105,7 +105,7 @@ module.exports = function(options) {
     exps.find = function (formid, parent, query, findone, ignoreLookups, context) {
       return new Promise(function (resolve, reject)  {
         let appMeta =  meta.FORMMETA.concat (context && context.appMeta || []);
-        console.log (`find() with appMeta ${appMeta.length}`);
+        console.log (`find() with context ${context && context.app.name} appMeta ${appMeta.length}`);
         /* search form meta-data for 'reference' fields to resolve (also search through 'childform' subforms) */
         var findFieldsandLookups = function (form, parentField, ignoreLookups, getsystemfields, dynamicField) {
 
@@ -195,9 +195,9 @@ module.exports = function(options) {
           return asyncfn(function *(fieldsandlookups, docs, subq) {
 
             let harvest = !subq,
-                processFn = (doc, lookup, lookupkeys, subq, dynamicField) => {
+                processFn = (doc, lookup, lookupkeys, subq) => {
                   let harvest = !subq,
-                      fval = dynamicField && doc[dynamicField][lookup.reference_field_name] || doc[lookup.reference_field_name];
+                      fval = lookup.dynamic_field_name  === undefined ? doc[lookup.reference_field_name] : doc[lookup.dynamic_field_name][lookup.reference_field_name];
 
                   if (fval) {
                     if (harvest) { //--------------------- harvest mode
@@ -214,9 +214,12 @@ module.exports = function(options) {
                     } else { //----------------------------  update mode
 
                         if (lookup.search_form_id && !fval.error) {
-                          let lookupresult = subq[lookup.search_form_id][fval._id] || {error:`missing id ${JSON.stringify(fval)}`};
+                          let lookupresult = subq[lookup.search_form_id] && subq[lookup.search_form_id][fval._id] || {error:`missing id ${JSON.stringify(fval)}`};
                           console.log (`find() processlookupids (update) [set: ${lookup.reference_field_name}] [val: ${lookupresult.name || lookupresult.error}]`);
-                          doc[lookup.reference_field_name] = lookupresult;
+                          if (lookup.dynamic_field_name  === undefined)
+                            doc[lookup.reference_field_name] = lookupresult;
+                          else
+                            doc[lookup.dynamic_field_name][lookup.reference_field_name] = lookupresult;
                         }
                     }
                   }
@@ -238,18 +241,22 @@ module.exports = function(options) {
                   for (let l of dynamicfieldsandLookups.lookups) {
                     if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
                     if (l.parent_field_name) for (let edoc of doc[l.parent_field_name]) {
-            //          console.log (`find() processlookupids (harvest) : got dynamics process ${l.reference_field_name} ${JSON.stringify(edoc)}`);
-                      processFn(edoc, l, lookupkeys, subq, l.dynamic_field_name);
+                      console.log (`find() processlookupids (harvest) : got dynamics process [dynamic field: ${l.dynamic_field_name}] ${l.reference_field_name}`);
+                      processFn(edoc, l, lookupkeys, subq);
                     } else // if field is NOT in an embedded-document, just add id to lookupkeys
-                      processFn(doc, l, lookupkeys, subq, l.dynamic_field_name);
+                      processFn(doc, l, lookupkeys, subq);
                   }
+                  // ensure these are re-applied in update mode
 
+                  if (!fieldsandlookups.dynamic_lookups) fieldsandlookups.dynamic_lookups = [];
+                  fieldsandlookups.dynamic_lookups = fieldsandlookups.dynamic_lookups.concat(dynamicfieldsandLookups.lookups);
+                  console.log ('additional dynamic_lookups ' + fieldsandlookups.dynamic_lookups.length);
                 } else {
                   console.log ('find() ')
                 }
               }
 
-              for (let l of fieldsandlookups.lookups) { // for each 'reference' field from 'findFieldsandLookups'
+              for (let l of harvest ? fieldsandlookups.lookups : fieldsandlookups.lookups.concat(fieldsandlookups.dynamic_lookups)) { // for each 'reference' field from 'findFieldsandLookups'
                 //if (harvest && !l.search_form_id) continue; // no recorded search form, so dont run subquery
                 // if in harvest mode, initialise lookupkeys array
                 if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
@@ -456,7 +463,7 @@ module.exports = function(options) {
 
           // its find one, DOESNT RETURN A CURSOR
           if (findone) {
-              console.log(`find() findOne in collection: ${collection} [query:  ${JSON.stringify(mquery)}]`);
+              console.log(`find() findOne in [collection: ${collection}] [query:  ${JSON.stringify(mquery)}]`);
               db.collection(collection).findOne(mquery, fieldsandlookups.findField, retfn);
           } else {
               console.log(`find() find in collection: ${collection} [query:  ${JSON.stringify(mquery)}]`);

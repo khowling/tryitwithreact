@@ -154,7 +154,7 @@ module.exports = function(options) {
             res.status(400).send(errval);
           };
 
-      console.log (`----------------  /loadApp: [urlappid: ${urlappid}] [user: ${JSON.stringify(req.user.name)}]`);
+      console.log (`----------------  /loadApp: [urlappid: ${urlappid}] [user: ${req.user && req.user.name || 'none'}]`);
 
       if (req.user) {
 
