@@ -78,7 +78,7 @@ module.exports = function(options) {
         } else if (!req.user)
           res.status(400).send("Permission Denied");
         else {
-          orm.delete (formparam, parentURLtoJSON(req.query.parent), query).then((j) => {
+          orm.delete (formparam, parentURLtoJSON(req.query.parent), query, req.session.context).then((j) => {
               res.json(j);
           }, (e) => {
               res.status(400).send(e);
@@ -95,7 +95,7 @@ module.exports = function(options) {
         res.status(400).send("Permission Denied");
       else {
         console.log (`-----  post: calling save with ${formparam} ${req.query.parent}`);
-        orm.save (formparam, parentURLtoJSON(req.query.parent), userdoc, req.user).then((j) => {
+        orm.save (formparam, parentURLtoJSON(req.query.parent), userdoc, req.session.context).then((j) => {
           console.log ('save() : responding : ' + JSON.stringify(j));
           res.json(j);
         }, (e) => {
@@ -185,17 +185,37 @@ module.exports = function(options) {
       } else {
         console.log ("/formdata: user logged on and authorised for the apps : " + appid);
         orm.find(orm.forms.App, null, { _id: appid}, true, true).then((apprec) => {
-            let objectids = [];
+            let systemMeta = [], userMetaids = new Set();
             if (apprec && apprec.appperms) for (let perm of apprec.appperms) {
               console.log (`/formdata: adding form app [${perm.name}]: ${JSON.stringify(perm.form._id)}`);
-              if (perm.form) objectids.push(perm.form._id); //.add[perm.form];
+              if (perm.form) {
+                let sysmeta = meta.FORMMETA.find((m) => String(m._id) === String(perm.form._id);
+                if (!sysmeta) {
+                  userMetaids.add(perm.form._id); //.add[perm.form];
+                } else {
+                  systemMeta.push(sysmeta);
+                }
+              }
               //perm.crud
             }
+            systemMeta.push(meta.FORMMETA.find((m) => String(m._id) === String(exps.forms.FileMeta.toString())); // apps that need to work with files
+            systemMeta.push(meta.FORMMETA.find((m) => String(m._id) === String(exps.forms.iconSearch.toString())); // apps that need to work with icons
+            systemMeta.push(meta.FORMMETA.find((m) => String(m._id) === String(exps.forms.UserSearch.toString())); // apps that need to work with users
+            systemMeta.push(meta.FORMMETA.find((m) => String(m._id) === String(exps.forms.App.toString())); // apps that need to work with users app-specific dynamic fields
+            systemMeta.push(meta.FORMMETA.find((m) => String(m._id) === String(exps.forms.ComponentMetadata.toString())); // needed for the router props
+
             console.log (`/formdata: getFormMeta ${objectids.length}`);
-            orm.getFormMeta(objectids).then (function (appMeta) {
-              req.session.context = {user: req.user, app: apprec,  appMeta: appMeta};
+
+            if (userMetaids.size >0) {
+              exps.find(exps.forms.formMetadata, null, {_id: Array.from(userMetaids) }, false, true).then(userMeta => {
+                let allMeta = systemMeta.concat (userMeta);
+                req.session.context = {user: req.user, app: apprec,  appMeta: allMeta};
+                res.json(req.session.context);
+              });
+            } else {
+              req.session.context = {user: req.user, app: apprec,  appMeta: systemMeta};
               res.json(req.session.context);
-            }, errfn).catch(errfn);
+            }
         }, errfn).catch((e) => {
           console.error ('/loadApp program error retrieving application for user', e);
           res.status(400).send(e);
