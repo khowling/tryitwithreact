@@ -1050,9 +1050,9 @@ module.exports = function(options) {
             }
           }
         ]
-  };
+      };
 
-    exps.adminMetabyId = function() {
+    exps.systemMetabyId = function() {
       let res = {};
 
       for (let v of exps.FORMMETA) {
