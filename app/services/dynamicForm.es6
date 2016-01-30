@@ -6,7 +6,10 @@ jexl.addTransform('get', function(ids, view) {
   let df = DynamicForm.instance,
       f = df.getFormByName(view);
   if (f)
-    return df.get(f._id, ids);
+    if (f.store === 'mongo')
+      return df.get(f._id, ids);
+    else if (f.store === 'metadata')
+      return f._data.find(m => m._id === ids);
   else
     return Promise.reject(`cannot find view ${view}`);
 });

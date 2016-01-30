@@ -151,14 +151,16 @@ export class FormMain extends Component {
     });
   }
 
-  _delete(succfn) {
-    if (window.confirm("Sure?")) {
-      var self = this,
-          df = DynamicForm.instance;
-      df.delete (this.props.form._id, this.props.value.record._id, this.props.parent).then(succval => {
-        return succfn (succval);
-      });
-    }
+  _delete() {
+    return new Promise((resolve, reject) => {
+      if (window.confirm("Sure?")) {
+        var self = this,
+            df = DynamicForm.instance;
+        df.delete (this.props.form._id, this.props.value.record._id, this.props.parent).then(succval => {
+          resolve(succval);
+        });
+      }
+    });
   }
 
   /************************/

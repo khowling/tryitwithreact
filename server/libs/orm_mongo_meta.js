@@ -482,7 +482,7 @@ module.exports = function(options) {
                   title: "Fields (EL)",
                   show_when: "rec['type'] == 'dynamic'",
                   placeholder: "context vars: rec, user, appMeta",
-                  type: "textarea"
+                  type: "formula"
                 },
               {
                     name: "dropdown_options",
@@ -874,8 +874,7 @@ module.exports = function(options) {
                   name: "props",
                   title: "Component Properties",
                   type: "dynamic",
-              //    fieldmeta_el: "appMeta[.name == 'Component Metadata']._data[._id == rec.component._id].props"
-                  fieldmeta_el: "rec.component.props"
+                  fieldmeta_el: "rec.component._id|get('Component Metadata').props"
               },
               {
                   name: "position",

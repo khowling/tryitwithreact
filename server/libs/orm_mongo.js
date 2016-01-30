@@ -166,7 +166,7 @@ module.exports = function(options) {
                   }
               }  else if (field.type === 'dynamic') {
                 // we only know the field types once we have the data record, so lets mark it now, and do the jexp at harvest time!
-                // TODO: need to validate dynamic fields & lookup references when dynamic fields are lookups!!
+                // DONE: need to validate dynamic fields & lookup references when dynamic fields are lookups!!
                 if (!ignoreLookups && field.fieldmeta_el) {
                   let v = {reference_field_name: field.name, dynamic_form_ex: field.fieldmeta_el};
                   if (parentField) v.parent_field_name = parentField;
@@ -187,7 +187,7 @@ module.exports = function(options) {
           let harvest = !subq,
               processFn = (doc, lookup, lookupkeys, subq) => {
                 let harvest = !subq,
-                    fval = lookup.dynamic_field_name  === undefined ? doc[lookup.reference_field_name] : doc[lookup.dynamic_field_name][lookup.reference_field_name];
+                    fval = lookup.dynamic_field_name  === undefined ? doc[lookup.reference_field_name] : doc[lookup.dynamic_field_name] && doc[lookup.dynamic_field_name][lookup.reference_field_name];
 
                 if (fval) {
                   if (harvest) { //--------------------- harvest mode
@@ -202,7 +202,7 @@ module.exports = function(options) {
                     }
                   } else { //----------------------------  update mode
                     if (lookup.search_form_id && !fval.error) {
-                      let lookupresult = subq[lookup.search_form_id] && subq[lookup.search_form_id][fval._id] || {error:`missing id ${JSON.stringify(fval)}`};
+                      let lookupresult = subq[lookup.search_form_id] && subq[lookup.search_form_id][fval._id] || {_id: fval._id, _error:'missing id'};
                       console.log (`find() processlookupids (update) [set: ${lookup.reference_field_name}] [val: ${lookupresult.name || lookupresult.error}]`);
                       if (lookup.dynamic_field_name  === undefined)
                         doc[lookup.reference_field_name] = lookupresult;
@@ -226,12 +226,12 @@ module.exports = function(options) {
                 if (dynamic_fields && dynamic_fields.error) {
                   return {error: 'find() error execting dynamic field expression  ['+d.dynamic_form_ex+'] : ' + JSON.stringify(dynamic_fields.error)};
                 } else if (dynamic_fields) {
-                  console.log (`find()  processlookupids : validate dynamic fields data ${d.reference_field_name}`);
+                  console.log (`find()  processlookupids : validate dynamic fields data ${d.reference_field_name} : ${JSON.stringify(dynamic_fields)}`);
                   let dynamicfieldsandLookups = findFieldsandLookups ({fields: dynamic_fields}, d.parent_field_name /*parentFieldName */,  false/*ignoreLookups*/, false/*getsystemfields*/, d.reference_field_name /* dynamicField*/ );
                   for (let l of dynamicfieldsandLookups.lookups) {
                     if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
                     if (l.parent_field_name) for (let edoc of doc[l.parent_field_name]) {
-                      console.log (`find() processlookupids (harvest) : got dynamics process [dynamic field: ${l.dynamic_field_name}] ${l.reference_field_name}`);
+                      console.log (`find() processlookupids (harvest) : call processFn [dynamic field: ${l.dynamic_field_name}] [fieldname: ${l.reference_field_name}] on ${JSON.stringify(edoc,null,2)}`);
                       processFn(edoc, l, lookupkeys, subq);
                     } else // if field is NOT in an embedded-document, just add id to lookupkeys
                       processFn(doc, l, lookupkeys, subq);
@@ -249,7 +249,7 @@ module.exports = function(options) {
               //if (harvest && !l.search_form_id) continue; // no recorded search form, so dont run subquery
               // if in harvest mode, initialise lookupkeys array
               if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
-              console.log (`find() processlookupids found lookup, harvest id ${l.reference_field_name} [parent: ${l.parent_field_name}]`);
+              console.log (`find() processlookupids found lookup [harvest: ${harvest}] [parent: ${l.parent_field_name}] [field: ${l.reference_field_name}]`);
               if (l.parent_field_name && Array.isArray(doc[l.parent_field_name])) for (let edoc of doc[l.parent_field_name]) {
                 processFn(edoc, l, lookupkeys, subq);
               } else // if field is NOT in an embedded-document, just add id to lookupkeys
@@ -582,14 +582,14 @@ module.exports = function(options) {
                 // generate new ID.
                 tv._id = new ObjectID();
                 tv._createDate = new Date();
-                tv._createdBy = {_id: context.user._id};
+                tv._createdBy = {_id: ObjectID(context.user._id)};
                 tv._updateDate = new Date();
-                tv._updatedBy = {_id: context.user._id};
+                tv._updatedBy = {_id: ObjectID(context.user._id)};
               } else { // update
                 // if updating, data doesn't need new _id.
                 if (!rv._id) return {error: "Update request, data doesnt contain key (_id)"};
                 tv[embedField && embedfield+'.$._updateDate' || '_updateDate'] = new Date();
-                tv[embedField && embedfield+'.$._updatedBy' || '_updatedBy'] = {_id: context.user._id};
+                tv[embedField && embedfield+'.$._updatedBy' || '_updatedBy'] = {_id: ObjectID(context.user._id)};
               }
               //console.log ("Save: validateSetFields, looping through record propities");
               for (let propname in rv) { // for each property in data object
@@ -602,17 +602,18 @@ module.exports = function(options) {
                 else if ('validated_value' in tcres) {
                   tv[tprop] = tcres.validated_value;
                 } else if ('dynamic_field' in tcres) {
-                  // TODO : Validate dynamic files, function needs to be sync generator
+                  // DONE : Validate dynamic files, function needs to be sync generator
                   console.log (`save() validateSetFields, dynamic_fields validation [el: ${tcres.dynamic_field.fieldmeta_el}] :  [rec: ${JSON.stringify(Object.assign({}, existing_rec, rv),null,2)}]`);
                   let dynamic_fields = yield jexl.eval(tcres.dynamic_field.fieldmeta_el, Object.assign({rec: Object.assign({}, existing_rec, rv)}, context));
-                  console.log ("TODO TODO :: dynamic_fields validation : " + JSON.stringify(dynamic_fields));
+                  //console.log ("dynamic_fields validation : " + JSON.stringify(dynamic_fields));
                   if ((!dynamic_fields) || dynamic_fields.error) return {error: "data contains dynamic field, but error evaluating expression: " + tcres.dynamic_field.fieldmeta_el};
 
-                  let dtv = {};  // dynamic target validated object
-                  for (let propname in tcres.value) { // for each property in data object
-                    let fval = tcres.value[propname];
+                  let dtv = {},  // dynamic target validated object
+                      newdynamicfield = Object.assign({},  existing_rec[propname] || {}, tcres.value); // Need to combine existing record dynamic field with changes from client, otherwise loose values that are not changed!
+                  for (let propname in newdynamicfield) { // for each property in data object
+                    let fval = newdynamicfield[propname];
 
-                    console.log (`save() validateSetFields, checking ${propname} : ${tcres.value[propname]}`);
+                    console.log (`save() validateSetFields, checking ${propname} : ${newdynamicfield[propname]}`);
                     let dtcres = typecheckFn ({fields: dynamic_fields}, propname, fval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
                     if ('error' in dtcres)
                       return dtcres;
@@ -664,12 +665,13 @@ module.exports = function(options) {
 
         if (isEmbedded || !isInsert) {
           // get existing document.
-          exps.find (formid, parent, {_id: new ObjectID(userdoc._id)}, true, true).then(existing_rec => {
+          exps.find (formid, parent, {_id: new ObjectID(userdoc._id)}, true, true, context).then(existing_rec => {
             console.log (`save() got existing record : ${JSON.stringify(existing_rec)}`);
             if (isEmbedded)  {  // its embedded, so modifing a existing top document
               let query, update;
               // its embedded, so filter existing_rec for just embedded doc for dynamic jexl
-              existing_rec = existing_rec[embedfield][0];
+              // TODO I find existing if its inserting a new embedded doc, I should ensure I just get the parent
+              if (existing_rec) existing_rec = existing_rec[embedfield][0];
               //console.log('/db/'+coll+'  set or push a embedded document :' + parentid);
               try {
                 // TODO: use genQuery?
@@ -748,7 +750,7 @@ module.exports = function(options) {
               });
             }
           }, err => reject (`failed to retrieve existing record : ${err}`)
-          ).catch(err => reject (`failed to retrieve existing record : ${err}`));
+        ).catch(err => reject (`program error : ${err}`));
         }  else {
           // its a insert, no existing record
           //console.log('/db/'+coll+'  insert toplevel document, use individual fields');
@@ -861,14 +863,17 @@ module.exports = function(options) {
   exps.systemMetabyId = meta.systemMetabyId;
 
   jexl.addTransform('get', function(ids, view) {
-    console.log ('jexl.Transform : ' + ids + ' : ' + view);
-    // TODO : needs to seach ALL Form meta, not just hardwired
+    console.log (`jexl.Transform  [id:${ids}] [viewname: ${view}]`);
+    // TODO : needs to Find a way of making 'context' available to Transform function!!!
     let f = meta.FORMMETA.find(meta => meta.name === view);
     if (f) {
-      console.log ('jexl.Transform finding : ' + f._id + ' : ' + ids);
-      if (ids)
-        return exps.find(f._id, null, {_id:ids}, true, true);
-      else
+      console.log (`jexl.Transform got form [name : ${f.name}] finding [_id:  ${ids}]`);
+      if (ids) {
+        if (f.store === 'mongo')
+          return exps.find(f._id, null, {_id:ids}, true, true);
+        else if (f.store === 'metadata')
+          return f._data.find(m => m._id === ids);
+      } else
         return Promise.resolve();
     } else
       return Promise.reject(`cannot find view ${view}`);
