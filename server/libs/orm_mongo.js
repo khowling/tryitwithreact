@@ -707,7 +707,7 @@ module.exports = function(options) {
                     update = {'$push': { [embedfield]: validatedUpdates.data}};
                 }
 
-                console.log(`save() update <${coll}>: query: ${JSON.stringify(query)}, update: ${JSON.stringify(update)}`);
+                console.log(`save() update [collection: ${coll}] [query: ${JSON.stringify(query)}] update: ${JSON.stringify(update)}`);
                 db.collection(coll).update(query, update, function (err, out) {
                   console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
                   if (err) {
@@ -736,7 +736,7 @@ module.exports = function(options) {
                 else
                   update = { '$set': validatedUpdates.data};
 
-                console.log(`save() update <${coll}>: query: ${JSON.stringify(query)}, update: ${JSON.stringify(update)}`);
+                console.log(`save() update [collection: ${coll}] [query: ${JSON.stringify(query)}] update: ${JSON.stringify(update)}`);
                 db.collection(coll).update (query, update,  function (err, out) {
                   console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
                   if (err) {

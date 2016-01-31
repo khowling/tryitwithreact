@@ -380,18 +380,18 @@ export class FieldReference extends Component {
 
 }
 
-export class Field extends Component {
-
+export class FieldDate extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      value: props.value, // needs to be mutatable
-      lookup: { visible: false, values: [], create: false, offercreate: false},
-      date: {visible: false, montharray: [] }
+      date: {visible: false, montharray: [] },
+      value: props.value // needs to be mutatable
     };
-    //console.log ("Field constructor " + props.fielddef.name + "["+props.fielddef.type+"] = " + JSON.stringify(state.value));
   }
 
+  /*******************/
+  /* Common          */
+  /*******************/
   componentWillReceiveProps(nextProps) {
     console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
     if (nextProps.value != this.props.value) {
@@ -399,26 +399,6 @@ export class Field extends Component {
       this.setState({value: nextProps.value});
     }
   }
-
-  shouldComponentUpdate(nextProps, nextState) {
-    let shouldUpdate = true;
-    //console.log ('Field shouldComponentupdate props: ' + JSON.stringify(nextProps));
-     // state: ' + JSON.stringify(nextState));
-
-      // Field is updating itsself, always update
-    if (!nextState) {
-      if (this.props.fielddef.type === "reference") {
-        if (nextProps.value && this.props.edit) {
-          shouldUpdate =  false;
-        }
-      } else if (nextProps.value && nextProps.value === this.props.value) {
-        shouldUpdate =  false;
-      }
-    }
-    console.log ('Field shouldComponentupdate : ' + shouldUpdate);
-    return shouldUpdate;
-  }
-
 
   /*******************/
   /* Date  Functions */
@@ -447,193 +427,186 @@ export class Field extends Component {
   _doneDate(yr,mth,day) {
     if (yr) {
       console.log ("Field _doneDate :"  + yr + ":" + mth + ":" + day);
-      this.setState ({value: new Date(yr,mth,day), date: {visible: false }}, () => {
+        // this.setState ({value: new Date(yr,mth,day), date: {visible: false }}, () => {
         if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: this.state.value});
-      });
+          this.props.onChange ({[this.props.fielddef.name]: new Date(yr,mth,day) /*this.state.value*/});
+        // });
     } else {
       this.setState ({date: {visible: false }});
     }
   }
+
+  render() {
+    if (!this.props.edit) {
+      return (
+         <span>{this.props.value && new Date(this.props.value).toLocaleDateString() || ""}</span>
+       );
+    } else {
+      let self = this;
+      return (
+        <span>
+          <div className="slds-form-element__control">
+            <div className="slds-input-has-icon slds-input-has-icon--right">
+              <SvgIcon spriteType="utility" spriteName="event" small={true} classOverride="slds-input__icon" />
+              <input className="slds-input" type="text" placeholder="Pick a Date" value={this.props.value && new Date(this.props.value).toLocaleDateString() || ""} onFocus={this._showDate.bind(this)} />
+            </div>
+          </div>
+
+          { this.state.date.visible &&
+          <div className="slds-dropdown slds-dropdown--left slds-datepicker">
+            <div className="slds-datepicker__filter slds-grid">
+              <div className="slds-datepicker__filter--month slds-grid slds-grid--align-spread slds-size--3-of-4">
+                <div className="slds-align-middle">
+                  <button className="slds-button slds-button--icon-container">
+                    <SvgIcon spriteType="utility" spriteName="left" small={true} classOverride="slds-input__icon" small={true}/>
+                    <span className="slds-assistive-text">Previous Month</span>
+                  </button>
+                </div>
+                <h2 id="month" className="slds-align-middle" aria-live="assertive" aria-atomic="true">June</h2>
+                <div className="slds-align-middle">
+                  <button className="slds-button slds-button--icon-container">
+                    <SvgIcon spriteType="utility" spriteName="right" small={true} small={true}/>
+                    <span className="slds-assistive-text">Next Month</span>
+                  </button>
+                </div>
+              </div>
+              <div className="slds-picklist datepicker__filter--year slds-shrink-none">
+                <button id="year" className="slds-button slds-button--neutral slds-picklist__label" aria-haspopup="true">2015
+                  <SvgIcon spriteType="utility" spriteName="down" small={true} classOverride="slds-input__icon" small={true}/>
+                </button>
+              </div>
+            </div>
+            <table className="datepicker__month" role="grid" aria-labelledby="month">
+              <thead>
+                <tr id="weekdays">
+                  { ["S", "M", "T", "W", "T", "F", "S"].map((day, i) =>{ return (
+                    <th key={i}><abbr>{day}</abbr></th>
+                )})}
+                </tr>
+              </thead>
+              <tbody>
+                { this.state.date.montharray.map((wkarray, i) =>{ return (
+                    <tr key={i}>
+                    { wkarray.map((day, i) =>{ return (
+                      <td key={i} className={day.length == 0 &&  "slds-disabled-text" || (day == this.state.date.today && "slds-is-today" || "")}>
+                        <span className="slds-day" onClick={self._doneDate.bind(self, 2015, 6, day)}>{day}</span>
+                      </td>
+                    )})}
+                    </tr>
+                )})}
+              </tbody>
+            </table>
+          </div>
+          }
+        </span>
+      );
+    }
+  }
+}
+
+export const Field = ({fielddef, value, edit, inlist, onChange}) => {
+
   /**************************/
   /* inline Data  Functions */
   /**************************/
-  _inlineDataChange(val) {
+  let _inlineDataChange = function(val) {
     console.log ("Field: _inlineDataChange : got update from List : " + JSON.stringify(val));
-    if (this.props.onChange)
-      this.props.onChange ({[this.props.fielddef.name]: val});
-  }
+    if (onChange)
+      onChange ({[fielddef.name]: val});
+  };
   /****************************/
 
-  handleValueChange(event) {
+  let _handleValueChange = function(event) {
     let newval = event.target.value;
-    if (this.props.fielddef.type === "boolean") {
+    if (fielddef.type === "boolean") {
       newval = event.target.checked;
     }
     console.log (`Field handleValueChange <${typeof newval}>:  ${newval}`);
-    this.setState ({value: newval}, () => {
-      if (this.props.onChange)
-        this.props.onChange ({[this.props.fielddef.name]: newval});
-    });
-  }
-
-  render() {
-    console.log ('Field render: ' + this.props.fielddef.name + '<'+this.props.fielddef.type+'> state.value : ' + JSON.stringify(this.state.value));
-
-    let field,
-        self = this,
-        df = DynamicForm.instance;
-
-    if (this.props.fielddef.type === "image") {
-      field = (<FieldImage fielddef={this.props.fielddef} value={this.props.value} edit={this.props.edit} onChange={this.props.onChange} inlist={this.props.inlist}/>);
-    } else if (this.props.fielddef.type === "reference") {
-      field = (<FieldReference fielddef={this.props.fielddef} value={this.props.value} edit={this.props.edit} onChange={this.props.onChange} inlist={this.props.inlist}/>);
-    } else if (!this.props.edit) switch (this.props.fielddef.type) {
-        case 'text':
-        case 'email':
-        case 'textarea':
-        case 'formula':
-          field = (<span>{this.props.value}</span>);
-          break;
-        case 'boolean':
-          field = (<input name="checkbox" type="checkbox" checked={this.props.value} disabled="1" />);
-          break;
-        case 'jsonarea':
-          field = (<span>{JSON.stringify(this.props.value, null, 4)}</span>);
-          break;
-        case 'dropdown':
-          let ddopt = this.props.value &&  this.props.fielddef.dropdown_options.filter(f => f.key === this.props.value)[0];
-          field = (<span>{ddopt && ddopt.name || (this.props.value && 'Unknown option <' + this.props.value +'>' || '')}</span>);
-          break;
-        case "dropdown_options":
-          let cform = this.props.fielddef.child_form && df.getForm(this.props.fielddef.child_form._id);
-          field = (<ListMain form={cform} value={{status: "ready", records: this.props.value}} parent={{field: this.props.fielddef}} viewonly={true}/>);
-          break;
-        case "datetime":
-          field = (<span>{this.props.value && new Date(this.props.value).toLocaleDateString() || ""}</span>);
-          break;
-        case 'childform':
-          //let cform = MetaStore.getForm (this.props.fielddef.child_form);
-          //field = <ChildForm form={cform} value={this.props.value}/>;
-          field = (<span>childform not supported here</span>);
-          break;
-        case "icon":
-          if (this.props.value)
-              field = (<span><SvgIcon spriteType={this.props.value.type} spriteName={this.props.value.name} small={true}/></span>);
-          else
-            field = (<span/>);
-          break;
-        default:
-          field = <span>Unknown fieldtype {this.props.fielddef.type}</span>;
-          break;
-    } else {
+  //  this.setState ({value: newval}, () => {
+    onChange ({[fielddef.name]: newval});
+//    });
+  };
 
 
-      switch (this.props.fielddef.type) {
-        case 'text':
-        case 'email':
-          field =  <input type="text" className="slds-input" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}/>;
-          break;
-        case 'textarea':
-        case 'formula':
-          field = <textarea className="slds-input" rows="3" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}></textarea>;
-            break;
-        case 'boolean':
-          field = (<input type="checkbox" checked={this.state.value} onChange={this.handleValueChange.bind(this)} />);
-          break;
-        case 'jsonarea':
-            field = <textarea className="slds-input" rows="3" placeholder={this.props.fielddef.placeholder} value={this.state.value} onChange={this.handleValueChange.bind(this)}></textarea>;
-            break;
-        case 'dropdown':
-          field = <select className="slds-input" value={this.state.value} onChange={this.handleValueChange.bind(this)}>
-                        <option value="">-- select --</option>
-                        {this.props.fielddef.dropdown_options.map (function(opt, i) { return (
-                        <option key={i} value={opt.key}>{opt.name}</option>
-                        );})}
-                      </select>;
-            break;
-        case "datetime":
-          field = <span>
-                  <div className="slds-form-element__control">
-                    <div className="slds-input-has-icon slds-input-has-icon--right">
-                      <SvgIcon spriteType="utility" spriteName="event" small={true} classOverride="slds-input__icon" />
-                      <input className="slds-input" type="text" placeholder="Pick a Date" value={this.state.value && new Date(this.state.value).toLocaleDateString() || ""} onFocus={this._showDate.bind(this)} />
-                    </div>
-                  </div>
+  console.log (`Field ${fielddef.name} : ${JSON.stringify(value)}`);
+  let field,
+      self = this,
+      df = DynamicForm.instance;
 
-                  { this.state.date.visible &&
-                  <div className="slds-dropdown slds-dropdown--left slds-datepicker">
-                    <div className="slds-datepicker__filter slds-grid">
-                      <div className="slds-datepicker__filter--month slds-grid slds-grid--align-spread slds-size--3-of-4">
-                        <div className="slds-align-middle">
-                          <button className="slds-button slds-button--icon-container">
-                            <SvgIcon spriteType="utility" spriteName="left" small={true} classOverride="slds-input__icon" small={true}/>
-                            <span className="slds-assistive-text">Previous Month</span>
-                          </button>
-                        </div>
-                        <h2 id="month" className="slds-align-middle" aria-live="assertive" aria-atomic="true">June</h2>
-                        <div className="slds-align-middle">
-                          <button className="slds-button slds-button--icon-container">
-                            <SvgIcon spriteType="utility" spriteName="right" small={true} small={true}/>
-                            <span className="slds-assistive-text">Next Month</span>
-                          </button>
-                        </div>
-                      </div>
-                      <div className="slds-picklist datepicker__filter--year slds-shrink-none">
-                        <button id="year" className="slds-button slds-button--neutral slds-picklist__label" aria-haspopup="true">2015
-                          <SvgIcon spriteType="utility" spriteName="down" small={true} classOverride="slds-input__icon" small={true}/>
-                        </button>
-                      </div>
-                    </div>
-                    <table className="datepicker__month" role="grid" aria-labelledby="month">
-                      <thead>
-                        <tr id="weekdays">
-                          { ["S", "M", "T", "W", "T", "F", "S"].map((day, i) =>{ return (
-                            <th key={day}><abbr>{day}</abbr></th>
-                        )})}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        { this.state.date.montharray.map((wkarray, i) =>{ return (
-                            <tr key={i}>
-                            { wkarray.map((day, i) =>{ return (
-                              <td key={i} className={day.length == 0 &&  "slds-disabled-text" || (day == this.state.date.today && "slds-is-today" || "")}>
-                                <span className="slds-day" onClick={self._doneDate.bind(self, 2015, 6, day)}>{day}</span>
-                              </td>
-                            )})}
-                            </tr>
-                        )})}
-                      </tbody>
-                    </table>
-                  </div>
-                  }
-                </span>;
-          break;
-        case 'childform':
-            field = <div></div>;
-            break;
-        case 'dropdown_options':
-          let cform1 = this.props.fielddef.child_form && df.getForm(this.props.fielddef.child_form._id);
-          field = <div></div>; // (<ListMain view={cform1} value={{status: "ready", records: this.state.value }} parent={{field: this.props.fielddef}} onDataChange={this._inlineDataChange.bind(this)}/>);
-          break;
-        default:
-            field = <div>Unknown fieldtype {this.props.fielddef.type}</div>;
-            break;
-      };
-    }
-
-    return field;
-  }
+  if (fielddef.type === "image") {
+    field = (<FieldImage fielddef={fielddef} value={value} edit={edit} onChange={onChange} inlist={inlist}/>);
+  } else if (fielddef.type === "reference") {
+    field = (<FieldReference fielddef={fielddef} value={value} edit={edit} onChange={onChange} inlist={inlist}/>);
+  } else if (fielddef.type === "datetime") {
+    field = (<FieldDate fielddef={fielddef} value={value} edit={edit} onChange={onChange} inlist={inlist}/>);
+  } else if (!edit) switch (fielddef.type) {
+      case 'text':
+      case 'email':
+      case 'textarea':
+      case 'formula':
+        field = (<span>{value}</span>);
+        break;
+      case 'boolean':
+        field = (<input name="checkbox" type="checkbox" checked={value} disabled="1" />);
+        break;
+      case 'jsonarea':
+        field = (<span>{JSON.stringify(value, null, 4)}</span>);
+        break;
+      case 'dropdown':
+        let ddopt = value &&  fielddef.dropdown_options.filter(f => f.key === value)[0];
+        field = (<span>{ddopt && ddopt.name || (value && 'Unknown option <' + value +'>' || '')}</span>);
+        break;
+      case "dropdown_options":
+        let cform = fielddef.child_form && df.getForm(fielddef.child_form._id);
+        field = (<ListMain form={cform} value={{status: "ready", records: value}} parent={{field: fielddef}} viewonly={true}/>);
+        break;
+      case 'childform':
+        //let cform = MetaStore.getForm (fielddef.child_form);
+        //field = <ChildForm form={cform} value={value}/>;
+        field = (<span>childform not supported here</span>);
+        break;
+      case "icon":
+        if (value)
+            field = (<span><SvgIcon spriteType={value.type} spriteName={value.name} small={true}/></span>);
+        else
+          field = (<span/>);
+        break;
+      default:
+        field = <span>Unknown fieldtype {fielddef.type}</span>;
+        break;
+  } else switch (fielddef.type) {
+    case 'text':
+    case 'email':
+      field =  <input type="text" className="slds-input" placeholder={fielddef.placeholder} value={value} onChange={_handleValueChange}/>;
+      break;
+    case 'textarea':
+    case 'formula':
+      field = <textarea className="slds-input" rows="3" placeholder={fielddef.placeholder} value={value} onChange={_handleValueChange}></textarea>;
+        break;
+    case 'boolean':
+      field = (<input type="checkbox" checked={value} onChange={_handleValueChange} />);
+      break;
+    case 'jsonarea':
+        field = <textarea className="slds-input" rows="3" placeholder={fielddef.placeholder} value={value} onChange={_handleValueChange}></textarea>;
+        break;
+    case 'dropdown':
+      field = <select className="slds-input" value={value} onChange={_handleValueChange}>
+                    <option value="">-- select --</option>
+                    {fielddef.dropdown_options.map (function(opt, i) { return (
+                    <option key={i} value={opt.key}>{opt.name}</option>
+                    );})}
+                  </select>;
+      break;
+    case 'childform':
+      field = <div></div>;
+      break;
+    case 'dropdown_options':
+      let cform1 = fielddef.child_form && df.getForm(fielddef.child_form._id);
+      field = (<ListMain view={cform1} value={{status: "ready", records: value }} parent={{field: fielddef}} onDataChange={_inlineDataChange}/>);
+      break;
+    default:
+      field = <div>Unknown fieldtype {fielddef.type}</div>;
+      break;
+  };
+  return field;
 }
-Field.propTypes = {
-  // Core
-  fielddef: React.PropTypes.shape({
-    name: React.PropTypes.string.isRequired,
-    type: React.PropTypes.string.isRequired
-  }),
-  value: React.PropTypes.any,
-  // used by lookup and childform (if no onComplete, assume top)
-  onChange: React.PropTypes.func,
-  edit: React.PropTypes.bool
-};
-Field.defaultProps = { edit: false};

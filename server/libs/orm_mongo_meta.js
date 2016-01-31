@@ -242,6 +242,7 @@ module.exports = function(options) {
                     name: "collection",
                     title: "Mongo Collection name",
                     type: "text",
+                    default_value: "rec['name']|toApiName",
                     show_when: "rec['store'] == 'mongo'",
                     placeholder: "No Spaces please!",
                     required: "rec['store'] == 'mongo'"
@@ -1059,7 +1060,7 @@ module.exports = function(options) {
       }
       return res;
     }
-
+/*
     exps.findFormById = function (meta, name) {
         try {
           var oname = new ObjectID(name);
@@ -1076,7 +1077,7 @@ module.exports = function(options) {
         }
         return;
     }
-/*
+
     exps.findFieldById = function (meta, name) {
       try {
         var oname = new ObjectID(name);

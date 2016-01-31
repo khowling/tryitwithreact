@@ -11,6 +11,7 @@ import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
 import DynamicForm from '../services/dynamicForm.es6';
 import async from '../../shared/async.es6';
+import {typecheckFn} from '../../shared/dform.es6';
 
 /*****************************************************************************
   ** Called from Form Route (top), or within List (embedded),
@@ -24,7 +25,7 @@ export class FormMain extends Component {
       manageData: false,
       changedata:  (props.crud == "c" && props.value) && props.value.record || {}, // keep all data changes in the state
       errors: null};
-    console.log ('FormMain constructor setState : ' + JSON.stringify(this.state));
+    console.log (`FormMain constructor [props.value.state : ${props.value && props.value.state || 'no props.value'}]`);
   }
 
   shouldComponentUpdate(nextProps, nextState) {
@@ -33,19 +34,20 @@ export class FormMain extends Component {
         nextState.formcontrol && nextState.formcontrol.change) {
         shouldUpdate =  true;
     }
-    console.log ("FormMain shouldComponentUpdate (only if props.value or state.formcontrol changes) : " + shouldUpdate);
+    console.log (`FormMain [nextProps.value.state : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
     return shouldUpdate;
   }
 
   // form control - visibility and validity
   // TODO : Needs to be MUCH better, not calling eval many times!
-  _formControlState(edit, fields, val, currentState) {
+  _formControlState(edit, form, val, currentState) {
+    return async(function *(edit, form, val, currentState) {
 
-    return async(function *(edit, fields, val, currentState) {
       //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
-      let cnrt = {flds:{},invalid: false, change: currentState && false || true};
+      let df = DynamicForm.instance,
+          returnControl = {flds:{}, new_deflts: {}, invalid: false, change: currentState && false || true};
 
-      for (let fld of fields.filter(f => f.type !== 'childform' && f.type !== 'relatedlist')) {
+      for (let fld of form.fields.filter(f => f.type !== 'childform' && f.type !== 'relatedlist')) {
 
         let visible = {val: true};
         //console.log (`field ${fld.name}, show_when ${fld.show_when}, val ${JSON.stringify(val)}`);
@@ -53,15 +55,24 @@ export class FormMain extends Component {
           visible = yield jexl.eval(fld.show_when, {rec: val, appMeta: DynamicForm.instance.appMeta});
 
         let fctrl = {
-          invalid: edit && fld.required && !val[fld.name],
+          invalid: edit && typecheckFn (form, fld.name, val[fld.name], (fid) => df.getForm(fid)).error,
           visible: visible,
           dynamic_fields: null
         };
 
+        // new_default_value, set if no current value in field, or current value has been set by previous default
+        //console.log (`_formControlState new_default_value ${fld.name} ${fld.default_value} ${val[fld.name]} `);
+        if (fctrl.visible && fld.default_value && ((!val[fld.name]) || (currentState && currentState.new_deflts[fld.name] === val[fld.name]))) {
+          let newdefault = yield jexl.eval(fld.default_value, {rec: val});
+          //console.log (`_formControlState new_default_value ${fld.name} val: ${val[fld.name]}   newdefault: ${newdefault}`);
+          if (val[fld.name] !== newdefault) returnControl.new_deflts[fld.name] = newdefault;
+          returnControl.change = true;
+        }
+
         if (fld.type === 'dynamic') {
           //console.log (`eval dynamic_fields ${fld.fieldmeta_el}`);
           fctrl.dynamic_fields = yield jexl.eval(fld.fieldmeta_el, {rec: val, appMeta: DynamicForm.instance.appMeta}) || [];
-          console.log (`eval dynamic_fields ${fld.fieldmeta_el}, res: ${fctrl.dynamic_fields}`);
+          //console.log (`eval dynamic_fields ${fld.fieldmeta_el}, res: ${fctrl.dynamic_fields}`);
         }
 
         //console.log (`fctrl ${fld.name}, show_when ${JSON.stringify(fctrl)}`);
@@ -70,34 +81,37 @@ export class FormMain extends Component {
           if (!Object.is(currentState.flds[fld.name].invalid, fctrl.invalid) ||
               !Object.is(currentState.flds[fld.name].visible, fctrl.visible) ||
               !Object.is(currentState.flds[fld.name].dynamic_fields, fctrl.dynamic_fields))
-                cnrt.change = true;
+                returnControl.change = true;
         } else if (fctrl.invalid || !fctrl.visible) {
           // no current state, so much be change
-          cnrt.change = true;
+          returnControl.change = true;
         }
 
-        if (fctrl.invalid) cnrt.invalid = true;
-        cnrt.flds[fld.name] = fctrl;
+        if (fctrl.invalid) returnControl.invalid = true;
+        returnControl.flds[fld.name] = fctrl;
       }
       //console.log ("FormMain _formControlState result : " + JSON.stringify(cnrt));
-      return cnrt;
-    })(edit, fields, val, currentState);
+      return returnControl;
+    })(edit, form, val, currentState);
   }
 
   componentWillMount() {
-    this._formControlState (this.state.edit, this.props.form.fields, this.props.value && this.props.value.record || {}).then(succval => {
-      this.setState ({
-        formcontrol: succval
+    if (this.props.value && this.props.value.status === "ready") {
+      this._formControlState (this.state.edit, this.props.form, this.props.value && this.props.value.record || {}).then(succval => {
+        this.setState ({
+          changedata: succval.new_deflts,
+          formcontrol: succval
+        });
       });
-    });
+    }
   }
   // form data is ready from parent
   componentWillReceiveProps (nextProps) {
-    console.log ("FormMain componentWillReceiveProps");
-    if (nextProps.value) {
-      this._formControlState (this.state.edit, this.props.form.fields, nextProps.value.record).then(succval => {
+    console.log (`FormMain componentWillReceiveProps [nextProps.value.status : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
+    if (nextProps.value && nextProps.value.status === "ready") {
+      this._formControlState (this.state.edit, this.props.form, nextProps.value.record).then(succval => {
         this.setState ({
-          changedata: {}, // wipe out any changes???
+          changedata: succval.new_deflts, // wipe out any changes???
           formcontrol: succval,
           manageData: false, // ensure the inline modal closes when parent updates from save
         });
@@ -115,9 +129,10 @@ export class FormMain extends Component {
 
     let changedata = Object.assign({}, this.state.changedata, d);
     console.log (`--------- FormMain _fieldChange full changedata ${JSON.stringify(changedata)}`);
-    this._formControlState (this.state.edit, this.props.form.fields, Object.assign({}, this.props.value && this.props.value.record || {}, changedata), this.state.formcontrol).then(succval => {
+    this._formControlState (this.state.edit, this.props.form, Object.assign({}, this.props.value && this.props.value.record || {}, changedata), this.state.formcontrol).then(succval => {
+
       this.setState({
-        changedata: changedata,
+        changedata: Object.assign(changedata, succval.new_deflts),
         formcontrol: succval
       });
     });
@@ -128,18 +143,7 @@ export class FormMain extends Component {
       let self = this,
           df = DynamicForm.instance,
           body =  (this.props.value && this.props.value.record._id) && Object.assign({_id: this.props.value.record._id}, this.state.changedata) || this.state.changedata;
-  /*
-      // if its a childform - add parent details to the save for mongo & nav back to parent
-      if (this.props.parent) {
-        let {view, recordid, field} = this.props.parent;
-        saveopt.parent = {
-          form_id: view,
-          query: {_id: recordid},
-          field_id: field
-        };
-      }
-      console.log ('FormMain _save : '+ JSON.stringify(saveopt));
-  */
+
       df.save (this.props.form._id, body, this.props.parent).then(succval => {
         console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
         resolve(succval);
@@ -223,6 +227,7 @@ export class FormMain extends Component {
             action: self._manageData.bind(self)
           }];
 
+    Object.assign(record, this.state.changedata);
     console.log (`FormMain render ${this.props.form.name} `); //, state : ' + JSON.stringify(this.state));
     return (
       <div className={this.props.inModal && "slds-modal__container w95"} >

@@ -14,6 +14,9 @@ jexl.addTransform('get', function(ids, view) {
     return Promise.reject(`cannot find view ${view}`);
 });
 
+jexl.addTransform('toApiName', function(str) {
+  return typeof str === 'string' && str.replace(/\s+/g, '_').toLowerCase() || null;
+});
 
 let instance = null;
 export default class DynamicForm {
