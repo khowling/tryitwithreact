@@ -15,14 +15,11 @@ module.exports = function(options) {
             "FormFieldMetadata": new ObjectID('000000000200'),
             "DropDownOption": new ObjectID('000000000250'),
             "iconSearch": new ObjectID('000000000300'),
-            "metaSearch": new ObjectID('000000000400'),
             "Users": new ObjectID('000000000600'),
-            "UserSearch": new ObjectID('000000000650'),
             "AuthProviders": new ObjectID('000000000700'),
             "FileMeta": new ObjectID('000000000800'),
             "UserApps": new ObjectID('000000000900'),
             "App": new ObjectID('000000000a00'),
-            "AppSearch": new ObjectID('000000000a50'),
             "AppPerms": new ObjectID('000000000b00'),
             "AppPageComponent": new ObjectID('000000000e00'),
             "ImportMeta": new ObjectID('000000000c00'),
@@ -128,7 +125,7 @@ module.exports = function(options) {
               name: "form",
               title: "Data Form",
               type: "reference",
-              search_form: { _id: exps.forms.metaSearch}
+              search_form: { _id: exps.forms.formMetadata}
           },
           {
               name: "xid",
@@ -152,7 +149,7 @@ module.exports = function(options) {
               name: "form",
               title: "Data Form",
               type: "reference",
-              search_form: { _id: exps.forms.metaSearch}
+              search_form: { _id: exps.forms.formMetadata}
           },
           {
               name: "query",
@@ -189,6 +186,7 @@ module.exports = function(options) {
 
                 {
                     name: "name",
+                    display: "primary",
                     title: "Form Name",
                     type: "text",
                     placeholder: "",
@@ -232,6 +230,7 @@ module.exports = function(options) {
                 },
                 {
                     name: "icon",
+                    display: "primary",
                     title: "Form Icon",
                     type: "reference",
                     required: false,
@@ -276,6 +275,7 @@ module.exports = function(options) {
 
                 {
                     name: "name",
+                    display: "primary",
                     title: "Form Name",
                     type: "text",
                     placeholder: "",
@@ -307,6 +307,7 @@ module.exports = function(options) {
                 {
                     name: "title",
                     title: "Field Title",
+                    display: "primary",
                     type: "text",
                     placeholder: "Field Label",
                     required: true
@@ -315,15 +316,17 @@ module.exports = function(options) {
                     name: "name",
                     title: "Field Name",
                     type: "text",
+                    default_value: "rec['title']|toApiName",
                     placeholder: "No Spaces please",
                     required: true
                 },
                 {
                     name: "type",
                     title: "Field Type",
+                    display: "list",
                     type: "dropdown",
                     required: true,
-                    default_value: "text",
+                    default_value: "'text'",
                     dropdown_options: [
                         {
                           name: "Text",
@@ -380,24 +383,40 @@ module.exports = function(options) {
                     ]
                 },
                 {
+                    name: "display",
+                    title: "Display",
+                    display: "list",
+                    type: "dropdown",
+                    required: true,
+                    dropdown_options: [
+                        {
+                          name: "Primary",
+                          key: "primary"
+                        },
+                        {
+                          name: "List",
+                          key: "list"
+                        }
+                      ]
+                },
+                {
                     name: "default_value",
                     title: "Default Value",
-                    type: "text",
+                    type: "formula",
                     placeholder: "Default Value",
                     required: false
                 },
                 {
                     name: "placeholder",
                     title: "Placeholder Value",
-                    show_when: "rec['type'] == 'list'",
+                    show_when: "rec['type'] == 'text'",
                     type: "text",
                     required: false
                 },
                 {
                     name: "show_when",
                     title: "Show When ( ie: rec['type'] == 'list')",
-                    type: "text",
-                    default_value: "true",
+                    type: "formula",
                     required: false
                 },
                 {
@@ -408,7 +427,7 @@ module.exports = function(options) {
                     show_when: "rec['type'] == 'reference'",
                     createnew_form: { _id: exps.forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": {}}',
-                    search_form: { _id: exps.forms.metaSearch},
+                    search_form: { _id: exps.forms.formMetadata},
                     required: false,
                     _id: new ObjectID('000000000207'),
                 },
@@ -428,7 +447,7 @@ module.exports = function(options) {
                     show_when: "rec['type'] == 'reference'",
                     createnew_form: { _id: exps.forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": {}}',
-                    search_form: { _id: exps.forms.metaSearch},
+                    search_form: { _id: exps.forms.formMetadata},
                     required: false,
                     _id: new ObjectID('000000000209'),
                 },
@@ -439,7 +458,7 @@ module.exports = function(options) {
                     show_when: "rec['type'] == 'childform' || rec['type'] == 'relatedlist'",
                     createnew_form: { _id: exps.forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": { "type": "childform"}}',
-                    search_form: { _id: exps.forms.metaSearch},
+                    search_form: { _id: exps.forms.formMetadata},
                     required: false,
                     _id: new ObjectID('000000000210'),
                 },
@@ -464,6 +483,7 @@ module.exports = function(options) {
                 {
                     name: "required",
                     title: "Required?",
+                    display: "list",
                     type: "dropdown",
                     required: false,
                     default_value: false,
@@ -490,7 +510,7 @@ module.exports = function(options) {
                     title: "Dropdown Options",
                     show_when: "rec['type'] == 'dropdown'",
                     type: "dropdown_options",
-                    child_form: exps.forms.DropDownOption,
+                    child_form: {_id: exps.forms.DropDownOption}
                 }
             ]
         },
@@ -501,11 +521,13 @@ module.exports = function(options) {
             fields: [
               {
                   name: "key",
+                  display: "list",
                   title: "key",
                   type: "text",
               },
               {
                   name: "name",
+                  display: "primary",
                   title: "Label",
                   type: "text"
               }
@@ -518,36 +540,18 @@ module.exports = function(options) {
             fields: [
               {
                   name: "icon",
+                  display: "primary",
                   title: "Icon",
                   type: "icon",
               },
               {
                   name: "name",
+                  display: "primary",
                   title: "Name",
                   type: "text",
               }
             ],
             _data: exps.ICONS,
-        },
-        {
-            _id: exps.forms.metaSearch,
-            name: "metaSearch",
-            icon: {_id:"std28"},
-            store: "mongo",
-            collection: "formmeta",
-            fields: [
-              {
-                  name: "icon",
-                  title: "Icon",
-                  type: "reference",
-                  search_form: { _id: exps.forms.iconSearch}
-              },
-                {
-                    name: "name",
-                    title: "Name",
-                    type: "text",
-                }
-            ]
         },
         {
             _id: exps.forms.Users,
@@ -561,6 +565,7 @@ module.exports = function(options) {
 
                 {
                     name: "name",
+                    display: "primary",
                     title: "Full Name",
                     type: "text",
                     placeholder: "",
@@ -594,12 +599,14 @@ module.exports = function(options) {
                 {
                     name: "email",
                     title: "Email",
+                    display: "list",
                     type: "email",
                     placeholder: "",
                     required: true
                 },
                 {
                     name: "picture",
+                    display: "primary",
                     title: "Picture",
                     type: "image",
                     required: false
@@ -619,25 +626,6 @@ module.exports = function(options) {
                     child_form: { _id: exps.forms.UserApps},
                     _id: new ObjectID('000000000601'),
                 }
-            ]
-        },
-        {
-          _id: exps.forms.UserSearch,
-          name: "UserSearch",
-          collection: "user",
-          store: "mongo",
-          icon: {_id:"std88"},
-          fields: [
-              {
-                  name: "picture",
-                  title: "Picture",
-                  type: "image"
-              },
-              {
-                  name: "name",
-                  title: "Full Name",
-                  type: "text",
-              }
             ]
         },
         {
@@ -689,10 +677,11 @@ module.exports = function(options) {
             fields: [
               {
                   name: "app",
+                  display: "primary",
                   title: "App",
                   type: "reference",
                   createnew_form: { _id: exps.forms.App},
-                  search_form: { _id: exps.forms.AppSearch},
+                  search_form: { _id: exps.forms.App},
                   required: true,
                   _id: new ObjectID('000000000901')
               },
@@ -702,55 +691,6 @@ module.exports = function(options) {
                   type: "dynamic",
                   fieldmeta_el: "rec.app._id|get('App').userfields"
               //    fieldmeta_el: "rec.app._id|get('App').userfields",
-              }
-            ]
-        },
-        {
-            _id: exps.forms.AppSearch,
-            name: "AppSearch",
-            collection: "app",
-            icon: {_id:"std8"},
-            store: "mongo",
-            fields: [
-              {
-                  name: "icon",
-                  type: "reference",
-                  search_form: { _id: exps.forms.iconSearch}
-
-              },
-              {
-                name: "name",
-                type: "text"
-              },
-              {
-                name: "public",
-                type: "dropdown",
-                show_when: "false",
-                dropdown_options: [
-                    {
-                        name: "Yes",
-                        key: "yes"
-                    },
-                    {
-                        name: "No",
-                        key: "no"
-                    }
-                ]
-              },
-              {
-                name: "default",
-                show_when: "false",
-                type: "dropdown",
-                dropdown_options: [
-                    {
-                        name: "Yes",
-                        key: "yes"
-                    },
-                    {
-                        name: "No",
-                        key: "no"
-                    }
-                ]
               }
             ]
         },
@@ -766,6 +706,7 @@ module.exports = function(options) {
                 {
                     name: "name",
                     title: "App Name",
+                    display: "primary",
                     type: "text",
                     placeholder: "",
                     required: true
@@ -823,6 +764,7 @@ module.exports = function(options) {
                 {
                     name: "icon",
                     title: "App Icon",
+                    display: "primary",
                     type: "reference",
                     search_form: { _id: exps.forms.iconSearch}
                 },
@@ -913,7 +855,7 @@ module.exports = function(options) {
                   name: "form",
                   title: "Form",
                   type: "reference",
-                  search_form: { _id: exps.forms.metaSearch},
+                  search_form: { _id: exps.forms.formMetadata},
                   required: true,
                   _id: new ObjectID('000000000b01'),
               },
@@ -1026,13 +968,10 @@ module.exports = function(options) {
       {form: {_id: exps.forms.ComponentMetadata}, crud: "crud"},
       {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
       {form: {_id: exps.forms.DropDownOption}, crud: "crud"},
-      {form: {_id: exps.forms.metaSearch}, crud: "crud"},
       {form: {_id: exps.forms.Users}, crud: "crud"},
-      {form: {_id: exps.forms.UserSearch}, crud: "crud"},
       {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
       {form: {_id: exps.forms.UserApps}, crud: "crud"},
       {form: {_id: exps.forms.App}, crud: "crud"},
-      {form: {_id: exps.forms.AppSearch}, crud: "crud"},
       {form: {_id: exps.forms.AppPerms}, crud: "crud"},
       {form: {_id: exps.forms.AppPageComponent}, crud: "crud"},
       {form: {_id: exps.forms.iconSearch}, crud: "crud"},

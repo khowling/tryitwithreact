@@ -28,9 +28,9 @@ export class FieldImage extends Component {
   /* Common          */
   /*******************/
   componentWillReceiveProps(nextProps) {
-    console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
+    //console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
     if (nextProps.value != this.props.value) {
-      console.log ('the field value has been updated by the form, update the field (this will override the field state)');
+      //console.log ('the field value has been updated by the form, update the field (this will override the field state)');
       this.setState({value: nextProps.value});
     }
   }
@@ -196,9 +196,6 @@ export class FieldReference extends Component {
       console.log ('_handleLookupKeypress: ' + inval);
       let setLookupVals = () => {
         df.search(sform._id, inval).then(succVal => {
-          if (this.props.fielddef.search_form._id === "303030303030303030343030") { //'metaSearch'
-            succVal = succVal.concat( df.appMeta) ;
-          }
           this.setState({lookup: {visible: true, fields: sform.fields, values: succVal, offercreate: true}});
         });
       };
@@ -225,7 +222,7 @@ export class FieldReference extends Component {
       console.log ('Field _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
       this.setState ({value: data, lookup: resetLookup}, () => {
         if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: {_id: data._id}}); //data});   //  IMPORTANT: This is so dynamic data works!!!
+          this.props.onChange ({[this.props.fielddef.name]: data});   // {_id: data._id}});  IMPORTANT: This is so primary fields work!!!
       });
     }
   }
@@ -248,40 +245,29 @@ export class FieldReference extends Component {
 
     // function to generate reference search form (for seleced value in edit and view modes, and list values)
     let referenceForm = (sform, rec) => {
+      console.log (`referenceForm called ${sform.name} ${JSON.stringify(rec)}`);
       if (!rec) {
         return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>no data</span>;
       } else if (rec.error) {
         return  <span key={rec._id} style={{color: "red"}}><IconField value={sform.icon} small={true}/>{rec.error}</span>;
       } else {
-        let gotimageicon = false,
-            retform = sform.fields.map(function(fld, fldidx) {
+        let priimage = <span>no image</span>, pritext = <span>no text</span>;
+        for (let fld of sform.fields) {
+          if (fld.display === 'primary') {
+            console.log (`referenceForm ${fld.type} ${JSON.stringify(rec[fld.name])}`);
+            if (fld.type === 'icon' || fld.type === 'image')
+              priimage = <Field fielddef={fld}  value={rec[fld.name]} inlist={true} />;
+            else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id )
+              priimage = <IconField value={rec[fld.name]} small={true}/>;
+            else
+              pritext = <Field fielddef={fld} value={rec[fld.name]}/>;
+          }
+        }
+        if (!priimage)
+          priimage = <IconField value={sform.icon} small={true}/>;
 
-              let genField = function() {
-                let fldval = rec[fld.name];
-                if (fld.name === "_id") ;
-                else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id ) {
-                  if (fldval) {
-                    gotimageicon = true;
-                    return (<IconField key={fldidx} value={fldval} small={true}/>);
-                  }
-                } else if (fld.type !== "reference" && fld.type !== "childform" && fld.type !== "relatedlist") {
-                  if (fld.type === "image") gotimageicon = true;
-                  return (<Field key={fldidx} fielddef={fld} value={fldval} inlist={true}/>);
-                } else
-                  return <Alert key={fldidx} message={'"'+fld.type+'" not supported on search form'}/>
-              }
+        return <span key={rec._id}>{priimage}<span style={{marginLeft: "5px"}}/>{pritext}</span>;
 
-              if (fld.show_when) {
-                jexl.eval(fld.show_when, {"$rec": rec}, (err, visible) => { //eval(fld.show_when);
-                  if (visible) return genField();
-                });
-              } else
-                return genField();
-            });
-
-        if (!gotimageicon && sform.icon)
-          retform = <span key={rec._id}><IconField value={sform.icon} small={true}/>{retform}</span>;
-        return <span key={rec._id}>{retform}</span>;
       }
     }
 
@@ -510,9 +496,9 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
   /* inline Data  Functions */
   /**************************/
   let _inlineDataChange = function(val) {
-    console.log ("Field: _inlineDataChange : got update from List : " + JSON.stringify(val));
+    //console.log ("Field: _inlineDataChange : got update from List : " + JSON.stringify(val));
     if (onChange)
-      onChange ({[fielddef.name]: val});
+      onChange ({[fielddef.name]: val.data});
   };
   /****************************/
 
@@ -521,14 +507,12 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
     if (fielddef.type === "boolean") {
       newval = event.target.checked;
     }
-    console.log (`Field handleValueChange <${typeof newval}>:  ${newval}`);
-  //  this.setState ({value: newval}, () => {
+    //console.log (`Field handleValueChange <${typeof newval}>:  ${newval}`);
     onChange ({[fielddef.name]: newval});
-//    });
   };
 
 
-  console.log (`Field ${fielddef.name} : ${JSON.stringify(value)}`);
+  //console.log (`Field ${fielddef.name} : ${JSON.stringify(value)}`);
   let field,
       self = this,
       df = DynamicForm.instance;
@@ -558,7 +542,10 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
         break;
       case "dropdown_options":
         let cform = fielddef.child_form && df.getForm(fielddef.child_form._id);
-        field = (<ListMain form={cform} value={{status: "ready", records: value}} parent={{field: fielddef}} viewonly={true}/>);
+        if (cform)
+          field = (<ListMain form={cform} inline={true} value={{status: "ready", records: value}} viewonly={true}/>);
+        else
+          field = (<div>{fielddef.child_form} not part of applicatiohn</div>);
         break;
       case 'childform':
         //let cform = MetaStore.getForm (fielddef.child_form);
@@ -601,8 +588,11 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
       field = <div></div>;
       break;
     case 'dropdown_options':
-      let cform1 = fielddef.child_form && df.getForm(fielddef.child_form._id);
-      field = (<ListMain view={cform1} value={{status: "ready", records: value }} parent={{field: fielddef}} onDataChange={_inlineDataChange}/>);
+      let cform = fielddef.child_form && df.getForm(fielddef.child_form._id);
+      if (cform)
+        field = (<ListMain form={cform} inline={true} value={{status: "ready", records: value || [] }}  onDataChange={_inlineDataChange}/>);
+      else
+        field = (<div>{fielddef.child_form} not part of applicatiohn</div>);
       break;
     default:
       field = <div>Unknown fieldtype {fielddef.type}</div>;

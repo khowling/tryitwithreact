@@ -126,17 +126,24 @@ export default class DynamicForm {
       return this._appMeta.find(f => f.name === fid);
   }
   // get 1 or many by ID
-  get(viewid, ids) {
+  get(viewid, ids, display = 'all') {
     if (!Array.isArray(ids)) ids = [ids];
-    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (ids && ("?_id=" + ids.join(",")) || ''));
+    return this._callServer(`${this.ROUTES.dform}db/${viewid}?d=${display}${ids && ("&_id=" + ids.join(",")) || ''}`);
   }
   // search by name (primary)
-  search(viewid, str) {
-    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (str && ("?p=" + str) || ''));
+  search(viewid, str, display = 'primary') {
+    return new Promise ((resolve, reject) => {
+      this._callServer(`${this.ROUTES.dform}db/${viewid}?d=${display}${(str && ("&p=" + str) || '')}`).then(succVal => {
+        if (viewid === "303030303030303030313030") //'formmeta'
+          resolve (succVal.concat( this.appMeta));
+        else
+          resolve (succVal);
+      }, errVal => reject(errVal));
+    });
   }
   // full query
-  query(viewid, q) {
-    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (q && ("?q=" + encodeURIComponent(JSON.stringify(q))) || ''));
+  query(viewid, q, display = 'list') {
+    return this._callServer(`${this.ROUTES.dform}db/${viewid}?d=${display}${(q && ("&q=" + encodeURIComponent(JSON.stringify(q))) || '')}`);
   }
   save(viewid, body, parent) {
     return this._callServer(this.ROUTES.dform + 'db/' + viewid + (parent && "?parent="+encodeURIComponent(JSON.stringify(parent)) || ''), 'POST', body);

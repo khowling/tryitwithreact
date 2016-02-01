@@ -5,7 +5,7 @@ import React, {Component} from 'react';
 import jexl from 'jexl';
 import Router from './router.jsx';
 import {Field} from './dform_fields.jsx';
-import {RecordHeader, FormHeader} from './headers.jsx';
+import {Button, SectionHeader, RecordHeader, FormHeader} from './headers.jsx';
 import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
@@ -49,16 +49,16 @@ export class FormMain extends Component {
 
       for (let fld of form.fields.filter(f => f.type !== 'childform' && f.type !== 'relatedlist')) {
 
-        let visible = {val: true};
-        //console.log (`field ${fld.name}, show_when ${fld.show_when}, val ${JSON.stringify(val)}`);
-        if (fld.show_when)
-          visible = yield jexl.eval(fld.show_when, {rec: val, appMeta: DynamicForm.instance.appMeta});
 
+        //console.log (`field ${fld.name}, show_when ${fld.show_when}, val ${JSON.stringify(val)}`);
         let fctrl = {
           invalid: edit && typecheckFn (form, fld.name, val[fld.name], (fid) => df.getForm(fid)).error,
-          visible: visible,
+          visible: true,
           dynamic_fields: null
         };
+
+        if (fld.show_when)
+          fctrl.visible = yield jexl.eval(fld.show_when, {rec: val, appMeta: DynamicForm.instance.appMeta});
 
         // new_default_value, set if no current value in field, or current value has been set by previous default
         //console.log (`_formControlState new_default_value ${fld.name} ${fld.default_value} ${val[fld.name]} `);
@@ -241,8 +241,8 @@ export class FormMain extends Component {
 
             { formcontrol && this.props.form.fields.map(function(field, i) {
               if (field.type !== 'childform' && field.type !== 'relatedlist' && field.type !== 'dynamic') {
-                let fc = formcontrol.flds[field.name] || {visible: {val: true}, invalid: false};
-                if (fc.visible.error)
+                let fc = formcontrol.flds[field.name] || {visible: true, invalid: false};
+                if (fc.visible && fc.visible.error)
                   return (<Alert message={`dynamic field expression error ${dflds.error}`}/>);
                 else if (fc.visible) return (<FieldWithLabel key={i} field={field} value={record[field.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, null)}/>);
               } else if (field.type === 'dynamic') {
@@ -253,7 +253,7 @@ export class FormMain extends Component {
                     return (<Alert message={`dynamic field expression error ${dflds.error}`}/>);
                   else if (dflds)
                     return dflds.map(function(dfield, i) {
-                      let fc = {visible: {val: true}, invalid: false};
+                      let fc = {visible: true, invalid: false};
                       if (fc.visible) return  (<FieldWithLabel key={i} field={dfield} value={record[field.name] && record[field.name][dfield.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, field.name)}/>);
                     })
                 }
@@ -361,7 +361,7 @@ export class ListPage extends Component {
         metaview: df.getForm (props.form._id),
         value: {status: "wait", records: []}
       };
-      console.log ('ListPage constructor: '+ props.form._id);
+      //console.log ('ListPage constructor: '+ props.form._id);
     }
 
     componentDidMount() {
@@ -370,9 +370,9 @@ export class ListPage extends Component {
 
     _dataChanged() {
       let df = DynamicForm.instance;
-      console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.form._id));
+      //console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.form._id));
       if (this.state.metaview.store === "mongo")
-        df.query (this.props.form._id, this.props.query && JSON.parse(this.props.query) || {}).then(
+        df.query (this.props.form._id, this.props.query && JSON.parse(this.props.query)).then(
           succRes => this.setState({value: {status: "ready", records: succRes}}),
           errRes  => this.setState({value: {status: "error", message: errRes }})
         );
@@ -386,7 +386,7 @@ export class ListPage extends Component {
       return (
         <div className="slds-grid slds-wrap">
           <div className="slds-col slds-size--1-of-1">
-          { <FormHeader form={this.state.metaview}/>
+          { <FormHeader form={this.state.metaview} count={this.state.value.records && this.state.value.records.length || 0} buttons={[{label: "New", action: Router.URLfor(true, "RecordPage", this.props.form._id, null, {"e": true})}]}/>
           }
           </div>
           { this.state.value.status === "error" &&
@@ -396,7 +396,7 @@ export class ListPage extends Component {
           }
           { this.state.value.status != "error" &&
           <div className="slds-col slds-size--1-of-1">
-            <ListMain value={this.state.value} form={this.state.metaview} onDataChange={this._dataChanged.bind(this)}/>
+            <ListMain noheader={true} value={this.state.value} form={this.state.metaview} onDataChange={this._dataChanged.bind(this)}/>
           </div>
           }
         </div>
@@ -414,7 +414,7 @@ export class ListPage extends Component {
 export class ListMain extends Component {
   constructor(props) {
     super(props);
-    console.log ('ListMain InitialState : ' + JSON.stringify(props.value));
+    console.log (`ListMain InitialState [form ${props.form.name}] : ' + JSON.stringify(props.value)`);
     this.state = {
       inline: {enabled: props.inline, editidx: null, editval: {}},
       inlineData: props.inline && props.value,  // inline data is locally mutable, so save in state
@@ -450,75 +450,61 @@ export class ListMain extends Component {
   /***************/
   /** inline  ****/
   _inLinefieldChange(val) {
-    console.log ("ListMain _inLinefieldChange : " + JSON.stringify(val));
-    this.setState({inline: Object.assign(this.state.inline, {editval: Object.assign(this.state.inline.editval, val)})});
-  }
-  _inLineDelete(rowidx) {
-    let newarray = this.state.inlineData.records.slice(0);
-    newarray.splice(rowidx, 1);
-    console.log ("ListMain _delete rowidx:" + rowidx + ", result : " + JSON.stringify(newarray));
-    this.setState({inlineData: {status: "ready", records: newarray}, inline: {enabled: true, editidx: null, editval: {}, currentval: null}}, () => {
-      if (this.props.onDataChange) {
-        this.props.onDataChange(newarray);
-      }});
+    let new_editval = {editval: Object.assign(this.state.inline.editval, val)};
+    console.log (`ListMain _inLinefieldChange this.state.inline.editval: ${JSON.stringify(new_editval)}`);
+    this.setState({inline: Object.assign(this.state.inline, new_editval)});
   }
   _inLineEdit(rowidx) {
+    console.log ("ListMain _inLineEdit rowidx :" + rowidx);
     let records = this.state.inlineData.records;
-    if (rowidx >= 0)
-      this.setState({inline: Object.assign(this.state.inline, {editidx: rowidx, currentval: records[rowidx]})}, () =>
-        this.props.onDataChange({disableSave : true}));
-    else {
-      let newarray = records && records.slice(0) || [];
-      newarray.push({});
-      this.setState({inlineData: {status: "ready", records: newarray}, inline: Object.assign(this.state.inline, {editidx: newarray.length-1, currentval: null})}, () =>
-        this.props.onDataChange({disableSave : true}));
-    }
+      this.setState({inline: Object.assign(this.state.inline, {editidx: rowidx, editval: (rowidx >= 0) ? records[rowidx] : {}})}, () => {
+        if (this.props.onDataChange) this.props.onDataChange({disableSave : true});
+      });
+  }
+
+  _inLineDelete(rowidx) {
+    let clonearray = this.state.inlineData.records.slice(0);
+    clonearray.splice(rowidx, 1);
+    console.log ("ListMain _delete rowidx:" + rowidx + ", result : " + JSON.stringify(clonearray));
+    this.setState({inlineData: {status: "ready", records: clonearray}, inline: {enabled: true, editidx: null, editval: {}}}, () => {
+      if (this.props.onDataChange) this.props.onDataChange({data: clonearray, disableSave: false})
+    });
   }
   _inLineSave(saveit) {
-    console.log ("ListMain _inLineSave : saveit:"+saveit+" ["+ this.state.inline.editidx + "] : " + JSON.stringify(this.state.inline.editval));
-    if (saveit) {
-      let newarray = this.state.inlineData.records.slice(0);
-      if (this.state.inline.currentval) {
-        // edit existing val, so join the current val with the changes to get the full record
-        newarray[this.state.inline.editidx] = Object.assign(this.state.inline.currentval, this.state.inline.editval);
-      } else {
-        newarray[this.state.inline.editidx] = this.state.inline.editval;
-      }
-      console.log ("ListMain _inLineSave : inform parent of new data, newarray:" +JSON.stringify(newarray));
-      this.setState({inlineData: {status: "ready", records: newarray}, inline: {enabled: true, editidx: null, editval: {}, currentval: null}}, () => {
-        if (this.props.onDataChange) {
-          this.props.onDataChange({data: newarray, disableSave: false});
-        }});
-      } else {
-        //we are cancelling.
-        let newarray;
-        if (this.state.inline.currentval) {
-          // its a existing row so do nothing
-          this.setState({inline: {enabled: true, editidx: null, editval: {}, currentval: null}}, () =>
-            this.props.onDataChange({disableSave: false}));
-        } else {
-          // its a new row, so delete it!
-          this._ActionDelete(this.state.inline.editidx);
-        }
-      }
+    //console.log ("ListMain _inLineSave : saveit:"+saveit+" ["+ this.state.inline.editidx + "] : " + JSON.stringify(this.state.inline.editval));
+    if (saveit) { // save
+      let clonearray = this.state.inlineData.records.slice(0);
+      if (this.state.inline.editidx >= 0)
+        clonearray[this.state.inline.editidx] = this.state.inline.editval;
+      else
+        clonearray.push (this.state.inline.editval);
+      //console.log ("ListMain _inLineSave : inform parent of new data, clonearray:" +JSON.stringify(clonearray));
+      this.setState({inlineData: {status: "ready", records: clonearray}, inline: {enabled: true, editidx: null, editval: {}}}, () => {
+        if (this.props.onDataChange) this.props.onDataChange({data: clonearray, disableSave: false});
+      });
+    } else { // cancel
+      this.setState({inline: {enabled: true, editidx: null, editval: {}}}, () => {
+        if (this.props.onDataChange) this.props.onDataChange({disableSave: false})
+      });
+    }
   }
 
 
   _onFinished (val) {
-    console.log ('ListMain _onFinished() ' + JSON.stringify(val));
+    //console.log ('ListMain _onFinished() ' + JSON.stringify(val));
     if (val) {
       if (this.props.onDataChange) {
         // this will re-load the data at the parent, and in turn send new props
         this.props.onDataChange();
       }
     } else {
-      console.log ("ListMain _formDone() no data, must be cancel");
+      //console.log ("ListMain _formDone() no data, must be cancel");
       this.setState ({editrow: false});
     }
   }
 
   componentWillReceiveProps (nextProps) {
-    console.log ("ListMain componentWillReceiveProps");
+    //console.log ("ListMain componentWillReceiveProps");
     if (nextProps.value) {
       this.setState ({editrow: false});
     }
@@ -530,29 +516,39 @@ export class ListMain extends Component {
   }
 
   render() {
-    console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
+    //console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
     let self = this,
         {status, records} = this.state.inline && this.state.inlineData || this.props.value,
-        nonchildformfields = this.props.form.fields.filter(m => m.type !== 'childform' && m.type !== 'dropdown_options' && m.type !== 'relatedlist' && m.type !== 'dynamic'),
-        buttons =[
-          {
-            show: this.props.selected && "H", label: "Close",
-            action: this._handleSelect.bind(this, null)
-          },{
-            show: !this.props.selected && "H", label: "New",
-            action: this._ActionEdit.bind(this, -1, false)
-          }];
+        listfields = this.props.form.fields.filter(m => m.display === 'list' || m.display === 'primary');
+
+    if (this.state.inline.editidx == -1) // inline edit, new row
+      records = records && records.concat([this.state.inline.editval]) || [this.state.inline.editval];
 
     return (
       <div className="">
-          {  !self.state.inline.enabled &&
-            <SectionHeader title={this.props.title || this.props.form.name} buttons={buttons.filter(b => b.show === "H")} />
+          {  (!self.state.inline.enabled) && (!this.props.noheader) &&
+            <SectionHeader title={this.props.title || this.props.form.name} buttons={[{label: "New", action: this._ActionEdit.bind(this, -1, false)}]} />
           }
-          <div className="box-body table-responsive no-padding">
+          <div className="box-bo dy table-resp onsive no-pad ding">
             <div className="slds-scrollable--x">
               <table className="slds-table slds-table--bordered">
                 <thead>
                   <tr className="slds-text-heading--label">
+                    { (!self.state.inline.enabled) &&
+                    <th className="slds-row-select" scope="col">
+                      <label className="slds-checkbox" >
+                        <input className="checkbox" type="checkbox"  />
+                        <span className="slds-checkbox--faux"></span>
+                        <span className="slds-form-element__label slds-assistive-text">select all</span>
+                      </label>
+                    </th>
+                    }
+                    {listfields.map(function(field, i) { return (
+                      <th key={i} scope="col">
+                        <div  className="slds-truncate" style={{padding: ".5rem .0rem"}}>{field.title}</div>
+                      </th>
+                    );})}
+
                     { !self.props.viewonly &&
                     <th className="slds-row-select" scope="col">
                       { self.state.inline.enabled &&
@@ -566,22 +562,45 @@ export class ListMain extends Component {
                       }
                     </th>
                     }
-                    {nonchildformfields.map(function(field, i) { return (
-                      <th key={i} scope="col">
-                        <span  className="slds-truncate">{field.title}</span>
-                      </th>
-                    );})}
+
                   </tr>
                 </thead>
                 <tbody>
-                  { records && records.map(function(row, i) { return (
+                  { records && records.map(function(row, i) {
+                    let edit = (i == self.state.inline.editidx || (self.state.inline.editidx == -1 && records.length == i+1));
+                    return (
                     <tr key={i} className="slds-hint-parent">
-                        { !self.props.viewonly &&
+                      { (!self.state.inline.enabled) &&
+                      <td className="slds-row-select">
+                         <label className="slds-checkbox" >
+                           <input className="select-row1" type="checkbox" />
+                           <span className="slds-checkbox--faux"></span>
+                           <span className="slds-form-element__label slds-assistive-text">select row1</span>
+                         </label>
+                       </td>
+                      }
+
+                      {listfields.map(function(field, fidx) {
+                        let value = edit && self.state.inline.editval[field.name] || row[field.name],
+                            listfield =  <Field fielddef={field} value={value} edit={edit} onChange={self._inLinefieldChange.bind(self)} inlist={true}/>;
+                        if (field.display === "primary" && !self.state.inline.enabled) {
+                          if (self.props.parent )
+                            return (
+                            <td key={fidx}><a style={{color: "#0070d2", cursor: "pointer"}} onClick={self._ActionEdit.bind(self, i, true)}>{listfield}</a></td>);
+                          else
+                            return (
+                            <td key={fidx}><a href={Router.URLfor(true, "RecordPage", self.props.form._id, row._id)}>{listfield}</a></td>);
+                        } else {
+                          return (<td key={fidx}>{listfield}</td>);
+                        }
+                      })}
+
+                      { !self.props.viewonly &&
                         <td className="slds-row-select">
 
                           { self.props.selected &&
                             <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
-                          ||  self.state.inline.editidx == i &&
+                          ||  edit &&
                             <div className="slds-button-group">
                               <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)}>save </button>
                               <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, false)}>cancel </button>
@@ -599,20 +618,7 @@ export class ListMain extends Component {
                           }
 
                         </td>
-                        }
-                        {nonchildformfields.map(function(field, fidx) {
-                            let listfield =  <Field fielddef={field} value={row[field.name]} edit={i == self.state.inline.editidx} onChange={self._inLinefieldChange.bind(self)} inlist={true}/>;
-                            if (field.name === "name" && !self.state.inline.enabled) {
-                              if (self.props.parent )
-                                return (
-                                <td key={fidx}><a style={{color: "#0070d2", cursor: "pointer"}} onClick={self._ActionEdit.bind(self, i, true)}>{listfield}</a></td>);
-                              else
-                                return (
-                                <td key={fidx}><a href={Router.URLfor(true, "RecordPage", self.props.form._id, row._id)}>{listfield}</a></td>);
-                            } else {
-                              return (<td key={fidx}>{listfield}</td>);
-                            }
-                        })}
+                      }
                     </tr>
                   );})}
                 </tbody>
@@ -649,9 +655,11 @@ ListMain.propTypes = {
   //used by select picture, when user need to select a item from a list, _id of the item is returned.
   selected: React.PropTypes.func,
   // disable actions
-  viewonly: React.PropTypes.bool
+  viewonly: React.PropTypes.bool,
+  // noheader
+  noheader: React.PropTypes.bool,
 };
-ListMain.defaultProps = { value: {status: "waiting", records: []}, viewonly: false };
+ListMain.defaultProps = { value: {status: "waiting", records: []}, viewonly: false, noheader: false };
 
 // Top level Form, with FormMan & Related Lists. (called from Router - props much reflect URL params)
 export class RecordPage extends Component {
@@ -661,17 +669,18 @@ export class RecordPage extends Component {
 
     let df = DynamicForm.instance,
 //          metaview = df.getForm (props.urlparam.view);
-        metaview = df.getForm (props.form._id);
-    console.log ('RecordPage constructor props: ' + JSON.stringify(props));
+        metaview = df.getForm (props.form._id),
+        crud =  !this.props.xid && "c" || (props.e) &&  "u" || "r";
+    //console.log ('RecordPage constructor props: ' + JSON.stringify(props));
     this.state = {
-      //crud: !props.urlparam.id && "c" || props.urlparam.e && "u" || "r",
-      crud: !this.props.xid && "c" || (props.e) &&  "u" || "r",
+      crud: crud,
+      value: (crud == 'u' || crud == 'r') ? {status: "wait", record: {}} : {status: "ready", record: {}},
       metaview: metaview,
       childformfields: metaview.fields.filter(m => m.type === 'childform'),
-      relatedlistfields: metaview.fields.filter(m => m.type === 'relatedlist'),
-      value: {status: "wait", record: {}}
+      relatedlistfields: metaview.fields.filter(m => m.type === 'relatedlist')
+
     };
-    console.log ('RecordPage constructor setState : ' + JSON.stringify(this.state));
+    //console.log ('RecordPage constructor setState : ' + JSON.stringify(this.state));
   }
 
   componentDidMount() {
@@ -679,17 +688,17 @@ export class RecordPage extends Component {
   }
 
   _dataChanged() {
-    console.log ('RecordPage _dataChanged');
+    //console.log ('RecordPage _dataChanged');
     let df = DynamicForm.instance;
     if (this.state.crud == 'u' || this.state.crud == 'r') {
       if (this.state.metaview.collection) {
         //df.get (this.state.metaview._id, this.props.urlparam.id).then(succVal => {
         var exp_st = `${this.props.xid}|get("${this.state.metaview.name}")`;
-        console.log (`RecordPage _dataChanged jexl : ${exp_st}`);
+        //console.log (`RecordPage _dataChanged jexl : ${exp_st}`);
         jexl.eval(exp_st, {user: df.user, app: df.app, appUserData: df.appUserData}).then(succVal => {
             this.setState({ value: {status: "ready", record: succVal}});
         }, errval => {
-          console.log ('RecordPage _dataChanged jexl error ' + errval);
+          //console.log ('RecordPage _dataChanged jexl error ' + errval);
           this.setState({ value: {status: "error", message: `${errval}`}});
         });
       } else if (this.state.metaview.url)
@@ -728,7 +737,7 @@ export class RecordPage extends Component {
         self = this,
         {status, record} = this.state.value;
 
-    console.log ("Form: rendering state: "); // + JSON.stringify(this.state.value));
+    //console.log ("Form: rendering state: "); // + JSON.stringify(this.state.value));
   /* Removed prop from FormMain - parent={this.props.urlparam.parent}  - will never happen?? */
     return (
         <div className="slds-grid slds-wrap">
@@ -775,40 +784,4 @@ export class RecordPage extends Component {
         </div>
       );
     }
-}
-
-export const SectionHeader = ({title, buttons}) => {
-  return (
-    <div className="slds- col slds-col-- padded slds -size--1-of-1 ">
-        <div className="slds-grid form-seperator">
-          <div className="slds-col slds-col--padded slds-has-flexi-truncate">
-            <h3 className="slds-text-heading--small" style={{marginTop: "8px"}}>{title}</h3>
-          </div>
-          <div className="slds-col slds-col--padded slds-no-flex slds-align-top" style={{marginBottom: "4px"}}>
-            { buttons && buttons.map(function(button, i) { return (
-              <Button key={i} definition={button}/>
-            );})}
-          </div>
-        </div>
-    </div>
-  );
-}
-
-export const Button = ({definition}) => {
-  let runAction = () => {
-    if (definition.hasOwnProperty('then')) {
-      definition.action().then(definition.then);
-    } else {
-      definition.action();
-    }
-  }
-  if (typeof definition.action ===  'function') {
-    return (
-      <button className="slds-button slds-button--neutral" onClick={runAction}  disabled={definition.disable || false}>{definition.label}</button>
-    );
-  } else if (typeof definition.action ===  'string') {
-    return (
-      <a className="slds-button slds-button--neutral" href={definition.action}>{definition.label}</a>
-    );
-  }
 }

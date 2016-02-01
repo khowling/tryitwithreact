@@ -17,6 +17,11 @@ export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)
       }
     } else
       return {error: "data contains fields not recognised, please reload your app/browser : " + propname};
+  } else if (fldmeta.type === "dropdown_options") {
+    if (fval && !Array.isArray(fval))
+      return {error: "data contains value of incorrect type : " + propname};
+    else
+      return {validated_value: fval || null};
   } else if (fldmeta.type === "text" || fldmeta.type === "textarea" || fldmeta.type === "dropdown" || fldmeta.type === "email" || fldmeta.type === "formula") {
     if (fval && typeof fval !== 'string') return {error: "data contains value of incorrect type : " + propname};
     if (fldmeta.required && (!fval)) return {error: "required field missing : " + propname};

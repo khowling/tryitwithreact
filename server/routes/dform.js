@@ -26,16 +26,21 @@ module.exports = function(options) {
   var queryURLtoJSON = (urlquery) => {
     if (!urlquery)
       return;
-    else if (urlquery._id)
-      return  {_id: urlquery._id.indexOf(",") > -1 && urlquery._id.split(",") || urlquery._id};
+
+    let jsonQuery = {};
+    if (urlquery && urlquery.d)
+      jsonQuery.d = urlquery.d;
+
+    if (urlquery._id)
+      jsonQuery._id = urlquery._id.indexOf(",") > -1 && urlquery._id.split(",") || urlquery._id;
     else if (urlquery.p)
-      return  {p: urlquery.p};
+      jsonQuery.p = urlquery.p;
     else if (urlquery.q) try {
-      return  {q: JSON.parse(urlquery.q)};
+      jsonQuery.q = JSON.parse(urlquery.q);
     } catch (e) {
-      return {error: `cannot parse request : ${urlquery.q}`};
+      jsonQuery = {error: `cannot parse request : ${urlquery.q}`};
     }
-    return;
+    return jsonQuery;
   }
   var parentURLtoJSON = (parent) => {
     if (!parent)
@@ -204,14 +209,14 @@ module.exports = function(options) {
 
           systemMeta.push(systemMetabyId[String(orm.forms.FileMeta)]); // apps that need to work with files
           systemMeta.push(systemMetabyId[String(orm.forms.iconSearch)]); // apps that need to work with icons
-          systemMeta.push(systemMetabyId[String(orm.forms.UserSearch)]); // apps that need to work with users
+          systemMeta.push(systemMetabyId[String(orm.forms.Users)]); // apps that need to work with users
           systemMeta.push(systemMetabyId[String(orm.forms.App)]); // apps that need to work with users app-specific dynamic fields
           systemMeta.push(systemMetabyId[String(orm.forms.ComponentMetadata)]); // needed for the router props
 
           console.log (`/formdata: getFormMeta ${userMetaids.size}`);
 
           if (userMetaids.size >0) {
-            orm.find(orm.forms.formMetadata, null, {_id: Array.from(userMetaids) }, false, true).then(userMeta => {
+            orm.find(orm.forms.formMetadata, null, {_id: Array.from(userMetaids), d: 'all' }, false, true).then(userMeta => {
               let allMeta = systemMeta.concat (userMeta);
               req.session.context = {user: req.user, app: apprec,  appMeta: allMeta};
               res.json(req.session.context);

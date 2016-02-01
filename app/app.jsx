@@ -32,7 +32,7 @@ export default class App extends Component {
     //   console.log ('import mods : ' + mods);
        if (typeof mods === "function" ) {
          //if (mods.navProps) {
-           console.log ('App: creating factory : ' + mods.name);
+           //console.log ('App: creating factory : ' + mods.name);
            factories[mods.name] = React.createFactory(mods);
            navMeta.push (mods.navProps);
          //}
@@ -42,16 +42,16 @@ export default class App extends Component {
    }
 
    _loadApp(newroute) {
-     console.log ("App: _loadApp: loading app with route : " + JSON.stringify(newroute));
+     //console.log ("App: _loadApp: loading app with route : " + JSON.stringify(newroute));
   //   if (!newroute.appid) { // && newroute.hash && newroute.hash in this.nonAppComponents.factories) {
   //     console.log ('App: componentWillMount, no appid, Hash is a non-app related page :' + newroute.hash);
   //     this.dynamicForm.clearApp();
   //     this.setState({ booted: true, currentApp: null});// , nonAppPage: newroute.hash});
   //   } else {
-       console.log ("App: _loadApp: setting up services for requested route");
+       //console.log ("App: _loadApp: setting up services for requested route");
        this.dynamicForm.loadApp(newroute.appid).then ((val) => {
          if (this.dynamicForm.app) {
-           console.log ("App: _loadApp, loaded with the app id : " + this.dynamicForm.app._id);
+           //console.log ("App: _loadApp, loaded with the app id : " + this.dynamicForm.app._id);
            Router.ensureAppInUrl (this.dynamicForm.app._id);
          }
          this.setState ({ booted: true, booterr: false, bootmsg: null, user: this.dynamicForm.user, currentApp: this.dynamicForm.app});
@@ -67,14 +67,14 @@ export default class App extends Component {
   }
 
   routeUpdated (newroute) {
-    console.log ('App: router noitified App route updated');
+    //console.log ('App: router noitified App route updated');
     if (newroute.appid !== this.state.currentApp._id) {
       this._loadApp(newroute);
     }
   }
 
   _logout() {
-    console.log ('App: _logout router noitified');
+    //console.log ('App: _logout router noitified');
     this.dynamicForm.logOut().then(succ => {
       this.setState ({ booted: false, booterr: false,  bootmsg: "not booted", user: null, currentApp: null}, () => {
         if (window)
@@ -85,11 +85,11 @@ export default class App extends Component {
   }
 
    render () {
-     console.log ("App: render");
+     //console.log ("App: render");
      if (this.state.booted)  return (
-         <div className="slds">
+         <div className="viewport">
 
-             <section className="site-banner">
+             <header className="site-banner">
                <div className="slds-container--center slds-container--medium">
                   <div className="slds-grid">
                     <div className="slds-col slds-has-flexi-truncate">
@@ -105,16 +105,10 @@ export default class App extends Component {
                     </div>
                   </div>
                 </div>
-            </section>
-            <div style={{height: "3.5rem"}}></div>
+            </header>
 
             <div className="container">
-              { //this.state.currentApp &&
               <Router key={this.state.currentApp && this.state.currentApp._id || 'none'} componentFactories={this.appComponents.factories} currentApp={this.state.currentApp} updateRoute={this.routeUpdated.bind(this)}/>
-              }
-
-              { //this.state.nonAppPage && this.nonAppComponents.factories[this.state.nonAppPage]({key: this.state.nonAppPage})
-             }
             </div>
 
          </div>
