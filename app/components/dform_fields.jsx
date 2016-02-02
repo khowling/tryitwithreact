@@ -370,55 +370,89 @@ export class FieldDate extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      date: {visible: false, montharray: [] },
-      value: props.value // needs to be mutatable
+      date: {date: new Date(props.value), visible: false, montharray: [] },
+      time: {visible: false},
+      display_date: this._display_date(props.value)
     };
+  }
+
+  _display_date(indate) {
+    if (indate) {
+      if (indate.length != 10 || isNaN(Date.parse(indate))) {
+        return indate;
+      } else {
+        return new Date(Date.parse(indate)).toLocaleDateString();
+      }
+    } else
+      return null;
   }
 
   /*******************/
   /* Common          */
   /*******************/
+
   componentWillReceiveProps(nextProps) {
     console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
     if (nextProps.value != this.props.value) {
       console.log ('the field value has been updated by the form, update the field (this will override the field state)');
-      this.setState({value: nextProps.value});
+      this.setState({display_date: this._display_date(nextProps.value)});
     }
   }
 
   /*******************/
   /* Date  Functions */
   /*******************/
-  _showDate() {
-
-    let now = new Date(),
-        montharray = [],
-        daycnt = 0,
-        today = new Date().getDate(),
-        firstDoW = new Date(now.getFullYear(), now.getMonth(), 1).getDay(), // day of week [0-6]
-        lastDoM = new Date(now.getFullYear(), now.getMonth(), 0).getDate(); // day of month [1-31]
-
-    for (let wkidx of [0,1,2,3,4,5]) {
-      montharray[wkidx] = [];
-      for (let dayidx of [0,1,2,3,4,5,6]) {
-        if (wkidx == 0 && dayidx == firstDoW) daycnt = 1; // found 1st day of month, start the count up
-        montharray[wkidx][dayidx] = "";
-        if (daycnt >0 && daycnt < lastDoM)  montharray[wkidx][dayidx] = daycnt++;
-      }
-      if (daycnt >= lastDoM)  break;
-    }
-    this.setState ({date: {visible: true, today: today, montharray: montharray }})
+  _manualDateChange(e) {
+    console.log (`year : ${e.target.value}`);
+    if (this.props.onChange)
+      this.props.onChange ({[this.props.fielddef.name]: e.target.value});
   }
-
-  _doneDate(yr,mth,day) {
-    if (yr) {
-      console.log ("Field _doneDate :"  + yr + ":" + mth + ":" + day);
-        // this.setState ({value: new Date(yr,mth,day), date: {visible: false }}, () => {
-        if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: new Date(yr,mth,day) /*this.state.value*/});
-        // });
+  _changeYear(e) {
+    console.log (`year : ${e.target.value}`);
+    this._showDate(null, null, e.target.value);
+  }
+  _showDate(selectday, chmnth, chyear) {
+    if (this.state.date.visible && (!selectday) && (!chmnth) && (!chyear)) {
+      this.setState ({date: {visible: false}});
     } else {
-      this.setState ({date: {visible: false }});
+      let newdate = this.state.date.date;
+      console.log (`_showDate ${newdate}`);
+      if (selectday) {
+        console.log (`_showDate selectday ${selectday}`);
+        let selecteddate = new Date(newdate.getFullYear(), newdate.getMonth(), selectday, newdate.getHours(), newdate.getMinutes(),0);
+        this.setState ({date: {date: selecteddate, visible: false }}, () => {
+          if (this.props.onChange)
+            this.props.onChange ({[this.props.fielddef.name]: selecteddate.toISOString()});
+        });
+      } else {
+        console.log (`_showDate chmnth ${chmnth} chyear ${chyear}`);
+        if (chmnth) newdate.setMonth(newdate.getMonth() + chmnth);
+        if (chyear) newdate.setFullYear(chyear);
+
+        let montharray = [],
+            daycnt = 0,
+            today = newdate.getDate(),
+            firstDoW = new Date(newdate.getFullYear(), newdate.getMonth(), 1).getDay(), // day of week [0-6]
+            lastDoM = new Date(newdate.getFullYear(), newdate.getMonth(), 0).getDate(); // day of month [1-31]
+
+        for (let wkidx of [0,1,2,3,4,5]) {
+          montharray[wkidx] = [];
+          for (let dayidx of [0,1,2,3,4,5,6]) {
+            if (wkidx == 0 && dayidx == firstDoW) daycnt = 1; // found 1st day of month, start the count up
+            montharray[wkidx][dayidx] = "";
+            if (daycnt >0 && daycnt < lastDoM)  montharray[wkidx][dayidx] = daycnt++;
+          }
+          if (daycnt >= lastDoM)  break;
+        }
+        this.setState ({date: {visible: true, date: newdate, today: today, month: newdate.getMonth(), year: newdate.getFullYear(), montharray: montharray }})
+      }
+    }
+  }
+  _showTime() {
+    if (this.state.time.visible) {
+      this.setState ({time: {visible: false}});
+    } else {
+      this.setState ({time: {visible: true}});
     }
   }
 
@@ -430,42 +464,53 @@ export class FieldDate extends Component {
     } else {
       let self = this;
       return (
-        <span>
-          <div className="slds-form-element__control">
+        <div className="form-element__group slds-form--compound">
+        <div className="slds-form-element__row">
+
+          <div className="slds-form-element__control slds-size--6-of-12">
             <div className="slds-input-has-icon slds-input-has-icon--right">
-              <SvgIcon spriteType="utility" spriteName="event" small={true} classOverride="slds-input__icon" />
-              <input className="slds-input" type="text" placeholder="Pick a Date" value={this.props.value && new Date(this.props.value).toLocaleDateString() || ""} onFocus={this._showDate.bind(this)} />
+              <a onClick={this._showDate.bind(this,null,null,null)}><SvgIcon spriteType="utility" spriteName="event" small={true} classOverride="slds-input__icon" /></a>
+              <input className="slds-input" type="text" placeholder="Pick a Date" onChange={this._manualDateChange.bind(this)} value={this.state.display_date}  />
             </div>
           </div>
+
+
 
           { this.state.date.visible &&
           <div className="slds-dropdown slds-dropdown--left slds-datepicker">
             <div className="slds-datepicker__filter slds-grid">
               <div className="slds-datepicker__filter--month slds-grid slds-grid--align-spread slds-size--3-of-4">
                 <div className="slds-align-middle">
-                  <button className="slds-button slds-button--icon-container">
-                    <SvgIcon spriteType="utility" spriteName="left" small={true} classOverride="slds-input__icon" small={true}/>
+                  <button onClick={this._showDate.bind(this,null,-1,null)} className="slds-button slds-button--icon-container">
+                    <SvgIcon spriteType="utility" spriteName="left" small={true}/>
                     <span className="slds-assistive-text">Previous Month</span>
                   </button>
                 </div>
-                <h2 id="month" className="slds-align-middle" aria-live="assertive" aria-atomic="true">June</h2>
+                <h2 id="month" className="slds-align-middle" aria-live="assertive" aria-atomic="true">{["January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+][this.state.date.month]}</h2>
                 <div className="slds-align-middle">
-                  <button className="slds-button slds-button--icon-container">
-                    <SvgIcon spriteType="utility" spriteName="right" small={true} small={true}/>
+                  <button onClick={self._showDate.bind(self,null,1,null)} className="slds-button slds-button--icon-container">
+                    <SvgIcon spriteType="utility" spriteName="right" small={true}/>
                     <span className="slds-assistive-text">Next Month</span>
                   </button>
                 </div>
               </div>
-              <div className="slds-picklist datepicker__filter--year slds-shrink-none">
-                <button id="year" className="slds-button slds-button--neutral slds-picklist__label" aria-haspopup="true">2015
-                  <SvgIcon spriteType="utility" spriteName="down" small={true} classOverride="slds-input__icon" small={true}/>
-                </button>
+              <div className="slds-picklist slds-picklist--fluid slds-shrink-none">
+                <select className="slds-select" onChange={this._changeYear.bind(this)} defaultValue={this.state.date.year} style={{paddingRight: "1rem", paddingRight: "5px", paddingLeft: "10px", fontSize: "0.75rem", font: '100% / 1.5 "Salesforce Sans", Arial, sans-serif'}}>
+                  <option value="2014">2014</option>
+                  <option value="2015">2015</option>
+                  <option value="2016">2016</option>
+                  <option value="2017">2017</option>
+                  <option value="2018">2018</option>
+                  <option value="2019">2019</option>
+                </select>
               </div>
             </div>
             <table className="datepicker__month" role="grid" aria-labelledby="month">
               <thead>
                 <tr id="weekdays">
-                  { ["S", "M", "T", "W", "T", "F", "S"].map((day, i) =>{ return (
+                  { ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) =>{ return (
                     <th key={i}><abbr>{day}</abbr></th>
                 )})}
                 </tr>
@@ -475,7 +520,7 @@ export class FieldDate extends Component {
                     <tr key={i}>
                     { wkarray.map((day, i) =>{ return (
                       <td key={i} className={day.length == 0 &&  "slds-disabled-text" || (day == this.state.date.today && "slds-is-today" || "")}>
-                        <span className="slds-day" onClick={self._doneDate.bind(self, 2015, 6, day)}>{day}</span>
+                        <span className="slds-day" onClick={self._showDate.bind(self, day)}>{day}</span>
                       </td>
                     )})}
                     </tr>
@@ -484,7 +529,27 @@ export class FieldDate extends Component {
             </table>
           </div>
           }
-        </span>
+
+
+          <div className="slds-form-element__control slds-size--6-of-12">
+            <div className="slds-input-has-icon slds-input-has-icon--right">
+              <a onClick={this._showTime.bind(this)}><SvgIcon spriteType="utility" spriteName="clock" small={true} classOverride="slds-input__icon" /></a>
+              <input className="slds-input" type="text" placeholder="Pick a Date" value={this.props.value && new Date(this.props.value).toLocaleTimeString(navigator.language, {hour: '2-digit', minute:'2-digit', hour12: true}) || ""}/>
+            </div>
+          </div>
+          { this.state.time.visible &&
+          <div className="slds-lookup__menu" role="listbox" style={{right: "0px", width: "52%"}}>
+           <ul className="slds-lookup__list" role="presentation">
+             { ["9am", "9:30am", "10am", "10:30am", "11am", "11.30am", "20.00am"].map((day, i) =>{ return (
+             <li className="slds-lookup__item">
+               <a id="s01" href="#" role="option">{day}</a>
+             </li>
+             )})}
+            </ul>
+           </div>
+           }
+          </div>
+        </div>
       );
     }
   }
