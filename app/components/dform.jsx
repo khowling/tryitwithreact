@@ -25,7 +25,7 @@ export class FormMain extends Component {
       manageData: false,
       changedata:  (props.crud == "c" && props.value) && props.value.record || {}, // keep all data changes in the state
       errors: null};
-    console.log (`FormMain constructor [props.value.state : ${props.value && props.value.state || 'no props.value'}]`);
+    //console.log (`FormMain constructor [props.value.state : ${props.value && props.value.state || 'no props.value'}]`);
   }
 
   shouldComponentUpdate(nextProps, nextState) {
@@ -34,7 +34,7 @@ export class FormMain extends Component {
         nextState.formcontrol && nextState.formcontrol.change) {
         shouldUpdate =  true;
     }
-    console.log (`FormMain [nextProps.value.state : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
+    //console.log (`FormMain [nextProps.value.state : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
     return shouldUpdate;
   }
 
@@ -107,7 +107,7 @@ export class FormMain extends Component {
   }
   // form data is ready from parent
   componentWillReceiveProps (nextProps) {
-    console.log (`FormMain componentWillReceiveProps [nextProps.value.status : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
+    //console.log (`FormMain componentWillReceiveProps [nextProps.value.status : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
     if (nextProps.value && nextProps.value.status === "ready") {
       this._formControlState (this.state.edit, this.props.form, nextProps.value.record).then(succval => {
         this.setState ({
@@ -121,14 +121,14 @@ export class FormMain extends Component {
 
   // Called form the Field
   _fieldChange(dynamicFieldName, d) {
-    console.log (`--------- FormMain _fieldChange got field update, [${dynamicFieldName}] ${JSON.stringify(d)}`);
+    //console.log (`--------- FormMain _fieldChange got field update, [${dynamicFieldName}] ${JSON.stringify(d)}`);
     if (dynamicFieldName) {
       //d = {[dynamicFieldName]: Object.assign({}, this.props.value.record[dynamicFieldName], d)};
       d = {[dynamicFieldName]: Object.assign(this.state.changedata[dynamicFieldName] || {}, d)};
     }
 
     let changedata = Object.assign({}, this.state.changedata, d);
-    console.log (`--------- FormMain _fieldChange full changedata ${JSON.stringify(changedata)}`);
+    //console.log (`--------- FormMain _fieldChange full changedata ${JSON.stringify(changedata)}`);
     this._formControlState (this.state.edit, this.props.form, Object.assign({}, this.props.value && this.props.value.record || {}, changedata), this.state.formcontrol).then(succval => {
 
       this.setState({
@@ -145,7 +145,7 @@ export class FormMain extends Component {
           body =  (this.props.value && this.props.value.record._id) && Object.assign({_id: this.props.value.record._id}, this.state.changedata) || this.state.changedata;
 
       df.save (this.props.form._id, body, this.props.parent).then(succval => {
-        console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
+        //console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
         resolve(succval);
         //return succfn (succval);
       }, errval => {
@@ -175,7 +175,7 @@ export class FormMain extends Component {
   }
 
   _inlineDataChange(val) {
-    console.log ("FormMain: _inlineDataChange : got update from List : " + JSON.stringify(val));
+    //console.log ("FormMain: _inlineDataChange : got update from List : " + JSON.stringify(val));
     if ('data' in val) {
       this._saveInlineData = val.data;
     }
@@ -188,7 +188,7 @@ export class FormMain extends Component {
     if (save) {
       let df = DynamicForm.instance;
       df.save (this.props.form._id, Object.assign({_id: this.props.value.record._id}, {"_data": this._saveInlineData})).then(succval => {
-        console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
+        //console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
         if (this.props.onDataChange) {
           // this will re-load the data at the parent, and in turn send new props
           this.props.onDataChange();
@@ -228,7 +228,7 @@ export class FormMain extends Component {
           }];
 
     Object.assign(record, this.state.changedata);
-    console.log (`FormMain render ${this.props.form.name} `); //, state : ' + JSON.stringify(this.state));
+    //console.log (`FormMain render ${this.props.form.name} `); //, state : ' + JSON.stringify(this.state));
     return (
       <div className={this.props.inModal && "slds-modal__container w95"} >
 
@@ -247,7 +247,7 @@ export class FormMain extends Component {
                 else if (fc.visible) return (<FieldWithLabel key={i} field={field} value={record[field.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, null)}/>);
               } else if (field.type === 'dynamic') {
                 let dflds = formcontrol.flds[field.name].dynamic_fields;
-                console.log (`dynamic field ${field.name}, dflds : ${JSON.stringify(dflds)}`);
+                //console.log (`dynamic field ${field.name}, dflds : ${JSON.stringify(dflds)}`);
                 if (dflds) {
                   if (dflds.error)
                     return (<Alert message={`dynamic field expression error ${dflds.error}`}/>);
@@ -344,6 +344,7 @@ export const FieldWithLabel = ({key, field, value, edit, fc, onChange}) => {
             <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
                 <Field fielddef={field} value={value} edit={edit} onChange={onChange}/>
             </span>
+            { fc.invalid && <span className="slds-form-element__help">{fc.invalid}</span> }
           </div>
       </div>
     </div>
@@ -414,7 +415,7 @@ export class ListPage extends Component {
 export class ListMain extends Component {
   constructor(props) {
     super(props);
-    console.log (`ListMain InitialState [form ${props.form.name}] : ' + JSON.stringify(props.value)`);
+    //console.log (`ListMain InitialState [form ${props.form.name}] : ' + JSON.stringify(props.value)`);
     this.state = {
       inline: {enabled: props.inline, editidx: null, editval: {}},
       inlineData: props.inline && props.value,  // inline data is locally mutable, so save in state
@@ -437,7 +438,7 @@ export class ListMain extends Component {
 
   _ActionEdit (rowidx, view = false) {
     let records = this.props.value.records;
-    console.log ("ListMain _ActionEdit rowidx :" + rowidx + ", view : " + view);
+    //console.log ("ListMain _ActionEdit rowidx :" + rowidx + ", view : " + view);
     if (this.props.parent)
       if (rowidx >= 0)
         this.setState({editrow: {value: {status: "ready", record: records[rowidx]}, crud: view && "r" || "u"}});
@@ -451,11 +452,11 @@ export class ListMain extends Component {
   /** inline  ****/
   _inLinefieldChange(val) {
     let new_editval = {editval: Object.assign(this.state.inline.editval, val)};
-    console.log (`ListMain _inLinefieldChange this.state.inline.editval: ${JSON.stringify(new_editval)}`);
+    //console.log (`ListMain _inLinefieldChange this.state.inline.editval: ${JSON.stringify(new_editval)}`);
     this.setState({inline: Object.assign(this.state.inline, new_editval)});
   }
   _inLineEdit(rowidx) {
-    console.log ("ListMain _inLineEdit rowidx :" + rowidx);
+    //console.log ("ListMain _inLineEdit rowidx :" + rowidx);
     let records = this.state.inlineData.records;
       this.setState({inline: Object.assign(this.state.inline, {editidx: rowidx, editval: (rowidx >= 0) ? records[rowidx] : {}})}, () => {
         if (this.props.onDataChange) this.props.onDataChange({disableSave : true});
@@ -465,7 +466,7 @@ export class ListMain extends Component {
   _inLineDelete(rowidx) {
     let clonearray = this.state.inlineData.records.slice(0);
     clonearray.splice(rowidx, 1);
-    console.log ("ListMain _delete rowidx:" + rowidx + ", result : " + JSON.stringify(clonearray));
+    //console.log ("ListMain _delete rowidx:" + rowidx + ", result : " + JSON.stringify(clonearray));
     this.setState({inlineData: {status: "ready", records: clonearray}, inline: {enabled: true, editidx: null, editval: {}}}, () => {
       if (this.props.onDataChange) this.props.onDataChange({data: clonearray, disableSave: false})
     });
@@ -583,7 +584,7 @@ export class ListMain extends Component {
                       {listfields.map(function(field, fidx) {
                         let value = edit && self.state.inline.editval[field.name] || row[field.name],
                             listfield =  <Field fielddef={field} value={value} edit={edit} onChange={self._inLinefieldChange.bind(self)} inlist={true}/>;
-                        if (field.display === "primary" && !self.state.inline.enabled) {
+                        if (field.display === "primary" && field.type != "reference" &&  !self.state.inline.enabled) {
                           if (self.props.parent )
                             return (
                             <td key={fidx}><a style={{color: "#0070d2", cursor: "pointer"}} onClick={self._ActionEdit.bind(self, i, true)}>{listfield}</a></td>);

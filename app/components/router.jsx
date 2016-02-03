@@ -15,7 +15,7 @@ export default class Router extends Component {
 
   constructor (props) {
     super (props);
-    console.log ('Router: constructor for : ' + props.currentApp && props.currentApp._id || 'none');
+//    console.log ('Router: constructor for : ' + props.currentApp && props.currentApp._id || 'none');
   }
 
   static set backUrl(val) {
@@ -62,7 +62,7 @@ export default class Router extends Component {
 //        array.push(encodeURIComponent(key) + "=" + encodeURIComponent(params[key]));
 //      }
 //    }
-    console.log ("Router._encodeHash got params : " + JSON.stringify(routeJson));
+//    console.log ("Router._encodeHash got params : " + JSON.stringify(routeJson));
 //    return "#" + (appid && (appid+"/") || "") + (hash || "") + ((array.length > 0) &&  ("?" + array.join("&")) || "");
     let ulrstr = "#";
     if (appid) ulrstr+= appid ;
@@ -124,7 +124,7 @@ export default class Router extends Component {
       }
       */
     }
-    console.log ('Router._decodeHash return value : ' + JSON.stringify(retval));
+//    console.log ('Router._decodeHash return value : ' + JSON.stringify(retval));
     return (retval);
   }
 
@@ -178,9 +178,9 @@ export default class Router extends Component {
         updateRouteFn = this.props.updateRoute,
         newroute = Router.decodeCurrentURI();
 
-    console.log ('Router: chng_route_fn ['+ this.props.currentApp._id +']  current appid: ' + currentApp._id);
+    //console.log ('Router: chng_route_fn ['+ this.props.currentApp._id +']  current appid: ' + currentApp._id);
     if (currentApp._id === newroute.appid) {
-      console.log ('Router: chng_route_fn, SAME app, updating state with newroute: ' + JSON.stringify(newroute));
+      //console.log ('Router: chng_route_fn, SAME app, updating state with newroute: ' + JSON.stringify(newroute));
 
       // inform parent 'App' we are updating the route
       if (updateRouteFn) updateRouteFn (newroute);
@@ -194,14 +194,14 @@ export default class Router extends Component {
         this.setState({newroute: newroute});
       }
     } else {
-      console.log ('Router: chng_route_fn, DIFFERENT app, update App & return : ' + JSON.stringify(newroute));
+      //console.log ('Router: chng_route_fn, DIFFERENT app, update App & return : ' + JSON.stringify(newroute));
       if (updateRouteFn) updateRouteFn (newroute);
       return null;
     }
   }
 
  componentWillMount() {
-   console.log ("Router componentWillMount: " + this.props.currentApp._id);
+   //console.log ("Router componentWillMount: " + this.props.currentApp._id);
    // Register function on route changes
    let popfn = this._chng_route_fn.bind(this);
    Router.setupRouterfunction (popfn);
@@ -210,9 +210,9 @@ export default class Router extends Component {
  }
 
  componentWillUnmount() {
-   console.log ("Router componentWillUnmount: " + this.props.currentApp._id);
+   //console.log ("Router componentWillUnmount: " + this.props.currentApp._id);
    Router.setupRouterfunction (this.state.popfn, true);
-   console.log ("Router componentWillUnmount done");
+   //console.log ("Router componentWillUnmount done");
  }
 
   render() {
@@ -235,15 +235,15 @@ export default class Router extends Component {
       </div>
         );
     }
-    console.log ('Router: render');
+    //console.log ('Router: render');
     if (df.app && !this.state.newroute.hash) { // app landingpage
       let comps = {};
       if (df.app.landingpage) for (let pagecomp of df.app.landingpage) {
         let cf = this.props.componentFactories[pagecomp.component._id];
-        console.log (`Router: render:  component "${pagecomp.component._id}", for position "${pagecomp.position}"`);
+        //console.log (`Router: render:  component "${pagecomp.component._id}", for position "${pagecomp.position}"`);
         if (!comps[pagecomp.position]) comps[pagecomp.position] = [];
         if (cf) {
-          console.log (`Router: render: component ${pagecomp.component._id} with props ${JSON.stringify(pagecomp.props)}`);
+          //console.log (`Router: render: component ${pagecomp.component._id} with props ${JSON.stringify(pagecomp.props)}`);
           comps[pagecomp.position].push (cf(Object.assign({key: pagecomp.component._id}, pagecomp.props)));
         } else
           comps[pagecomp.position].push (<Alert message={`Cannot find component ${pagecomp.component._id}`}/>);
@@ -257,7 +257,7 @@ export default class Router extends Component {
       // component direct
       let cf = this.props.componentFactories[this.state.newroute.hash];
       if (cf) {
-        console.log (`Router: render: component ${this.state.newroute.hash} with props ${JSON.stringify(this.state.newroute.props)}`);
+        //console.log (`Router: render: component ${this.state.newroute.hash} with props ${JSON.stringify(this.state.newroute.props)}`);
         return cf(Object.assign({key: JSON.stringify(this.state.newroute.props)}, this.state.newroute.props));
       } else return (<Alert message={"Unknown Compoent " + this.state.newroute.hash} alert={true}/>);
     }

@@ -39,15 +39,13 @@ export class FieldImage extends Component {
   /* Image Functions */
   /*******************/
   componentDidMount() {
-      var self = this,
-        df = DynamicForm.instance;
-      if (this.props.fielddef.type === 'image' && this.props.edit) {
-        this.line = new ProgressBar.Line(this.refs.progressline, {color: '#FCB03C'})
-      }
+    if (this.props.edit) {
+      this.line = new ProgressBar.Line(this.refs.progressline, {color: '#FCB03C'})
+    }
   }
 
   componentWillUnmount () {
-      if (this.line) this.line.destroy();
+    if (this.line) this.line.destroy();
   }
 
   _clickFile() {
@@ -372,19 +370,56 @@ export class FieldDate extends Component {
     this.state = {
       date: {date: new Date(props.value), visible: false, montharray: [] },
       time: {visible: false},
-      display_date: this._display_date(props.value)
     };
   }
 
   _display_date(indate) {
     if (indate) {
-      if (indate.length != 10 || isNaN(Date.parse(indate))) {
-        return indate;
+      let outDate;
+      if (typeof indate === "object") {
+        outDate = indate;
+      } else if (indate.length < 10 || isNaN(Date.parse(indate))) {
+        return {date_str: indate, time_str: 'error'};
       } else {
-        return new Date(Date.parse(indate)).toLocaleDateString();
+        outDate =  new Date(Date.parse(indate));
       }
+      return {date_str: outDate.toLocaleDateString(), time_str: outDate.toLocaleTimeString(navigator.language, {hour: '2-digit', minute:'2-digit', hour12: true})};
     } else
-      return null;
+      return {date_str: '', time_str: ''};
+  }
+
+  _construct_date(date_str, time_str) {
+    if (date_str) {
+      let date_arr;
+      if (typeof date_str === 'string') {
+        date_arr = date_str.split('/');
+      } else if (typeof date_str === 'object') {
+        date_arr = [ date_str.getDate(), date_str.getMonth()+1, date_str.getFullYear()];
+      }
+      if (date_arr.length === 3) {
+        let time_arr = time_str ? time_str.replace(/ [ap]m/,'').split(':') : [12,0];
+
+        if ((time_str && time_str.indexOf('am') > -1) === true && parseInt(time_arr[0])  == 12)
+          time_arr[0] = 0;
+        else if (parseInt(time_arr[0]) < 12 ) {
+          time_arr[0] = parseInt(time_arr[0]) + 12;
+        }
+        let date_candidate = new Date(date_arr[2], date_arr[1]-1, date_arr[0], time_arr[0] || 12, time_arr[1] || 0);
+        if (!isNaN( date_candidate))
+          return date_candidate;
+      }
+    }
+    return null;
+  }
+
+  _update_date(existingdate_str, date_str, time_str) {
+    let new_date = this._construct_date(date_str, time_str),
+        new_date_str = new_date ? new_date.toISOString() : date_str;
+
+    console.log (`change : [new ${new_date_str}] [existing: ${existingdate_str}]`);
+    if (new_date_str != existingdate_str && this.props.onChange) {
+        this.props.onChange ({[this.props.fielddef.name]: new_date_str});
+    }
   }
 
   /*******************/
@@ -392,10 +427,22 @@ export class FieldDate extends Component {
   /*******************/
 
   componentWillReceiveProps(nextProps) {
-    console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
-    if (nextProps.value != this.props.value) {
-      console.log ('the field value has been updated by the form, update the field (this will override the field state)');
-      this.setState({display_date: this._display_date(nextProps.value)});
+    if (this.props.edit) {
+      console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
+      if (nextProps.value != this.props.value) {
+        console.log ('the field value has been updated by the form, update the field (this will override the field state)');
+        let {date_str, time_str} = this._display_date(nextProps.value);
+        this.refs.input_date.value = date_str;
+        this.refs.input_time.value = time_str;
+        //this.setState({display_date: this._display_date(nextProps.value)});
+      }
+    }
+  }
+  componentDidMount() {
+    if (this.props.edit) {
+      let {date_str, time_str} = this._display_date(this.props.value);
+      this.refs.input_date.value = date_str;
+      this.refs.input_time.value = time_str;
     }
   }
 
@@ -403,10 +450,17 @@ export class FieldDate extends Component {
   /* Date  Functions */
   /*******************/
   _manualDateChange(e) {
-    console.log (`year : ${e.target.value}`);
-    if (this.props.onChange)
-      this.props.onChange ({[this.props.fielddef.name]: e.target.value});
+    this._update_date(this.props.value, e.target.value, this.refs.input_time.value);
   }
+  _manualTimeChange(e) {
+    this._update_date(this.props.value, this.refs.input_date.value, e.target.value);
+  }
+  _pickTimeChange(time) {
+    this.setState({time: {visible: false}}, () => {
+      this._update_date(this.props.value, this.refs.input_date.value, time);
+    });
+  }
+
   _changeYear(e) {
     console.log (`year : ${e.target.value}`);
     this._showDate(null, null, e.target.value);
@@ -415,36 +469,38 @@ export class FieldDate extends Component {
     if (this.state.date.visible && (!selectday) && (!chmnth) && (!chyear)) {
       this.setState ({date: {visible: false}});
     } else {
-      let newdate = this.state.date.date;
-      console.log (`_showDate ${newdate}`);
       if (selectday) {
         console.log (`_showDate selectday ${selectday}`);
-        let selecteddate = new Date(newdate.getFullYear(), newdate.getMonth(), selectday, newdate.getHours(), newdate.getMinutes(),0);
-        this.setState ({date: {date: selecteddate, visible: false }}, () => {
-          if (this.props.onChange)
-            this.props.onChange ({[this.props.fielddef.name]: selecteddate.toISOString()});
+        let newDate = new Date(this.state.date.year, this.state.date.month, selectday, 0,0,0);
+        this.setState ({date: {visible: false}}, () => {
+          this._update_date(this.props.value, newDate, this.refs.input_time.value);
         });
       } else {
+
+        let start_date = this.state.date.visible ? new Date(this.state.date.year, this.state.date.month, 1) : this._construct_date(this.refs.input_date.value) || new Date();
         console.log (`_showDate chmnth ${chmnth} chyear ${chyear}`);
-        if (chmnth) newdate.setMonth(newdate.getMonth() + chmnth);
-        if (chyear) newdate.setFullYear(chyear);
+        if (chmnth)
+          start_date.setMonth(start_date.getMonth() + chmnth);
+        else if (chyear)
+          start_date.setFullYear(chyear);
+
 
         let montharray = [],
             daycnt = 0,
-            today = newdate.getDate(),
-            firstDoW = new Date(newdate.getFullYear(), newdate.getMonth(), 1).getDay(), // day of week [0-6]
-            lastDoM = new Date(newdate.getFullYear(), newdate.getMonth(), 0).getDate(); // day of month [1-31]
+            today = start_date.getDate(),
+            firstDoW = new Date(start_date.getFullYear(), start_date.getMonth(), 1).getDay(), // day of week [0-6]
+            lastDoM = new Date(start_date.getFullYear(), start_date.getMonth(), 0).getDate(); // day of month [1-31]
 
         for (let wkidx of [0,1,2,3,4,5]) {
           montharray[wkidx] = [];
           for (let dayidx of [0,1,2,3,4,5,6]) {
             if (wkidx == 0 && dayidx == firstDoW) daycnt = 1; // found 1st day of month, start the count up
             montharray[wkidx][dayidx] = "";
-            if (daycnt >0 && daycnt < lastDoM)  montharray[wkidx][dayidx] = daycnt++;
+            if (daycnt >0 && daycnt <= lastDoM)  montharray[wkidx][dayidx] = daycnt++;
           }
-          if (daycnt >= lastDoM)  break;
+          if (daycnt > lastDoM)  break;
         }
-        this.setState ({date: {visible: true, date: newdate, today: today, month: newdate.getMonth(), year: newdate.getFullYear(), montharray: montharray }})
+        this.setState ({date: {visible: true, today: today, month: start_date.getMonth(), year: start_date.getFullYear(), montharray: montharray }})
       }
     }
   }
@@ -459,7 +515,7 @@ export class FieldDate extends Component {
   render() {
     if (!this.props.edit) {
       return (
-         <span>{this.props.value && new Date(this.props.value).toLocaleDateString() || ""}</span>
+         <span>{this.props.value && new Date(this.props.value).toLocaleString() || ""}</span>
        );
     } else {
       let self = this;
@@ -470,7 +526,7 @@ export class FieldDate extends Component {
           <div className="slds-form-element__control slds-size--6-of-12">
             <div className="slds-input-has-icon slds-input-has-icon--right">
               <a onClick={this._showDate.bind(this,null,null,null)}><SvgIcon spriteType="utility" spriteName="event" small={true} classOverride="slds-input__icon" /></a>
-              <input className="slds-input" type="text" placeholder="Pick a Date" onChange={this._manualDateChange.bind(this)} value={this.state.display_date}  />
+              <input ref="input_date" className="slds-input" type="text" placeholder="Pick a Date"  onBlur={this._manualDateChange.bind(this)}/>
             </div>
           </div>
 
@@ -534,15 +590,15 @@ export class FieldDate extends Component {
           <div className="slds-form-element__control slds-size--6-of-12">
             <div className="slds-input-has-icon slds-input-has-icon--right">
               <a onClick={this._showTime.bind(this)}><SvgIcon spriteType="utility" spriteName="clock" small={true} classOverride="slds-input__icon" /></a>
-              <input className="slds-input" type="text" placeholder="Pick a Date" value={this.props.value && new Date(this.props.value).toLocaleTimeString(navigator.language, {hour: '2-digit', minute:'2-digit', hour12: true}) || ""}/>
+              <input ref="input_time" className="slds-input" type="text" placeholder="Time" onBlur={this._manualTimeChange.bind(this)}/>
             </div>
           </div>
           { this.state.time.visible &&
           <div className="slds-lookup__menu" role="listbox" style={{right: "0px", width: "52%"}}>
            <ul className="slds-lookup__list" role="presentation">
-             { ["9am", "9:30am", "10am", "10:30am", "11am", "11.30am", "20.00am"].map((day, i) =>{ return (
+             { ["9:00 am", "9:30 am", "10:00 am", "10:30 am", "11:00 am", "11.30 am", "8:00 pm"].map((time, i) =>{ return (
              <li className="slds-lookup__item">
-               <a id="s01" href="#" role="option">{day}</a>
+               <a id="s01" onClick={this._pickTimeChange.bind(this, time)} role="option">{time}</a>
              </li>
              )})}
             </ul>

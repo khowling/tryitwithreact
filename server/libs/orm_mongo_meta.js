@@ -936,21 +936,25 @@ module.exports = function(options) {
 
                 {
                     name: "filename",
+                    display: "list",
                     title: "Unique Filename",
                     type: "text"
                 },
                 {
                     name: "length",
+                    display: "list",
                     title: "size (bytes)",
                     type: "text"
                 },
                 {
                     name: "uploadDate",
+                    display: "list",
                     title: "Upload Date",
-                    type: "text"
+                    type: "datetime"
                 },
                 {
                     name: "ownerId",
+                    display: "list",
                     title: "Owner",
                     type: "text"
                 }

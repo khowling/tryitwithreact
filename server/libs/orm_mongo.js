@@ -124,7 +124,7 @@ module.exports = function(options) {
 
         // instruct find to resolve lookup for "_updatedBy" on top level and childforms (but not dynamicfields)
         if (display === 'all' && !ignoreLookups) {
-          let v = {reference_field_name: "_updatedBy",search_form_id: meta.forms.UserSearch};
+          let v = {reference_field_name: "_updatedBy",search_form_id: meta.forms.Users};
           if (parentField) v.parent_field_name = parentField;
           if (dynamicField) v.dynamic_field_name = dynamicField;
           result.lookups.push(v);
@@ -236,7 +236,7 @@ module.exports = function(options) {
                   for (let l of dynamicfieldsandLookups.lookups) {
                     if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
                     if (l.parent_field_name) for (let edoc of doc[l.parent_field_name]) {
-                      console.log (`find() processlookupids (harvest) : call processFn [dynamic field: ${l.dynamic_field_name}] [fieldname: ${l.reference_field_name}] on ${JSON.stringify(edoc,null,2)}`);
+                      //console.log (`find() processlookupids (harvest) : call processFn [dynamic field: ${l.dynamic_field_name}] [fieldname: ${l.reference_field_name}] on ${JSON.stringify(edoc,null,2)}`);
                       processFn(edoc, l, lookupkeys, subq);
                     } else // if field is NOT in an embedded-document, just add id to lookupkeys
                       processFn(doc, l, lookupkeys, subq);
@@ -324,7 +324,7 @@ module.exports = function(options) {
               if (form) {
                 if (keys.length >0) {
                   if (form.store === "metadata") {
-                    // console.log ('find() runallsubqueries, metadata searchform, use form to resolve lookups : ' + form.name + ' _data#=' + (form._data? form._data.length : "0"));
+                    console.log (`find() runallsubqueries() find in metadata: ${form.name} [_data#=${(form._data? form._data.length : "0")}] [keys: ${JSON.stringify(keys)}] `);
                     subq_res[form._id] = {};
                     if (form._data) for (let key of keys) {
                       let val = form._data.find(i => i._id === key);

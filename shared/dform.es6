@@ -33,10 +33,13 @@ export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)
     else
       return {validated_value:  null};
   } else if (fldmeta.type === "datetime") {
-    if (fval) try {
-      return {validated_value: new Date(fval)}
-    } catch (e) { return {error: "data contains invalid date format : " + propname}; }
-    else {
+    if (fval) {
+      let fdate = Date.parse(fval);
+      if (isNaN(fdate))
+        return {error: "data contains invalid date format : " + propname};
+      else
+        return {validated_value: new Date(fdate)}
+    } else {
       if (fldmeta.required) return {error: "required field missing : " + propname};
       return {validated_value:  null};
     }
