@@ -371,9 +371,10 @@ export class ListPage extends Component {
 
     _dataChanged() {
       let df = DynamicForm.instance;
-      //console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.form._id));
+      console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.form._id));
       if (this.state.metaview.store === "mongo")
-        df.query (this.props.form._id, this.props.query && JSON.parse(this.props.query)).then(
+        //df.query (this.props.form._id, this.props.query && JSON.parse(this.props.query)).then(
+        df.query (this.props.form._id, this.props.query && this.props.query).then(
           succRes => this.setState({value: {status: "ready", records: succRes}}),
           errRes  => this.setState({value: {status: "error", message: errRes }})
         );
@@ -517,7 +518,7 @@ export class ListMain extends Component {
   }
 
   render() {
-    //console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
+    console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
     let self = this,
         {status, records} = this.state.inline && this.state.inlineData || this.props.value,
         listfields = this.props.form.fields.filter(m => m.display === 'list' || m.display === 'primary');
@@ -776,7 +777,7 @@ export class RecordPage extends Component {
               {this.state.crud === "r"  && this.state.value.status === "ready" && this.state.relatedlistfields.map(function(field, i) {
                 return (
                 <div key={`${field.child_form._id}${i}`} style={{padding: "0.5em"}}>
-                  <ListPage  urlparam={{view: field.child_form._id, q: {[field.name]: record._id}}} />
+                  <ListPage  form={field.child_form} query={{[field.name]: {_id: record._id}}} />
                 </div>
               );})}
             </div>

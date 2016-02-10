@@ -28,8 +28,11 @@ module.exports = function(options) {
       return;
 
     let jsonQuery = {};
-    if (urlquery && urlquery.d)
-      jsonQuery.d = urlquery.d;
+    if (urlquery.d)
+      jsonQuery.display = urlquery.d;
+    else {
+      return jsonQuery = {error: `no display option provided`};
+    }
 
     if (urlquery._id)
       jsonQuery._id = urlquery._id.indexOf(",") > -1 && urlquery._id.split(",") || urlquery._id;

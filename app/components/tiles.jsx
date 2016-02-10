@@ -56,7 +56,7 @@ export class AdminTileList extends Component {
             <ul className="slds-list--vertical slds-has-cards">
                   {fids.map(function(fid, i) {
                     return (
-                      <Tile key={fid} meta={df.getForm(fid)}/>
+                      <Tile key={i+':'+fid} meta={df.getForm(fid)}/>
                   );})}
             </ul>
           </div>

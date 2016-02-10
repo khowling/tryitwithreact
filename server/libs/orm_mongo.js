@@ -79,9 +79,14 @@ module.exports = function(options) {
                     validatedq[qfieldid] = fval;
                 } else
                   return {error: "query object doesnt contains a invalid field :  " + fieldname};
-              } else if (fdef.type === "reference" && fval && typeof fval === 'string' && fval.length == 24)
-                  validatedq[qfieldid] = new ObjectID(fval);
-                else
+              } else if (fdef.type === "reference") {
+                //console.log ('query got reference with value: ' + JSON.stringify(fval));
+                if (fval && fval._id && typeof fval._id === 'string' && fval._id.length == 24) {
+                  validatedq[qfieldid] = {_id: new ObjectID(fval._id)};
+                }
+                //if (fval && typeof fval === 'string' && fval.length == 24)
+                //  validatedq[qfieldid] = new ObjectID(fval);
+              } else
                   validatedq[qfieldid] = fval;
             }
             mquery = validatedq;
@@ -95,30 +100,30 @@ module.exports = function(options) {
     return mquery;
   }
 
-  exps.find = function (formid, parent, query, findone, ignoreLookups, context) {
+  exps.find = function (formid, parent, query, context) {
     return new Promise(function (resolve, reject)  {
       let appMeta =  meta.FORMMETA.concat (context && context.appMeta || []);
-      console.log (`find() [query: ${JSON.stringify(query)}] [display: ${query.d}] with context [app: ${context && context.app.name}, appMeta: ${appMeta.length}]`);
+      console.log (`find() [query: ${JSON.stringify(query)}] with context [app: ${context && context.app.name}, appMeta: ${appMeta.length}]`);
       /* search form meta-data for 'reference' fields to resolve (also search through 'childform' subforms) */
-      var findFieldsandLookups = function (display, form, parentField, ignoreLookups, dynamicField) {
-        // console.log(`find() findFieldsandLookups form:<${form.name}> parent:<${parentField}>  ignoreLookups:<${ignoreLookups}> system:<${getsystemfields}> `);
-        var result = {findField: {}, lookups: [], dynamics: []};
+      var projectionAndLookups = function (display, form, parentField, ignoreLookups, dynamicField) {
+        console.log(`find() projectionAndLookups [form: ${form.name}] [parent: ${parentField}]  [ignoreLookups: ${ignoreLookups}] [dynamicField: ${dynamicField}]`);
+        var result = {projection: {}, lookups: [], dynamics: []};
 
         if (parentField) {
-          result.findField[`${parentField}._id`] = 1;
+          result.projection[`${parentField}._id`] = 1;
           if (display === 'all') {
-            result.findField[`${parentField}._updateDate`] = 1;
-            result.findField[`${parentField}._updatedBy`] = 1;
+            result.projection[`${parentField}._updateDate`] = 1;
+            result.projection[`${parentField}._updatedBy`] = 1;
           }
         } else {
           // get all system fields on top level collection
           if (display === 'all') {
-            result.findField["_createdBy"] = 1;
-            result.findField["_createDate"] = 1;
-            result.findField["_updatedBy"] = 1;
-            result.findField["_updateDate"] = 1;
+            result.projection["_createdBy"] = 1;
+            result.projection["_createDate"] = 1;
+            result.projection["_updatedBy"] = 1;
+            result.projection["_updateDate"] = 1;
             //if (form.store === "metadata")
-            result.findField["_data"] = 1;
+            result.projection["_data"] = 1;
           }
         }
 
@@ -131,55 +136,57 @@ module.exports = function(options) {
         }
 
         if (form.fields) for (var field of form.fields) {
-
+          console.log(`find() projectionAndLookups processing field [${field.name}]`);
           if ((display === 'primary' && field.display !== 'primary') || (display === 'list' && (field.display !== 'primary' && field.display !== 'list')))
-            continue;
+            console.log (`skipping field ${field.name}`);
+          else {
 
-          let fullfieldname = (parentField ? `${parentField}.${field.name}` : field.name);
-          // console.log(`find() findFieldsandLookups: ${fullfieldname}`);
-          // mongo projections (field list to return)
-          if (field.type === 'childform') {
-            result.findField[fullfieldname+"._id"] = 1;
-          } else if (field.type != "relatedlist") {
-            result.findField[fullfieldname] = 1;
-          }
-
-          // instruct find to resolve lookup for this reference field by running a subquery
-          if (field.type === 'reference') {
-            // console.log('find() findFieldsandLookups: found a lookup field on  field : ' + fullfieldname);
-            if (!ignoreLookups && field.search_form) {
-              let v = {reference_field_name: field.name, search_form_id: field.search_form._id};
-              if (parentField) v.parent_field_name = parentField;
-              if (dynamicField) v.dynamic_field_name = dynamicField;
-              result.lookups.push(v);
+            let fullfieldname = (parentField ? `${parentField}.${field.name}` : field.name);
+            // console.log(`find() projectionAndLookups: ${fullfieldname}`);
+            // mongo projections (field list to return)
+            if (field.type === 'childform') {
+              result.projection[fullfieldname+"._id"] = 1;
+            } else if (field.type != "relatedlist") {
+              result.projection[fullfieldname] = 1;
             }
-          } else if (field.type === 'childform') {
-              var childform = field.child_form && appMeta.find((d) => String(d._id) === String (field.child_form._id));
-              if (!childform) {
-                  return {error: 'find() Cannot find childform definitions on field ['+fullfieldname+'] : ' + JSON.stringify(field.child_form)};
-              } else {
-                  //console.log('find() findFieldsandLookups: found a childform, recurse onit! name :' + field.child_form._id + ' : ' + childform.name);
-                  //result = yield findFieldsandLookups(childform, fullfieldname, ignoreLookups, getsystemfields,  result);
-                  let child_result = findFieldsandLookups(display, childform, fullfieldname, ignoreLookups, dynamicField);
-                  // console.log (`child_result ${JSON.stringify(child_result)}`);
-                  if (child_result.error)
-                    return child_result;
-                  result = {findField: Object.assign(result.findField, child_result.findField),
-                            lookups: result.lookups.concat(child_result.lookups),
-                            dynamics: result.dynamics.concat(child_result.dynamics)
-                          };
+
+            // instruct find to resolve lookup for this reference field by running a subquery
+            if (field.type === 'reference') {
+              // console.log('find() projectionAndLookups: found a lookup field on  field : ' + fullfieldname);
+              if (!ignoreLookups && field.search_form) {
+                let v = {reference_field_name: field.name, search_form_id: field.search_form._id};
+                if (parentField) v.parent_field_name = parentField;
+                if (dynamicField) v.dynamic_field_name = dynamicField;
+                result.lookups.push(v);
               }
-          }  else if (field.type === 'dynamic') {
-            // we only know the field types once we have the data record, so lets mark it now, and do the jexp at harvest time!
-            // DONE: need to validate dynamic fields & lookup references when dynamic fields are lookups!!
-            if (!ignoreLookups && field.fieldmeta_el) {
-              let v = {reference_field_name: field.name, dynamic_form_ex: field.fieldmeta_el};
-              if (parentField) v.parent_field_name = parentField;
-              result.dynamics.push(v);
+            } else if (field.type === 'childform') {
+                var childform = field.child_form && appMeta.find((d) => String(d._id) === String (field.child_form._id));
+                if (!childform) {
+                    return {error: 'find() Cannot find childform definitions on field ['+fullfieldname+'] : ' + JSON.stringify(field.child_form)};
+                } else {
+                    //console.log('find() projectionAndLookups: found a childform, recurse onit! name :' + field.child_form._id + ' : ' + childform.name);
+                    //result = yield projectionAndLookups(childform, fullfieldname, ignoreLookups, getsystemfields,  result);
+                    let child_result = projectionAndLookups("list", childform, fullfieldname, ignoreLookups, dynamicField);
+                    // console.log (`child_result ${JSON.stringify(child_result)}`);
+                    if (child_result.error)
+                      return child_result;
+                    result = {projection: Object.assign(result.projection, child_result.projection),
+                              lookups: result.lookups.concat(child_result.lookups),
+                              dynamics: result.dynamics.concat(child_result.dynamics)
+                            };
+                }
+            }  else if (field.type === 'dynamic') {
+              // we only know the field types once we have the data record, so lets mark it now, and do the jexp at harvest time!
+              // DONE: need to validate dynamic fields & lookup references when dynamic fields are lookups!!
+              if (!ignoreLookups && field.fieldmeta_el) {
+                let v = {reference_field_name: field.name, dynamic_form_ex: field.fieldmeta_el};
+                if (parentField) v.parent_field_name = parentField;
+                result.dynamics.push(v);
+              }
             }
           }
         }
-        //console.log('find() findFieldsandLookups: returning result : ' + JSON.stringify(result));
+        //console.log('find() projectionAndLookups: returning result : ' + JSON.stringify(result));
         return result;
       };
 
@@ -232,7 +239,7 @@ module.exports = function(options) {
                   return {error: 'find() error execting dynamic field expression  ['+d.dynamic_form_ex+'] : ' + JSON.stringify(dynamic_fields.error)};
                 } else if (dynamic_fields) {
                   console.log (`find()  processlookupids : validate dynamic fields data ${d.reference_field_name} : ${JSON.stringify(dynamic_fields)}`);
-                  let dynamicfieldsandLookups = findFieldsandLookups ('allExceptSyste', {fields: dynamic_fields}, d.parent_field_name /*parentFieldName */,  false/*ignoreLookups*/, d.reference_field_name /* dynamicField*/ );
+                  let dynamicfieldsandLookups = projectionAndLookups ('allExceptSyste', {fields: dynamic_fields}, d.parent_field_name /*parentFieldName */,  false/*ignoreLookups*/, d.reference_field_name /* dynamicField*/ );
                   for (let l of dynamicfieldsandLookups.lookups) {
                     if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
                     if (l.parent_field_name) for (let edoc of doc[l.parent_field_name]) {
@@ -250,7 +257,7 @@ module.exports = function(options) {
               }
             }
 
-            for (let l of harvest ? fieldsandlookups.lookups : fieldsandlookups.lookups.concat(fieldsandlookups.dynamic_lookups)) { // for each 'reference' field from 'findFieldsandLookups'
+            for (let l of harvest ? fieldsandlookups.lookups : fieldsandlookups.lookups.concat(fieldsandlookups.dynamic_lookups)) { // for each 'reference' field from 'projectionAndLookups'
               //if (harvest && !l.search_form_id) continue; // no recorded search form, so dont run subquery
               // if in harvest mode, initialise lookupkeys array
               if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
@@ -275,11 +282,11 @@ module.exports = function(options) {
         return new Promise(function (resolve, reject)  {
           let q = { _id: { $in: objids }};
 
-          let fieldsandlookups = findFieldsandLookups('primary', form, null, true);
+          let fieldsandlookups = projectionAndLookups('primary', form, null, true);
 
           console.log(`find() runsubquery() find in collection: ${form.collection}, query: ${JSON.stringify(q)}`);
 
-          db.collection(form.collection).find(q, fieldsandlookups.findField).toArray(function (err, docs) {
+          db.collection(form.collection).find(q, fieldsandlookups.projection).toArray(function (err, docs) {
               if (err) reject(err);
               else {
 
@@ -296,7 +303,7 @@ module.exports = function(options) {
                       let lidform = appMeta.find((d) => String(d._id) === String(lid));
                       if (lidform) {
                         let filteredform = {_id: lidform._id};
-                        for (let f in fieldsandlookups.findField)
+                        for (let f in fieldsandlookups.projection)
                           filteredform[f] = lidform[f];
                         docs.push (filteredform);
                       }
@@ -391,10 +398,11 @@ module.exports = function(options) {
       // console.log("find() create the mongo query : " + JSON.stringify(mquery));
       if (mquery.error) return reject(`query ${mquery.error}`);
 
-      // console.log('find() calling findFieldsandLookups');
-      let fieldsandlookups = findFieldsandLookups(query.d, form, parent_field && parent_field.name, ignoreLookups);
 
-      //  console.log('find() calling findFieldsandLookups finished ' + JSON.stringify(fieldsandlookups)); // + JSON.stringify(fieldsandlookups));
+      // console.log('find() calling projectionAndLookups');
+      let fieldsandlookups = projectionAndLookups(query.d, form, parent_field && parent_field.name, ignoreLookups);
+
+      //  console.log('find() calling projectionAndLookups finished ' + JSON.stringify(fieldsandlookups)); // + JSON.stringify(fieldsandlookups));
       if (fieldsandlookups.error) {
         reject(fieldsandlookups.error)
       } else {
@@ -454,10 +462,10 @@ module.exports = function(options) {
         // its find one, DOESNT RETURN A CURSOR
         if (findone) {
           console.log(`find() findOne in [collection: ${collection}] [query:  ${JSON.stringify(mquery)}]`);
-          db.collection(collection).findOne(mquery, fieldsandlookups.findField, retfn);
+          db.collection(collection).findOne(mquery, fieldsandlookups.projection, retfn);
         } else {
           console.log(`find() find in collection: ${collection} [query:  ${JSON.stringify(mquery)}]`);
-          db.collection(collection).find(mquery, fieldsandlookups.findField, {}).toArray(retfn);
+          db.collection(collection).find(mquery, fieldsandlookups.projection, {}).toArray(retfn);
         }
       }
     }).catch(function (err) {

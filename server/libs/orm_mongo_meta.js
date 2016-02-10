@@ -154,7 +154,7 @@ module.exports = function(options) {
           {
               name: "query",
               title: "Query",
-              type: "text",
+              type: "jsonarea",
               placeholder: ""
           }
         ]
@@ -180,7 +180,6 @@ module.exports = function(options) {
             desc: "This is where you define and extend your application forms",
             collection: "formmeta",
             store: "mongo",
-            layout: "1col",
             icon: {_id:"std28"},
             fields: [
 
@@ -258,7 +257,6 @@ module.exports = function(options) {
                     name: "fields",
                     title: "Form Feilds",
                     type: "childform",
-                    layout: "list",
                     child_form: { _id: exps.forms.FormFieldMetadata},
                     _id: new ObjectID('000000000106')
                 }
@@ -292,7 +290,6 @@ module.exports = function(options) {
                     name: "props",
                     title: "Properties",
                     type: "childform",
-                    layout: "list",
                     child_form: { _id: exps.forms.FormFieldMetadata},
                     _id: new ObjectID('000000000156')
                 }
@@ -387,7 +384,7 @@ module.exports = function(options) {
                     title: "Display",
                     display: "list",
                     type: "dropdown",
-                    required: true,
+                    required: false,
                     dropdown_options: [
                         {
                           name: "Primary",
@@ -461,24 +458,6 @@ module.exports = function(options) {
                     search_form: { _id: exps.forms.formMetadata},
                     required: false,
                     _id: new ObjectID('000000000210'),
-                },
-                {
-                    name: "layout",
-                    title: "Childform Layout",
-                    type: "dropdown",
-                    show_when: "rec['type'] == 'childform'",
-                    required: false,
-                    default_value: "1col",
-                    dropdown_options: [
-                        {
-                            name: "View",
-                            key: "view"
-                        },
-                        {
-                            name: "List",
-                            key: "list"
-                        }
-                    ]
                 },
                 {
                     name: "required",
@@ -559,7 +538,6 @@ module.exports = function(options) {
             desc: "This is all the users that can logon to your applications",
             collection: "user",
             store: "mongo",
-            layout: "1col",
             icon: {_id:"std88"},
             fields: [
 
@@ -700,7 +678,6 @@ module.exports = function(options) {
             desc: "Define your app permissions",
             collection: "app",
             store: "mongo",
-            layout: "1col",
             icon: {_id:"std8"},
             fields: [
                 {
@@ -772,7 +749,6 @@ module.exports = function(options) {
                     name: "appperms",
                     title: "App Forms",
                     type: "childform",
-                    layout: "list",
                     child_form: { _id: exps.forms.AppPerms},
                     _id: new ObjectID('000000000a01')
                 },
@@ -788,7 +764,6 @@ module.exports = function(options) {
                     name: "userfields",
                     title: "User Dynamic Fields",
                     type: "childform",
-                    layout: "list",
                     child_form: { _id: exps.forms.FormFieldMetadata},
                     _id: new ObjectID('000000000a03')
                 }
@@ -802,12 +777,14 @@ module.exports = function(options) {
               {
                   name: "title",
                   title: "Title",
+                  display: "primary",
                   type: "text",
                   required: true
               },
               {
                   name: "component",
                   title: "component",
+                  display: "list",
                   type: "reference",
                   search_form: { _id: exps.forms.ComponentMetadata},
                   required: true,
@@ -822,6 +799,7 @@ module.exports = function(options) {
               {
                   name: "position",
                   title: "Page Position",
+                  display: "list",
                   type: "dropdown",
                   required: true,
                   default_value: "1col",
@@ -854,6 +832,7 @@ module.exports = function(options) {
               {
                   name: "form",
                   title: "Form",
+                  display: "list",
                   type: "reference",
                   search_form: { _id: exps.forms.formMetadata},
                   required: true,
@@ -862,6 +841,7 @@ module.exports = function(options) {
               {
                   name: "crud",
                   title: "CRUD",
+                  display: "list",
                   type: "dropdown",
                   required: true,
                   default_value: "text",
@@ -904,7 +884,6 @@ module.exports = function(options) {
                     name: "metadata",
                     title: "App Meta Data",
                     type: "childform",
-                    layout: "list",
                     child_form: { _id: exps.forms.ImportMetaData},
                     _id: new ObjectID('000000000d01')
                 }

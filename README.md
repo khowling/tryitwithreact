@@ -24,15 +24,27 @@ example  : user.apps[.app._id = app._id].appuserdata.mysquad._id
 mongo HANDLING
 
 db.<Collection>.find(query, projection)
-// Use dot '<field.field>' in the query to match the field in the embedded array doc, althou mongo still returns ALL docs in array!! you can use '$' in the projection
-// Use '<field.0>' in the query to match only the first element in the array
-// Use '<field>.$' in the projection  to limit the contents of the <field> array from the query results to contain only the first element matching the query document (one findone usecase)
-// Use '<field>.1' in the
- // LIMIT, CANNIT use multiple '$' in projection, ie ({"fields.$.name": 1, "fields.$.desc": 1})
+// Use dot '<field.field>' in the query to match the field in the embedded array doc, althou mongo still returns ALL docs in array!! you can use '$' in the projection document when you only need one particular array element in selected documents.
+
+Use '<field.0>' in the query to match only the first element in the array
+
+Use '<field>.$' in the projection  to limit the contents of the <field> array from the query results to contain only the first element matching the query document (one findone usecase)
+
+// following returns just the matched embedded document, but it returns ALL THE FIELDS in the document!
+db.app.find ({"_id":ObjectId("5618fbbb4b2b2c6b47d897a4"),"landingpage._id":ObjectId("565b0f7f823653be2fc8ddbb")}, { "landingpage.$": 1}).pretty();
+
+
+// **LIMIT**, CANNOT use multiple '$' in projection to specify individual fields in the embedded document, ie ({"fields.$.name": 1, "fields.$.desc": 1})
 db.COLLECTION.find({_id: ObjectId("XXX"), "fields._id":  ObjectId("XXX")}, {"fields.$": 1})
 
 // aggrigations (command) : only way to bring back selected fields from a single array embedded document
 db.collection.aggregate([ { '$match': {_id: ObjectId("XXX"), "fields._id":  ObjectId("XXX")}, { '$project': { 'fields' : { '$map': { 'input': '$fields', 'as': 'field', 'in': { 'name': '$$field.name' }}}}}])
+
+
+// can use $sclice to paginate embedded docs
+db.posts.find( {}, { comments: { $slice: [ 20, 10 ] } } )
+only return 10 items, after skipping the first 20 items of that array
+
 
 ---
 Notes
