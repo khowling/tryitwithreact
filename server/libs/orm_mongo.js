@@ -9,17 +9,19 @@ var   express = require('express')
     , jexl = require('jexl');
 
 
-var typecheckFn, asyncfn;
-var System = require('es6-module-loader').System;
-System.transpiler = 'babel'; // use babel 5.x.x NOT 6
+var typecheckFn, async_kh;
+//var System = require('es-module-loader').System;
+//System.transpiler = 'babel'; // use babel 5.x.x NOT 6
+var NodeESModuleLoader = require('node-es-module-loader')
+var loader = new NodeESModuleLoader(/* optional basePath */);
 
-System.import('./shared/async.es6').then(async_mod => {
-  console.log ('Setting shared module async ' + async_mod);
-  asyncfn = async_mod.default;
+loader.import('./shared/async.es6').then(async_mod => {
+  console.log ('Setting shared module async ') //+ async_mod);
+  async_kh = async_mod.default;
 }, errval => console.log ('ERROR Setting shared module async ' + errval));
 
-System.import('./shared/dform.es6').then(dform_mod => {
-  console.log ('Setting shared module typecheckFn ' + dform_mod);
+loader.import('./shared/dform.es6').then(dform_mod => {
+  console.log ('Setting shared module typecheckFn ' )//+ dform_mod);
   typecheckFn = dform_mod.typecheckFn;
 }, errval => console.log ('ERROR Setting shared module typecheckFn ' + errval));
 
@@ -34,7 +36,7 @@ module.exports = function(options) {
     if (query) {
       if (typeof query === "object") {
         for (let qkey in query) {
-          if (qkey === "d") {
+          if (qkey === "display") {
             // this is the 'display' paremter
           } else if (qkey === "_id") {
             let qfieldid = parentFieldname ? `${parentFieldname}._id` : "_id";
@@ -104,31 +106,33 @@ module.exports = function(options) {
     return new Promise(function (resolve, reject)  {
       let appMeta =  meta.FORMMETA.concat (context && context.appMeta || []);
       console.log (`find() [query: ${JSON.stringify(query)}] with context [app: ${context && context.app.name}, appMeta: ${appMeta.length}]`);
+      
       /* search form meta-data for 'reference' fields to resolve (also search through 'childform' subforms) */
-      var projectionAndLookups = function (display, form, parentField, ignoreLookups, dynamicField) {
-        console.log(`find() projectionAndLookups [form: ${form.name}] [parent: ${parentField}]  [ignoreLookups: ${ignoreLookups}] [dynamicField: ${dynamicField}]`);
+      var projectionAndLookups = function (display, form, parentField, dynamicField) {
+        console.log(`find() projectionAndLookups [display: ${display}] [form: ${form.name}] [parent: ${parentField}] [dynamicField: ${dynamicField}]`);
         var result = {projection: {}, lookups: [], dynamics: []};
 
         if (parentField) {
-          result.projection[`${parentField}._id`] = 1;
+          result.projection[`${parentField}._id`] = 1
           if (display === 'all') {
-            result.projection[`${parentField}._updateDate`] = 1;
-            result.projection[`${parentField}._updatedBy`] = 1;
+            result.projection[`${parentField}._updateDate`] = 1
+            result.projection[`${parentField}._updatedBy`] = 1
           }
         } else {
           // get all system fields on top level collection
+          if (form._id === meta.forms.formMetadata) {
+            result.projection["_data"] = 1
+          }
           if (display === 'all') {
-            result.projection["_createdBy"] = 1;
-            result.projection["_createDate"] = 1;
-            result.projection["_updatedBy"] = 1;
-            result.projection["_updateDate"] = 1;
-            //if (form.store === "metadata")
-            result.projection["_data"] = 1;
+            result.projection["_createdBy"] = 1
+            result.projection["_createDate"] = 1
+            result.projection["_updatedBy"] = 1
+            result.projection["_updateDate"] = 1
           }
         }
 
         // instruct find to resolve lookup for "_updatedBy" on top level and childforms (but not dynamicfields)
-        if (display === 'all' && !ignoreLookups) {
+        if (display === 'all') {
           let v = {reference_field_name: "_updatedBy",search_form_id: meta.forms.Users};
           if (parentField) v.parent_field_name = parentField;
           if (dynamicField) v.dynamic_field_name = dynamicField;
@@ -153,7 +157,7 @@ module.exports = function(options) {
             // instruct find to resolve lookup for this reference field by running a subquery
             if (field.type === 'reference') {
               // console.log('find() projectionAndLookups: found a lookup field on  field : ' + fullfieldname);
-              if (!ignoreLookups && field.search_form) {
+              if (display && field.search_form) {
                 let v = {reference_field_name: field.name, search_form_id: field.search_form._id};
                 if (parentField) v.parent_field_name = parentField;
                 if (dynamicField) v.dynamic_field_name = dynamicField;
@@ -165,8 +169,8 @@ module.exports = function(options) {
                     return {error: 'find() Cannot find childform definitions on field ['+fullfieldname+'] : ' + JSON.stringify(field.child_form)};
                 } else {
                     //console.log('find() projectionAndLookups: found a childform, recurse onit! name :' + field.child_form._id + ' : ' + childform.name);
-                    //result = yield projectionAndLookups(childform, fullfieldname, ignoreLookups, getsystemfields,  result);
-                    let child_result = projectionAndLookups("list", childform, fullfieldname, ignoreLookups, dynamicField);
+                    //result = yield projectionAndLookups(childform, fullfieldname, getsystemfields,  result);
+                    let child_result = projectionAndLookups(display, childform, fullfieldname, dynamicField);
                     // console.log (`child_result ${JSON.stringify(child_result)}`);
                     if (child_result.error)
                       return child_result;
@@ -178,7 +182,7 @@ module.exports = function(options) {
             }  else if (field.type === 'dynamic') {
               // we only know the field types once we have the data record, so lets mark it now, and do the jexp at harvest time!
               // DONE: need to validate dynamic fields & lookup references when dynamic fields are lookups!!
-              if (!ignoreLookups && field.fieldmeta_el) {
+              if (display && field.fieldmeta_el) {
                 let v = {reference_field_name: field.name, dynamic_form_ex: field.fieldmeta_el};
                 if (parentField) v.parent_field_name = parentField;
                 result.dynamics.push(v);
@@ -194,7 +198,7 @@ module.exports = function(options) {
       /* if subq is specified, update the docs with the lookup values */
       /* RETURNS: {'form_id': {form: <JSON form>, keys: ['id', 'id']}} */
       var processlookupids = function (fieldsandlookups, docs, subq) {
-        return asyncfn(function *(fieldsandlookups, docs, subq) {
+        return async_kh(function *(fieldsandlookups, docs, subq) {
 
           let harvest = !subq,
               processFn = (doc, lookup, lookupkeys, subq) => {
@@ -239,7 +243,7 @@ module.exports = function(options) {
                   return {error: 'find() error execting dynamic field expression  ['+d.dynamic_form_ex+'] : ' + JSON.stringify(dynamic_fields.error)};
                 } else if (dynamic_fields) {
                   console.log (`find()  processlookupids : validate dynamic fields data ${d.reference_field_name} : ${JSON.stringify(dynamic_fields)}`);
-                  let dynamicfieldsandLookups = projectionAndLookups ('allExceptSyste', {fields: dynamic_fields}, d.parent_field_name /*parentFieldName */,  false/*ignoreLookups*/, d.reference_field_name /* dynamicField*/ );
+                  let dynamicfieldsandLookups = projectionAndLookups ('all_no_system', {fields: dynamic_fields}, d.parent_field_name /*parentFieldName */, d.reference_field_name /* dynamicField*/ );
                   for (let l of dynamicfieldsandLookups.lookups) {
                     if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
                     if (l.parent_field_name) for (let edoc of doc[l.parent_field_name]) {
@@ -388,7 +392,7 @@ module.exports = function(options) {
         }
       }
 
-      let mquery;
+      let mquery, findone = query._id && !Array.isArray(query._id);
       if (parent_field) {
         mquery = genQuery(parent.query, parent_form);
         Object.assign(mquery, genQuery(query, form, parent_field.name));
@@ -399,8 +403,8 @@ module.exports = function(options) {
       if (mquery.error) return reject(`query ${mquery.error}`);
 
 
-      // console.log('find() calling projectionAndLookups');
-      let fieldsandlookups = projectionAndLookups(query.d, form, parent_field && parent_field.name, ignoreLookups);
+      //console.log(`find() calling projectionAndLookups : ${query.d}`);
+      let fieldsandlookups = projectionAndLookups(query.display, form, parent_field && parent_field.name);
 
       //  console.log('find() calling projectionAndLookups finished ' + JSON.stringify(fieldsandlookups)); // + JSON.stringify(fieldsandlookups));
       if (fieldsandlookups.error) {
@@ -426,8 +430,8 @@ module.exports = function(options) {
                 }
               }
               */
-              if (ignoreLookups) {
-                console.log ('find() ignoreLookups so resolve');
+              if (!query.display) {
+                console.log ('find() no display, do ignore Lookups so resolve');
                 // need to call process lookupids in update mode to format the reference fields
                 // process lookupids (fieldsandlookups.lookups, findone && [doc] || doc, []);
                 return resolve(doc);
@@ -580,7 +584,7 @@ module.exports = function(options) {
         // build the field set based on metadata - NOT the passed in JSON!
         // 'allowchildform'  if its a INSERT of a TOP LEVEL form, allow a childform to be passed in (used by auth.js)
         var validateSetFields = function (isInsert, form, dataval, embedField, allowchildform, existing_rec) {
-          return asyncfn(function *(isInsert, form, dataval, embedField, allowchildform, existing_rec) {
+          return async_kh(function *(isInsert, form, dataval, embedField, allowchildform, existing_rec) {
 
             var isarray = Array.isArray(dataval),
                   reqval = isarray && dataval || [dataval],
@@ -595,14 +599,14 @@ module.exports = function(options) {
                 // generate new ID.
                 tv._id = new ObjectID();
                 tv._createDate = new Date();
-                tv._createdBy = {_id: ObjectID(context.user._id)};
+                tv._createdBy = context && {_id: ObjectID(context.user._id)};
                 tv._updateDate = new Date();
-                tv._updatedBy = {_id: ObjectID(context.user._id)};
+                tv._updatedBy = context && {_id: ObjectID(context.user._id)};
               } else { // update
                 // if updating, data doesn't need new _id.
                 if (!rv._id) return {error: "Update request, data doesnt contain key (_id)"};
                 tv[embedField && embedfield+'.$._updateDate' || '_updateDate'] = new Date();
-                tv[embedField && embedfield+'.$._updatedBy' || '_updatedBy'] = {_id: ObjectID(context.user._id)};
+                tv[embedField && embedfield+'.$._updatedBy' || '_updatedBy'] = context && {_id: ObjectID(context.user._id)};
               }
               //console.log ("Save: validateSetFields, looping through record propities");
               for (let propname in rv) { // for each property in data object
@@ -618,11 +622,11 @@ module.exports = function(options) {
                   // DONE : Validate dynamic files, function needs to be sync generator
                   console.log (`save() validateSetFields, dynamic_fields validation [el: ${tcres.dynamic_field.fieldmeta_el}] :  [rec: ${JSON.stringify(Object.assign({}, existing_rec, rv),null,2)}]`);
                   let dynamic_fields = yield jexl.eval(tcres.dynamic_field.fieldmeta_el, Object.assign({rec: Object.assign({}, existing_rec, rv)}, context));
-                  //console.log ("dynamic_fields validation : " + JSON.stringify(dynamic_fields));
+                  console.log ("dynamic_fields validation : " + JSON.stringify(dynamic_fields));
                   if ((!dynamic_fields) || dynamic_fields.error) return {error: "data contains dynamic field, but error evaluating expression: " + tcres.dynamic_field.fieldmeta_el};
 
                   let dtv = {},  // dynamic target validated object
-                      newdynamicfield = Object.assign({},  existing_rec[propname] || {}, tcres.value); // Need to combine existing record dynamic field with changes from client, otherwise loose values that are not changed!
+                      newdynamicfield = Object.assign({},  existing_rec ? existing_rec[propname] || {} : {}, tcres.value); // Need to combine existing record dynamic field with changes from client, otherwise loose values that are not changed!
                   for (let propname in newdynamicfield) { // for each property in data object
                     let fval = newdynamicfield[propname];
 
@@ -678,8 +682,8 @@ module.exports = function(options) {
 
         if (isEmbedded || !isInsert) {
           // get existing document.
-          exps.find (formid, parent, {_id: new ObjectID(userdoc._id)}, true, true, context).then(existing_rec => {
-            console.log (`save() got existing record : ${JSON.stringify(existing_rec)}`);
+          exps.find (formid, parent, {_id: new ObjectID(userdoc._id), display: 'all_no_system'}, context).then(existing_rec => {
+            console.log (`save() got existing record : ${JSON.stringify(existing_rec, null, ' ')}`);
             if (isEmbedded)  {  // its embedded, so modifing a existing top document
               let query, update;
               // its embedded, so filter existing_rec for just embedded doc for dynamic jexl
@@ -880,12 +884,14 @@ module.exports = function(options) {
     // TODO : needs to Find a way of making 'context' available to Transform function!!!
     let f = meta.FORMMETA.find(meta => meta.name === view);
     if (f) {
-      console.log (`jexl.Transform got form [name : ${f.name}] finding [_id:  ${ids}]`);
+      console.log (`jexl.Transform get [name : ${f.name} ${f.store}] finding [_id:  ${ids}]`);
       if (ids) {
         if (f.store === 'mongo')
-          return exps.find(f._id, null, {_id:ids}, true, true);
-        else if (f.store === 'metadata')
-          return f._data.find(m => m._id === ids);
+          return exps.find(f._id, null, {_id:ids});
+        else if (f.store === 'metadata') {
+          console.log (`jexl.Transform get metadata ${f._data.length}`)
+          return f._data.find(m => m._id === ids)
+        }
       } else
         return Promise.resolve();
     } else

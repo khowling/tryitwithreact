@@ -45,10 +45,11 @@ export const UpdatedBy = ({user, date}) => {
   let df = DynamicForm.instance,
       userform =  df.getFormByName('Users');
   return (
-    <span className="slds-pill" style={{marginBottom: "4px"}}>
+    <span className=" slds-form-element__static">
       <a href={userform && Router.URLfor(true, "RecordPage", userform._id, user._id)} className="slds-pill__label">
         <FieldImage value={user.picture} inlist={true} />
-        {user.name}, <FieldDate value={date}/>
+        <span style={{"marginLeft": "5px"}}></span>
+        <span>{user.name}, <FieldDate value={date}/></span>
       </a>
     </span>
   )

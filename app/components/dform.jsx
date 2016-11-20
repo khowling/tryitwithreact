@@ -10,7 +10,7 @@ import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
 import DynamicForm from '../services/dynamicForm.es6';
-import async from '../../shared/async.es6';
+import async_kh from '../../shared/async.es6';
 import {typecheckFn} from '../../shared/dform.es6';
 
 /*****************************************************************************
@@ -41,7 +41,7 @@ export class FormMain extends Component {
   // form control - visibility and validity
   // TODO : Needs to be MUCH better, not calling eval many times!
   _formControlState(edit, form, val, currentState) {
-    return async(function *(edit, form, val, currentState) {
+    return async_kh(function *(edit, form, val, currentState) {
 
       //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
       let df = DynamicForm.instance,
@@ -243,14 +243,20 @@ export class FormMain extends Component {
               if (field.type !== 'childform' && field.type !== 'relatedlist' && field.type !== 'dynamic') {
                 let fc = formcontrol.flds[field.name] || {visible: true, invalid: false};
                 if (fc.visible && fc.visible.error)
-                  return (<Alert message={`dynamic field expression error ${dflds.error}`}/>);
-                else if (fc.visible) return (<FieldWithLabel key={i} field={field} value={record[field.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, null)}/>);
+                  return (
+                    <Alert message={`dynamic field expression error ${dflds.error}`}/>
+                    );
+                else if (fc.visible) return (
+                  <FieldWithLabel key={i} field={field} value={record[field.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, null)}/>
+                  );
               } else if (field.type === 'dynamic') {
                 let dflds = formcontrol.flds[field.name].dynamic_fields;
                 //console.log (`dynamic field ${field.name}, dflds : ${JSON.stringify(dflds)}`);
                 if (dflds) {
                   if (dflds.error)
-                    return (<Alert message={`dynamic field expression error ${dflds.error}`}/>);
+                    return (
+                      <Alert message={`dynamic field expression error ${dflds.error}`}/>
+                      );
                   else if (dflds)
                     return dflds.map(function(dfield, i) {
                       let fc = {visible: true, invalid: false};
@@ -300,7 +306,9 @@ export class FormMain extends Component {
         </div>
 
         <div className={this.props.inModal && "slds-modal__footer" || "slds-col slds-col--padded slds-size--1-of-1"} style={{padding: "0.5em", textAlign: "right"}}>
-          { buttons.filter(b => b.show === "F").map(function(button, i) { return (  <Button definition={button}/>  )
+          { buttons.filter(b => b.show === "F").map(function(button, i) { return (  
+            <Button key={i} definition={button}/> 
+             )
             })
           }
         </div>
@@ -335,9 +343,9 @@ FormMain.defaultProps = { inModal: false};
 
 // stateless function components
 // always use this for components that doesnt need any state or lifecycle methods!
-export const FieldWithLabel = ({key, field, value, edit, fc, onChange}) => {
+export const FieldWithLabel = ({field, value, edit, fc, onChange}) => {
   return (
-    <div key={key} className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
+    <div className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
       <div className={"slds-form-element " + (edit && "  " || " field-seperator ") + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
           <label className="slds-form-element__label form-element__label--small">{field.title}</label>
           <div className="slds-form-element__control"  style={{marginLeft: edit && '0' || "15px"}}>
@@ -522,6 +530,11 @@ export class ListMain extends Component {
     let self = this,
         {status, records} = this.state.inline && this.state.inlineData || this.props.value,
         listfields = this.props.form.fields.filter(m => m.display === 'list' || m.display === 'primary');
+
+    /* KH- add "_id" field to form.store = 'metadata', so data can be used in Reference fields */
+    if (this.state.inline && this.props.form.store === 'metadata') {
+      listfields = [{name: '_id', display: 'list', title: 'Key', type: 'text', }].concat(listfields)
+    }
 
     if (this.state.inline.editidx == -1) // inline edit, new row
       records = records && records.concat([this.state.inline.editval]) || [this.state.inline.editval];

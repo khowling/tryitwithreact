@@ -28,7 +28,7 @@ module.exports = function (passport, options) {
     passport.deserializeUser(function (id, done) {
         console.log(`-------- passport.deserializeUser : ${id}`);
 
-        orm.find(meta.forms.Users /* formid */, null /* parent */, {_id: id} /* query */, true /* findone */, false /* ignorelookups */).then( user => {
+        orm.find(meta.forms.Users, null, {_id: id, display: 'all_no_system'}).then( user => {
             console.log("-------- passport.deserializeUser : got user");
             done(null, user);
         }, err => res.status(400).send(err)).catch (err => res.status(400).send(err));
@@ -61,14 +61,14 @@ module.exports = function (passport, options) {
     ));
 
     var gotSocialLoginDetails = function(mappedUserObj, provider, provider_id, done) {
-      orm.find(meta.forms.Users, null, {q: {'provider.provider_id': provider_id}}, true, false).then(function success(existinguser) {
+      orm.find(meta.forms.Users, null, {q: {'provider.provider_id': provider_id}, display: 'all_no_system'}).then(function success(existinguser) {
 
-          if (!existinguser) {
+          if (existinguser.length == 0) {
               mappedUserObj.provider = [{type: provider, provider_id: provider_id }]
               console.log(provider + ' strategy: no existing user, creating from social profile : ' + JSON.stringify(mappedUserObj));
 
               // exps.forms.AuthProviders
-              orm.save (meta.forms.Users, null,null,mappedUserObj).then(function success(newuser) {
+              orm.save (meta.forms.Users, null, mappedUserObj).then(function success(newuser) {
                       console.log (provider + ' saved new user : ' + JSON.stringify(newuser));
                       done(null, newuser);
                   }, function error(ee) {
@@ -76,8 +76,8 @@ module.exports = function (passport, options) {
                       return done(null, false, 'error creating user');
                   });
           } else {
-              console.log(provider + ' found existing user :' + JSON.stringify(existinguser));
-              return done(null, existinguser);
+              console.log(provider + ' found existing user :' + JSON.stringify(existinguser[0]));
+              return done(null, existinguser[0]);
           }
       }, function error (e) {
         console.log(provider + ' strategy find user error:' + JSON.stringify(e));
@@ -88,7 +88,8 @@ module.exports = function (passport, options) {
     passport.use(new FacebookStrategy({
             clientID: '448297785208364', // myapp
             clientSecret: 'b9b07e0f0067868f597f1fa6deb279cd',
-            callbackURL: "/auth/facebook/callback"
+            callbackURL: "/auth/facebook/callback",
+            profileFields: ['id', 'emails', 'name']
         },
         function (accessToken, refreshToken, profile, done) {
           console.log ('FacebookStrategy : got profile: ' + JSON.stringify(profile));

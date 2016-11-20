@@ -1,7 +1,7 @@
 'use strict;'
 
 import './index.html';
-import 'babel-core/polyfill';
+//import 'babel-core/polyfill';
 
 import './styles/main.scss';
 

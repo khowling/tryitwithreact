@@ -24,7 +24,7 @@ console.log ('htmlLoader' + htmlLoader);
 
 module.exports = {
     context: path.join(__dirname, 'app'),
-    entry:  {app: ['./app_index.jsx']},
+    entry:  {app: ['babel-polyfill', './app_index.jsx']},
     target: "web",
     output: {
         path: path.resolve(target),
@@ -40,7 +40,7 @@ module.exports = {
             {
               test: /\.jsx$|\.es6$/,
               exclude: /node_modules/,
-              loaders:  ['react-hot', 'babel-loader?optional=runtime']
+              loaders:  ['babel-loader?presets[]=react,presets[]=es2015']
             },
             {
               test: /\.html$/,
@@ -48,8 +48,10 @@ module.exports = {
             },
             {
               test: /\.scss$/,
-              loaders: ["style", "css", "sass"]
-            }
+              loader: 'style!css!sass!resolve-url!sass?sourceMap'
+            },
+            { test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/, loader: "url-loader?limit=10000&mimetype=application/font-woff" },
+            { test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/, loader: "file-loader" }
         ]
     }
 };

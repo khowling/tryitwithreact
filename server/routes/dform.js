@@ -28,10 +28,12 @@ module.exports = function(options) {
       return;
 
     let jsonQuery = {};
-    if (urlquery.d)
-      jsonQuery.display = urlquery.d;
-    else {
-      return jsonQuery = {error: `no display option provided`};
+    if (urlquery.d) {
+      if (urlquery.d.match(/^(primary|list|all|all_no_system)$/)) {
+        jsonQuery.display = urlquery.d
+      } else  {
+        return jsonQuery = {error: `no valid display option provided (primary|list|all|all_no_system)`}
+      }
     }
 
     if (urlquery._id)
@@ -64,9 +66,9 @@ module.exports = function(options) {
     if (query && query.error) {
       res.status(400).send(query.error);
     } else {
-      let parent = null, findOne = query && query._id && !Array.isArray(query._id), ingorelookups = false;
-      console.log (`/db/:form query <${findOne}>: ${JSON.stringify(query)}`);
-      orm.find(formparam, parent, query, findOne, ingorelookups, req.session.context).then((j) => { res.json(j); }, (e) => {
+      let parent = null;
+      console.log (`/db/:form query : ${JSON.stringify(query)}`);
+      orm.find(formparam, parent, query, req.session.context).then((j) => { res.json(j); }, (e) => {
         console.log ("find err : " + e);
         res.status(400).send(e);
       }).catch(function error(e) {
@@ -166,7 +168,7 @@ module.exports = function(options) {
 
     if (req.user) {
 
-      if (req.user.role === "manager") req.user.apps.push({app: orm.adminApp});
+      if (req.user.role === "admin") req.user.apps.push({app: orm.adminApp});
       let userapps = req.user.apps  || [];
       if (urlappid) {
         // app requested, so provide it.
@@ -195,7 +197,7 @@ module.exports = function(options) {
       res.json(req.session.context);
     } else {
       console.log ("/formdata: user logged on and authorised for the apps : " + appid);
-      orm.find(orm.forms.App, null, { _id: appid}, true, true).then((apprec) => {
+      orm.find(orm.forms.App, null, { _id: appid}).then((apprec) => {
           let systemMeta = [], userMetaids = new Set();
           if (apprec && apprec.appperms) for (let perm of apprec.appperms) {
             console.log (`/formdata: adding form app [${perm.name}]: ${JSON.stringify(perm.form._id)}`);
@@ -219,7 +221,7 @@ module.exports = function(options) {
           console.log (`/formdata: getFormMeta ${userMetaids.size}`);
 
           if (userMetaids.size >0) {
-            orm.find(orm.forms.formMetadata, null, {_id: Array.from(userMetaids), d: 'all' }, false, true).then(userMeta => {
+            orm.find(orm.forms.formMetadata, null, {_id: Array.from(userMetaids)}).then(userMeta => {
               let allMeta = systemMeta.concat (userMeta);
               req.session.context = {user: req.user, app: apprec,  appMeta: allMeta};
               res.json(req.session.context);

@@ -501,7 +501,7 @@ module.exports = function(options) {
               {
                   name: "key",
                   display: "list",
-                  title: "key",
+                  title: "Key",
                   type: "text",
               },
               {

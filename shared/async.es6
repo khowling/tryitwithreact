@@ -1,6 +1,6 @@
 "use strict"
-export default function async(generatorfn, failfirst) {
-  //console.log ('async: returning function,  to step through the generator functions and return a promise');
+export default function async_kh(generatorfn, failfirst) {
+  //console.log ('async_kh: returning function,  to step through the generator functions and return a promise');
   return function (...args) {
     // Calling a generator function does not execute its body immediately;
     // an iterator object for the function is returned instead
@@ -15,7 +15,7 @@ export default function async(generatorfn, failfirst) {
         return Promise.resolve(result.value).then(res => {
           return handle(generator.next(res));
         }, err => {
-          console.log (`async got error <${failfirst}> : ${err}` );
+          console.log (`async_kh got error <${failfirst}> : ${err}` );
           if (failfirst) {
             throw err;
           } else {
@@ -30,7 +30,7 @@ export default function async(generatorfn, failfirst) {
       // body is executed until the first yield expression
       return handle(generator.next());
     } catch (ex) {
-      console.log ("async error " + ex);
+      console.log ("async_kh error " + ex);
       return Promise.reject(ex);
     }
   }

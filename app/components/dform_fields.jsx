@@ -285,9 +285,7 @@ export class FieldReference extends Component {
                         </a>
                       </span>);
           else
-            field = (<span className="slds-pill">
-                        <span className="slds-pill__label">{ referenceForm(sform, self.state.value) }</span>
-                      </span>);
+            field = (<span className="slds-pill__label">{ referenceForm(sform, self.state.value) }</span>);
         } else
           field = <Alert type="error" message={"Missing Metadata: " + this.props.fielddef.search_form}/>;
 
@@ -299,13 +297,12 @@ export class FieldReference extends Component {
       let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id),
           cform = this.props.fielddef.createnew_form && df.getForm (this.props.fielddef.createnew_form._id);
       if (sform) {
-        field = <span>
-                <div className="slds-pill-container slds-input-has-icon slds-input-has-icon--right" style={{padding: "0"}}>
+        field = <div className={`slds-lookup ${this.state.lookup.visible && 'slds-is-open' || ''}`}>
+                <div className={`${this.state.value && 'slds-pill-container' || 'slds-input-has-icon slds-input-has-icon--right'}`}>
 
-                  <a onClick={this._handleLookupKeypress.bind(this, {target: {value: true}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
 
                   { this.state.value &&
-                  <span className="slds-pill" style={{padding: "0.15rem", margin: "0.18rem"}}>
+                  <span className="slds-pill slds-size--1-of-1">
                     <a href={cform && Router.URLfor(true, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
                       { referenceForm(sform, self.state.value) }
                     </a>
@@ -315,7 +312,11 @@ export class FieldReference extends Component {
                     </button>
                   </span>
                   ||
-                  <input className="slds-input" style={{border: "none"}} type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value && "disabled" || ""}></input>
+                  <span>
+                  <a onClick={this._handleLookupKeypress.bind(this, {target: {value: true}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
+
+                  <input className="slds-lookup__search-input slds-input"  type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value && "disabled" || ""}></input>
+                  </span>
                   }
               </div>
               { this.state.lookup.create &&
@@ -354,7 +355,7 @@ export class FieldReference extends Component {
                     </ul>
                   </div>
                 }
-              </span>;
+              </div>;
       } else {
         field = <Alert type="error" message={"no search_form found in app " + (this.props.fielddef.search_form && this.props.fielddef.search_form._id)}/>;
       }
