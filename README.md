@@ -3,6 +3,46 @@
 
 this time, with `express`, `mongo`, `react`, `es6`, my custom html router, and `salesforce lightning design system`.
 
+<FormMain
+   crud: c|u
+   form: def
+   value: {record:{}, status}
+   parent: defailts of parent record, if a childform (embedded document)
+   inModal: if form/buttons needs to be displayed in modal_container
+
+
+   _formControlState : calculate validity of all current form field data
+   _fieldChange: called from the <Field>,  updates the form state.changedata & state.formcontrol
+   _save: save the state.changedata to the server
+   _delete: delete the record from the server
+  
+  // inline 
+  _manageData: if the button 'Manage Data' button (_data), set state.manageData, open a Modal with <ListMain inline={true}>
+  _inlineDataChange: handle onDataChange from <ListMain>
+  _inlineDataFinished
+
+   Display the Form
+  SectionHeader  buttons=FormButtons
+</FormMain>
+
+<ListMain
+  inline: if edits allowed inline!, store data in state.inlineData (mutable)
+
+  _ActionDelete: delete row Button
+  _ActionEdit: edit row Button, state.editrow (if childform) or nav to RecordPage.
+
+  _inLineEdit:  set state.inline.{editidx & editval}, renders <FormMain inModal={true}>
+  _inLinefieldChange: set state.inline
+  
+  _inLineDelete: 
+  _inLineSave: push to state.inline
+
+
+
+</ListMain>
+
+
+
 
 ---
 

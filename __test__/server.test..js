@@ -1,6 +1,7 @@
-var chai = require('chai');
-var chaiHttp = require('chai-http');
-var server = require('../server/app');
+var chai = require('chai')
+var chaiHttp = require('chai-http')
+var server = require('../server/app')
+const appTests = require('./tiles-test')
 var should = chai.should();
 
 chai.use(chaiHttp);
@@ -34,4 +35,11 @@ it('should refreive my app on /loadApp GET', function(done) {
       res.body.should.have.property('appMeta');
       done();
     });
-});
+})
+
+it('testing client components snapshot',  (done) => {
+  chai.request(appTests)
+    .end((err,res) => {
+      done();
+    })
+})

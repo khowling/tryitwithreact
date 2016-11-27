@@ -1,0 +1,26 @@
+exports[`test renders correctly 1`] = `
+<div
+  className="slds">
+  <section
+    className="site-banner">
+    <div
+      className="slds-container--center slds-container--medium" />
+  </section>
+  <div
+    style={
+      Object {
+        "height": "3.5rem",
+      }
+    } />
+  <div
+    className="container">
+    not booted
+    <div
+      className="slds-spinner--small">
+      <img
+        alt="Loading..."
+        src="http://localhost:3000/assets/images/spinners/slds_spinner.gif" />
+    </div>
+  </div>
+</div>
+`;

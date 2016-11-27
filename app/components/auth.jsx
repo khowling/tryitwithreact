@@ -6,7 +6,7 @@ import Router from './router.jsx'
 import {FormMain} from './dform.jsx'
 import { SvgIcon } from './utils.jsx';
 
-import DynamicForm from '../services/dynamicForm.es6';
+import DynamicForm from '../services/dynamicForm.js';
 
 export class Register extends Component {
 

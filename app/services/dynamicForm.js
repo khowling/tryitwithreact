@@ -59,32 +59,31 @@ export default class DynamicForm {
 
   _callServer(path, mode = 'GET', body) {
     return new Promise( (resolve, reject) => {
-       // Instantiates the XMLHttpRequest
-       var client = new XMLHttpRequest();
-       client.open(mode, this._host  + path);
-       client.setRequestHeader ("Authorization", "OAuth " + "Junk");
-       client.withCredentials = true;
-       if (mode === 'POST') {
-         console.log ('_callServer: POSTING to ['+this._host  + path+']: ' + JSON.stringify(body));
-         client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-         client.send(JSON.stringify(body));
-       } else {
-         client.send();
-       }
-       client.onload = function () {
-         if (this.status == 200) {
-           // Performs the function "resolve" when this.status is equal to 200
-           //console.log ('got records : ' + this.response);
-           resolve(JSON.parse(this.response));
-         } else {
-           // Performs the function "reject" when this.status is different than 200
-           reject(this.response);
-         }
-       };
-       client.onerror = function (e) {
-         reject("Network Error: " + this.statusText);
-       };
-     });
+      var client = new XMLHttpRequest();
+
+      client.onreadystatechange = () => {
+        if (client.readyState === XMLHttpRequest.DONE) {
+          if (client.status === 200) {
+            resolve(JSON.parse(client.responseText))
+          } else if (client.status === 400) { 
+            reject(JSON.parse(client.responseText))
+          } else {
+            reject({error: "Network error"});
+          }
+        }
+      }
+      client.open(mode, this._host  + path);
+      client.setRequestHeader ("Authorization", "OAuth " + "Junk");
+      client.withCredentials = true;
+      
+      if (mode === 'POST') {
+        console.log ('_callServer: POSTING to ['+this._host  + path+']: ' + JSON.stringify(body));
+        client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        client.send(JSON.stringify(body));
+      } else {
+        client.send();
+      }
+    });
   }
 
   clearApp() {

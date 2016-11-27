@@ -2,7 +2,7 @@
 
 
 import React, {Component} from 'react';
-import DynamicForm from '../services/dynamicForm.es6';
+import DynamicForm from '../services/dynamicForm.js';
 import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 
 import t from 'transducers.js';

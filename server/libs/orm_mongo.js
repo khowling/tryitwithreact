@@ -15,12 +15,12 @@ var typecheckFn, async_kh;
 var NodeESModuleLoader = require('node-es-module-loader')
 var loader = new NodeESModuleLoader(/* optional basePath */);
 
-loader.import('./shared/async.es6').then(async_mod => {
+loader.import('./shared/async.js').then(async_mod => {
   console.log ('Setting shared module async ') //+ async_mod);
   async_kh = async_mod.default;
 }, errval => console.log ('ERROR Setting shared module async ' + errval));
 
-loader.import('./shared/dform.es6').then(dform_mod => {
+loader.import('./shared/dform.js').then(dform_mod => {
   console.log ('Setting shared module typecheckFn ' )//+ dform_mod);
   typecheckFn = dform_mod.typecheckFn;
 }, errval => console.log ('ERROR Setting shared module typecheckFn ' + errval));

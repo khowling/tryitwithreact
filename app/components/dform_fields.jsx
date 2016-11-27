@@ -11,7 +11,7 @@ import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 import {ListMain, FormMain, RecordMain}       from './dform.jsx';
 import {FormHeader}       from './headers.jsx';
 
-import DynamicForm from '../services/dynamicForm.es6';
+import DynamicForm from '../services/dynamicForm.js';
 
 export class FieldImage extends Component {
   constructor(props) {

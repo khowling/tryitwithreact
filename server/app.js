@@ -82,9 +82,11 @@ app.all('/*', function(req, res, next) {
   res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Allow-Headers", "X-Requested-With,Authorization,Content-Type");
   res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE");
-  //res.header("Access-Control-Allow-Headers", "Authorization");
-  //res.header("Access-Control-Allow-Headers", "application/json;charset=UTF-8");
-  next();
+  
+  if ('OPTIONS' === req.method) {
+      return res.send(204)
+  }
+  next()
 });
 
 

@@ -7,9 +7,11 @@
     "devHost": "localhost",
     "devPort": 8000
   },
+  "eslintConfig": {
+  },
   "scripts": {
     "start": "node dev-server",
-    "test": "mocha app/test/components --compilers js:babel-core/register"
+    "test": "jest"
   },
   "dependencies": {
     "babel-core": "*",
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "@salesforce-ux/design-system": "*",
+    "babel-jest": "^17.0.2",
     "babel-loader": "*",
     "babel-polyfill": "^6.16.0",
     "babel-preset-es2015": "*",
@@ -38,6 +41,7 @@
     "css-loader": "*",
     "extract-text-webpack-plugin": "*",
     "file-loader": "*",
+    "jest-cli": "^17.0.3",
     "json-loader": "*",
     "less": "*",
     "less-loader": "*",
@@ -52,6 +56,7 @@
     "react": "*",
     "react-dom": "*",
     "react-hot-loader": "^3.0.0-beta.6",
+    "react-test-renderer": "^15.4.1",
     "regenerator": "*",
     "regenerator-loader": "*",
     "resolve-url": "^0.2.1",

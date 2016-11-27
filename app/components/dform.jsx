@@ -9,38 +9,14 @@ import {Button, SectionHeader, RecordHeader, FormHeader} from './headers.jsx';
 import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
-import DynamicForm from '../services/dynamicForm.es6';
-import async_kh from '../../shared/async.es6';
-import {typecheckFn} from '../../shared/dform.es6';
+import DynamicForm from '../services/dynamicForm.js';
+import async_kh from '../../shared/async.js';
+import {typecheckFn} from '../../shared/dform.js';
 
-/*****************************************************************************
-  ** Called from Form Route (top), or within List (embedded),
-  ** Responsibilities: Render form fields, save record, delete record
-  ***************************************************************************/
-export class FormMain extends Component {
-  constructor(props) {
-    super(props);
-    this.state =  {
-      edit: props.crud == "c" || props.crud == "u",
-      manageData: false,
-      changedata:  (props.crud == "c" && props.value) && props.value.record || {}, // keep all data changes in the state
-      errors: null};
-    //console.log (`FormMain constructor [props.value.state : ${props.value && props.value.state || 'no props.value'}]`);
-  }
-
-  shouldComponentUpdate(nextProps, nextState) {
-    let shouldUpdate = false;
-    if (nextProps.value != this.props.value ||
-        nextState.formcontrol && nextState.formcontrol.change) {
-        shouldUpdate =  true;
-    }
-    //console.log (`FormMain [nextProps.value.state : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
-    return shouldUpdate;
-  }
 
   // form control - visibility and validity
   // TODO : Needs to be MUCH better, not calling eval many times!
-  _formControlState(edit, form, val, currentState) {
+  export const _formControlState = (edit, form, val, currentState) => {
     return async_kh(function *(edit, form, val, currentState) {
 
       //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
@@ -95,9 +71,35 @@ export class FormMain extends Component {
     })(edit, form, val, currentState);
   }
 
+
+/*****************************************************************************
+  ** Called from Form Route (top), or within List (embedded),
+  ** Responsibilities: Render form fields, save record, delete record
+  ***************************************************************************/
+export class FormMain extends Component {
+  constructor(props) {
+    super(props);
+    this.state =  {
+      edit: props.crud == "c" || props.crud == "u",
+      manageData: false,
+      changedata:  (props.crud == "c" && props.value) && props.value.record || {}, // keep all data changes in the state
+      errors: null};
+    //console.log (`FormMain constructor [props.value.state : ${props.value && props.value.state || 'no props.value'}]`);
+  }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    let shouldUpdate = false;
+    if (nextProps.value != this.props.value ||
+        nextState.formcontrol && nextState.formcontrol.change) {
+        shouldUpdate =  true;
+    }
+    //console.log (`FormMain [nextProps.value.state : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
+    return shouldUpdate;
+  }
+
   componentWillMount() {
     if (this.props.value && this.props.value.status === "ready") {
-      this._formControlState (this.state.edit, this.props.form, this.props.value && this.props.value.record || {}).then(succval => {
+      _formControlState (this.state.edit, this.props.form, this.props.value && this.props.value.record || {}).then(succval => {
         this.setState ({
           changedata: succval.new_deflts,
           formcontrol: succval
@@ -109,7 +111,7 @@ export class FormMain extends Component {
   componentWillReceiveProps (nextProps) {
     //console.log (`FormMain componentWillReceiveProps [nextProps.value.status : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
     if (nextProps.value && nextProps.value.status === "ready") {
-      this._formControlState (this.state.edit, this.props.form, nextProps.value.record).then(succval => {
+      _formControlState (this.state.edit, this.props.form, nextProps.value.record).then(succval => {
         this.setState ({
           changedata: succval.new_deflts, // wipe out any changes???
           formcontrol: succval,
@@ -129,7 +131,7 @@ export class FormMain extends Component {
 
     let changedata = Object.assign({}, this.state.changedata, d);
     //console.log (`--------- FormMain _fieldChange full changedata ${JSON.stringify(changedata)}`);
-    this._formControlState (this.state.edit, this.props.form, Object.assign({}, this.props.value && this.props.value.record || {}, changedata), this.state.formcontrol).then(succval => {
+    _formControlState (this.state.edit, this.props.form, Object.assign({}, this.props.value && this.props.value.record || {}, changedata), this.state.formcontrol).then(succval => {
 
       this.setState({
         changedata: Object.assign(changedata, succval.new_deflts),
@@ -223,7 +225,7 @@ export class FormMain extends Component {
             show: !edit && "H" , label: "Edit",
             action: this.props.onComplete ? () => this.setState ({edit: true}) : Router.URLfor(true,"RecordPage", this.props.form._id, record._id, {e: true})
           }, {
-            show: (!edit && this.props.form._id == "303030303030303030313030" && record.store === "metadata") && "H" , label: `Manage Data (${record._data && record._data.length})`,
+            show: (!edit && this.props.form._id == "303030303030303030313030" && record.store === "metadata") && "H" , label: `Manage Data (${record._data && record._data.length || '0'})`,
             action: self._manageData.bind(self)
           }];
 
@@ -346,7 +348,7 @@ FormMain.defaultProps = { inModal: false};
 export const FieldWithLabel = ({field, value, edit, fc, onChange}) => {
   return (
     <div className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
-      <div className={"slds-form-element " + (edit && "  " || " field-seperator ") + (field.required && " slds-is-required" || "") + (fc.invalid && " slds-has-error" || "")}>
+      <div className={`slds-form-element ${edit ? '' : 'field-seperator'} ${field.required ? 'slds-is-required' : ''} ${fc.invalid ? 'slds-has-error' : ''}`}>
           <label className="slds-form-element__label form-element__label--small">{field.title}</label>
           <div className="slds-form-element__control"  style={{marginLeft: edit && '0' || "15px"}}>
             <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
@@ -355,6 +357,17 @@ export const FieldWithLabel = ({field, value, edit, fc, onChange}) => {
             { fc.invalid && <span className="slds-form-element__help">{fc.invalid}</span> }
           </div>
       </div>
+    </div>
+  );
+}
+
+export const FieldWithoutLabel = ({field, value, edit, fc, onChange}) => {
+  return (
+    <div className={`slds-form-element__control ${field.required ? 'slds-is-required' : ''} ${fc.invalid ? 'slds-has-error' : ''}`}  style={{marginLeft: edit && '0' || "15px"}}>
+      <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
+          <Field fielddef={field} value={value} edit={edit} onChange={onChange} inlist={true}/>
+      </span>
+      { fc.invalid && <span className="slds-form-element__help">{fc.invalid}</span> }
     </div>
   );
 }
@@ -424,8 +437,16 @@ export class ListPage extends Component {
 export class ListMain extends Component {
   constructor(props) {
     super(props);
+
+    let listfields = props.form.fields && props.form.fields.filter(m => m.display === 'list' || m.display === 'primary') || [];
+    /* KH- add "_id" field to form.store = 'metadata', so data can be used in Reference fields */
+    if (props.inline && props.form.store === 'metadata') {
+      listfields = [{name: '_id', display: 'list', title: 'Key', type: 'text', required: true}].concat(listfields)
+    }
+
     //console.log (`ListMain InitialState [form ${props.form.name}] : ' + JSON.stringify(props.value)`);
     this.state = {
+      listfields: listfields,
       inline: {enabled: props.inline, editidx: null, editval: {}},
       inlineData: props.inline && props.value,  // inline data is locally mutable, so save in state
       editrow: false,
@@ -466,10 +487,14 @@ export class ListMain extends Component {
   }
   _inLineEdit(rowidx) {
     //console.log ("ListMain _inLineEdit rowidx :" + rowidx);
-    let records = this.state.inlineData.records;
-      this.setState({inline: Object.assign(this.state.inline, {editidx: rowidx, editval: (rowidx >= 0) ? records[rowidx] : {}})}, () => {
+    let records = this.state.inlineData.records,
+        editval = (rowidx >= 0) ? records[rowidx] : {}
+    
+    _formControlState (true, {fields: this.state.listfields}, editval).then(fc => {
+      this.setState({inline: Object.assign(this.state.inline, {editidx: rowidx, fc: fc, editval: editval})}, () => {
         if (this.props.onDataChange) this.props.onDataChange({disableSave : true});
-      });
+      })
+    })
   }
 
   _inLineDelete(rowidx) {
@@ -528,16 +553,12 @@ export class ListMain extends Component {
   render() {
     console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
     let self = this,
-        {status, records} = this.state.inline && this.state.inlineData || this.props.value,
-        listfields = this.props.form.fields.filter(m => m.display === 'list' || m.display === 'primary');
+        {status, records} = this.state.inline && this.state.inlineData || this.props.value
 
-    /* KH- add "_id" field to form.store = 'metadata', so data can be used in Reference fields */
-    if (this.state.inline && this.props.form.store === 'metadata') {
-      listfields = [{name: '_id', display: 'list', title: 'Key', type: 'text', }].concat(listfields)
+
+    if (this.state.inline.editidx == -1) {// inline edit, new row
+      records = records && records.concat([this.state.inline.editval]) || [this.state.inline.editval]
     }
-
-    if (this.state.inline.editidx == -1) // inline edit, new row
-      records = records && records.concat([this.state.inline.editval]) || [this.state.inline.editval];
 
     return (
       <div className="">
@@ -558,7 +579,7 @@ export class ListMain extends Component {
                       </label>
                     </th>
                     }
-                    {listfields.map(function(field, i) { return (
+                    {self.state.listfields.map(function(field, i) { return (
                       <th key={i} scope="col">
                         <div  className="slds-truncate" style={{padding: ".5rem .0rem"}}>{field.title}</div>
                       </th>
@@ -595,9 +616,9 @@ export class ListMain extends Component {
                        </td>
                       }
 
-                      {listfields.map(function(field, fidx) {
+                      {self.state.listfields.map(function(field, fidx) {
                         let value = edit && self.state.inline.editval[field.name] || row[field.name],
-                            listfield =  <Field fielddef={field} value={value} edit={edit} onChange={self._inLinefieldChange.bind(self)} inlist={true}/>;
+                            listfield =  <FieldWithoutLabel field={field} value={value} edit={edit} onChange={self._inLinefieldChange.bind(self)} fc={edit && self.state.inline.fc && self.state.inline.fc.flds[field.name] || {visible: true, invalid: false}}/>;
                         if (field.display === "primary" && field.type != "reference" &&  !self.state.inline.enabled) {
                           if (self.props.parent )
                             return (
@@ -617,8 +638,8 @@ export class ListMain extends Component {
                             <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
                           ||  edit &&
                             <div className="slds-button-group">
-                              <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)}>save </button>
-                              <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, false)}>cancel </button>
+                              <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)}>Save </button>
+                              <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, false)}>Cancel </button>
                             </div>
                           || self.state.inline.enabled &&
                             <div className="slds-button-group">

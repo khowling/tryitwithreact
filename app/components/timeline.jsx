@@ -10,7 +10,7 @@ import {SvgIcon} from './utils.jsx';
 import t from 'transducers.js';
 const { range, seq, compose, map, filter } = t;
 
-import DynamicForm from '../services/dynamicForm.es6';
+import DynamicForm from '../services/dynamicForm.js';
 
 
 class TimeLineItem extends Component {

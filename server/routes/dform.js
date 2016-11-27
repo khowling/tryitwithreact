@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 var   express = require('express')
     , router = express.Router();
@@ -59,21 +59,26 @@ module.exports = function(options) {
     }
   }
 
+  var returnJsonError = (res, strerr) => {
+    console.log ("returnJsonError : " + strerr)
+    return res.status(400).send({error: strerr})
+  }
+
 //--------------------------------------------------------- FIND
   router.get('/db/:form', function(req, res) {
     let formparam = req.params["form"],
         query = queryURLtoJSON(req.query);
     if (query && query.error) {
-      res.status(400).send(query.error);
+      return returnJsonError(res, query.error)
     } else {
       let parent = null;
       console.log (`/db/:form query : ${JSON.stringify(query)}`);
-      orm.find(formparam, parent, query, req.session.context).then((j) => { res.json(j); }, (e) => {
-        console.log ("find err : " + e);
-        res.status(400).send(e);
-      }).catch(function error(e) {
-        console.log ("catch err : " + e);
-        res.status(400).send(e);
+      orm.find(formparam, parent, query, req.session.context).then((j) => { 
+        res.json(j); 
+      }, (e) => {
+        return returnJsonError(res, e)
+      }).catch((e)=> {
+        return returnJsonError(res, e)
       })
     }
   });
@@ -84,22 +89,24 @@ module.exports = function(options) {
           query = queryURLtoJSON(req.query);
 
       if (query && query.error) {
-        res.status(400).send(query.error);
+        return returnJsonError(res, query.error)
       } else if (!req.user)
-        res.status(400).send("Permission Denied");
+        return returnJsonError(res, 'Permission Denied');
       else {
         orm.delete (formparam, parentURLtoJSON(req.query.parent), query, req.session.context).then((j) => {
-            res.json(j);
+          return res.json(j);
         }, (e) => {
-            res.status(400).send(e);
-        });
+          return returnJsonError(res, e)
+        }).catch((e) => {
+          return returnJsonError(res, e)
+        })
       }
   });
 
 //--------------------------------------------------------- SAVE
   router.post('/db/:form',  function(req, res) {
-  	var formparam = req.params["form"],
-  	    userdoc = req.body;
+    var formparam = req.params["form"],
+        userdoc = req.body
 
     if (!req.user)
       res.status(400).send("Permission Denied");
@@ -107,14 +114,12 @@ module.exports = function(options) {
       console.log (`-----  post: calling save with ${formparam} ${req.query.parent}`);
       orm.save (formparam, parentURLtoJSON(req.query.parent), userdoc, req.session.context).then((j) => {
         console.log ('save() : responding : ' + JSON.stringify(j));
-        res.json(j);
+        return res.json(j);
       }, (e) => {
-        console.log ("reject error : " + e);
-        res.status(400).send(e);
-      }).catch(function error(ce) {
-        console.log ("catch err : " + ce);
-        res.status(400).send(ce);
-      });
+        return returnJsonError(res, e)
+      }).catch((e) => {
+        return returnJsonError(res, e)
+      })
     }
   });
 
@@ -137,18 +142,18 @@ module.exports = function(options) {
     var filename = req.params["filename"];
     console.log (`----------------  /file/${filename}:  user: ${JSON.stringify(req.user)}`);
 
-    if (!req.user)
-      res.status(400).send({error:"Permission Denied"});
-    else {
-      orm.putfile(req, res, filename);
+    if (!req.user) {
+      return returnJsonError(res,  "Permission Denied")
+    } else {
+      orm.putfile(req, res, filename)
     }
   });
 
   router.get('/filelist', function (req,res) {
     orm.listfiles( function success(j) {
-        res.json(j);
-    }, function error(e) {
-        res.status(400).send(e);
+      res.json(j);
+    }, (e) => {
+      return returnJsonError(res,  e)
     });
   });
 
@@ -158,11 +163,7 @@ module.exports = function(options) {
 
   router.get('/loadApp', function(req, res) {
     let urlappid = req.query["appid"],
-        appid = null,
-        errfn = function (errval) {
-          console.log ('/loadApp error: ' + errval);
-          res.status(400).send(errval);
-        };
+        appid = null
 
     console.log (`----------------  /loadApp: [urlappid: ${urlappid}] [user: ${req.user && req.user.name || 'none'}]`);
 
@@ -230,12 +231,12 @@ module.exports = function(options) {
             req.session.context = {user: req.user, app: apprec,  appMeta: systemMeta};
             res.json(req.session.context);
           }
-      }, errfn).catch((e) => {
-        console.error ('/loadApp program error retrieving application for user', e);
-        res.status(400).send(e);
-      });
+      }, (e) => {
+        return returnJsonError(res, e)
+      }).catch((e) => {
+        return returnJsonError(res, e)
+      })
     }
-  });
-
-  return router;
+  })
+  return router
 };

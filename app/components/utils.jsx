@@ -2,14 +2,14 @@
 import React, {Component} from 'react';
 import Router from './router.jsx';
 import {FieldDate, FieldImage} from './dform_fields.jsx';
-import DynamicForm from '../services/dynamicForm.es6';
+import DynamicForm from '../services/dynamicForm.js';
 
 
 export const SvgIcon = ({spriteType, spriteName, small, large, classOverride}) => {
   let df = DynamicForm.instance;
   return (
-    <svg className={(classOverride  || "") + ((spriteType === "utility" && !classOverride) && " icon-utility "  ||  " slds-icon ")  + (small && "slds-icon--small" || "") + (large && "slds-icon--large" || "") + " slds-icon-" + spriteType+ "-" +spriteName.replace(/_/g,"-")}
-      dangerouslySetInnerHTML={{__html: "<use xlink:href='/assets/icons/"+spriteType+"-sprite/svg/symbols.svg#"+spriteName+"' />"}}>
+    <svg className={`${classOverride  || ""} ${(spriteType === "utility" && !classOverride) && " icon-utility "  ||  " slds-icon "}  ${small && "slds-icon--small" || ""} ${large && "slds-icon--large" || ""} slds-icon-${spriteType}-${spriteName.replace(/_/g,"-")}`}>
+      <use xlinkHref={`/assets/icons/${spriteType}-sprite/svg/symbols.svg#${spriteName}`}/>
     </svg>
   )
 }

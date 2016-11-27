@@ -5,7 +5,7 @@ import React, {Component} from 'react';
 import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
 import Router from './router.jsx';
 
-import DynamicForm from '../services/dynamicForm.es6';
+import DynamicForm from '../services/dynamicForm.js';
 
 
 export const SectionHeader = ({title, buttons}) => {
