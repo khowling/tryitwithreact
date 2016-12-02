@@ -27,15 +27,14 @@ import {typecheckFn} from '../../shared/dform.js';
 
 
         //console.log (`field ${fld.name}, show_when ${fld.show_when}, val ${JSON.stringify(val)}`);
-        let fctrl = {
-          invalid: edit && typecheckFn (form, fld.name, val[fld.name], (fid) => df.getForm(fid)).error,
-          visible: true,
-          dynamic_fields: null
-        };
-
-        if (fld.show_when)
+        let fctrl = { invalid: false, visible: true, dynamic_fields: null};
+        if (edit) {
+          fctrl.invalid = typecheckFn (form, fld.name, val[fld.name], (fid) => df.getForm(fid)).error
+        }
+          
+        if (fld.show_when) {
           fctrl.visible = yield jexl.eval(fld.show_when, {rec: val, appMeta: DynamicForm.instance.appMeta});
-
+        }
         // new_default_value, set if no current value in field, or current value has been set by previous default
         //console.log (`_formControlState new_default_value ${fld.name} ${fld.default_value} ${val[fld.name]} `);
         if (fctrl.visible && fld.default_value && ((!val[fld.name]) || (currentState && currentState.new_deflts[fld.name] === val[fld.name]))) {
@@ -444,10 +443,10 @@ export class ListMain extends Component {
       listfields = [{name: '_id', display: 'list', title: 'Key', type: 'text', required: true}].concat(listfields)
     }
 
-    //console.log (`ListMain InitialState [form ${props.form.name}] : ' + JSON.stringify(props.value)`);
+    //console.log (`ListMain constructor [form ${props.form.name}] : ' + JSON.stringify(props.value)`);
     this.state = {
       listfields: listfields,
-      inline: {enabled: props.inline, editidx: null, editval: {}},
+      inlineCtrl: {enabled: props.inline, editidx: null, editval: {}},
       inlineData: props.inline && props.value,  // inline data is locally mutable, so save in state
       editrow: false,
     };
@@ -481,17 +480,19 @@ export class ListMain extends Component {
   /***************/
   /** inline  ****/
   _inLinefieldChange(val) {
-    let new_editval = {editval: Object.assign(this.state.inline.editval, val)};
-    //console.log (`ListMain _inLinefieldChange this.state.inline.editval: ${JSON.stringify(new_editval)}`);
-    this.setState({inline: Object.assign(this.state.inline, new_editval)});
+    let editval = Object.assign(this.state.inlineCtrl.editval, val)
+    _formControlState (true, {fields: this.state.listfields}, editval).then(fc => {
+      this.setState({inlineCtrl: Object.assign(this.state.inlineCtrl, {fc: fc, editval: editval})});
+    })
   }
+
   _inLineEdit(rowidx) {
     //console.log ("ListMain _inLineEdit rowidx :" + rowidx);
     let records = this.state.inlineData.records,
-        editval = (rowidx >= 0) ? records[rowidx] : {}
+        editval = (rowidx >= 0) ? Object.assign({}, records[rowidx]) : {}
     
     _formControlState (true, {fields: this.state.listfields}, editval).then(fc => {
-      this.setState({inline: Object.assign(this.state.inline, {editidx: rowidx, fc: fc, editval: editval})}, () => {
+      this.setState({inlineCtrl: Object.assign(this.state.inlineCtrl, {editidx: rowidx, fc: fc, editval: editval})}, () => {
         if (this.props.onDataChange) this.props.onDataChange({disableSave : true});
       })
     })
@@ -501,24 +502,26 @@ export class ListMain extends Component {
     let clonearray = this.state.inlineData.records.slice(0);
     clonearray.splice(rowidx, 1);
     //console.log ("ListMain _delete rowidx:" + rowidx + ", result : " + JSON.stringify(clonearray));
-    this.setState({inlineData: {status: "ready", records: clonearray}, inline: {enabled: true, editidx: null, editval: {}}}, () => {
+    this.setState({inlineData: {status: "ready", records: clonearray}, inlineCtrl: {enabled: true, editidx: null, editval: {}}}, () => {
       if (this.props.onDataChange) this.props.onDataChange({data: clonearray, disableSave: false})
     });
   }
+  // Save or Cancel inline data row
   _inLineSave(saveit) {
-    //console.log ("ListMain _inLineSave : saveit:"+saveit+" ["+ this.state.inline.editidx + "] : " + JSON.stringify(this.state.inline.editval));
+    //console.log ("ListMain _inLineSave : saveit:"+saveit+" ["+ this.state.inlineCtrl.editidx + "] : " + JSON.stringify(this.state.inlineCtrl.editval));
     if (saveit) { // save
       let clonearray = this.state.inlineData.records.slice(0);
-      if (this.state.inline.editidx >= 0)
-        clonearray[this.state.inline.editidx] = this.state.inline.editval;
-      else
-        clonearray.push (this.state.inline.editval);
+      if (this.state.inlineCtrl.editidx >= 0) { // save existing row
+        clonearray[this.state.inlineCtrl.editidx] = this.state.inlineCtrl.editval
+      } else {// save a new row
+        clonearray.push (this.state.inlineCtrl.editval)
+      }
       //console.log ("ListMain _inLineSave : inform parent of new data, clonearray:" +JSON.stringify(clonearray));
-      this.setState({inlineData: {status: "ready", records: clonearray}, inline: {enabled: true, editidx: null, editval: {}}}, () => {
+      this.setState({inlineData: {status: "ready", records: clonearray}, inlineCtrl: {enabled: true, editidx: null, editval: {}}}, () => {
         if (this.props.onDataChange) this.props.onDataChange({data: clonearray, disableSave: false});
       });
     } else { // cancel
-      this.setState({inline: {enabled: true, editidx: null, editval: {}}}, () => {
+      this.setState({inlineCtrl: {enabled: true, editidx: null, editval: {}}}, () => {
         if (this.props.onDataChange) this.props.onDataChange({disableSave: false})
       });
     }
@@ -551,18 +554,13 @@ export class ListMain extends Component {
   }
 
   render() {
-    console.log ('ListMain render, inline: ' + JSON.stringify(this.state.inline) + ", editrow: " + JSON.stringify(this.state.editrow));
+    //console.log ('ListMain render, inlineCtrl: ' + JSON.stringify(this.state.inlineCtrl) + ", editrow: " + JSON.stringify(this.props.value));
     let self = this,
-        {status, records} = this.state.inline && this.state.inlineData || this.props.value
-
-
-    if (this.state.inline.editidx == -1) {// inline edit, new row
-      records = records && records.concat([this.state.inline.editval]) || [this.state.inline.editval]
-    }
+        {status, records} = this.state.inlineCtrl.enabled && this.state.inlineData || this.props.value
 
     return (
       <div className="">
-          {  (!self.state.inline.enabled) && (!this.props.noheader) &&
+          {  (!self.state.inlineCtrl.enabled) && (!this.props.noheader) &&
             <SectionHeader title={this.props.title || this.props.form.name} buttons={[{label: "New", action: this._ActionEdit.bind(this, -1, false)}]} />
           }
           <div className="box-bo dy table-resp onsive no-pad ding">
@@ -570,7 +568,7 @@ export class ListMain extends Component {
               <table className="slds-table slds-table--bordered">
                 <thead>
                   <tr className="slds-text-heading--label">
-                    { (!self.state.inline.enabled) &&
+                    { (!self.state.inlineCtrl.enabled) &&
                     <th className="slds-row-select" scope="col">
                       <label className="slds-checkbox" >
                         <input className="checkbox" type="checkbox"  />
@@ -587,7 +585,7 @@ export class ListMain extends Component {
 
                     { !self.props.viewonly &&
                     <th className="slds-row-select" scope="col">
-                      { self.state.inline.enabled &&
+                      { self.state.inlineCtrl.enabled &&
                       <span className="slds-truncate">
                         <a onClick={this._inLineEdit.bind(this, -1)} style={{marginRight: "5px"}}>
                           <SvgIcon spriteType="utility" spriteName="new" small={true}/>
@@ -602,61 +600,64 @@ export class ListMain extends Component {
                   </tr>
                 </thead>
                 <tbody>
-                  { records && records.map(function(row, i) {
-                    let edit = (i == self.state.inline.editidx || (self.state.inline.editidx == -1 && records.length == i+1));
+                  {[...Array((records && records.length || 0) + (self.state.inlineCtrl.editidx === -1 && 1 || 0))].map ((z,i) => {
+                    
+                    let edit = (i === self.state.inlineCtrl.editidx || (self.state.inlineCtrl.editidx === -1 && i === records.length)),
+                        row = edit === true && self.state.inlineCtrl.editval || records[i]  
+
                     return (
-                    <tr key={i} className="slds-hint-parent">
-                      { (!self.state.inline.enabled) &&
-                      <td className="slds-row-select">
-                         <label className="slds-checkbox" >
-                           <input className="select-row1" type="checkbox" />
-                           <span className="slds-checkbox--faux"></span>
-                           <span className="slds-form-element__label slds-assistive-text">select row1</span>
-                         </label>
-                       </td>
-                      }
-
-                      {self.state.listfields.map(function(field, fidx) {
-                        let value = edit && self.state.inline.editval[field.name] || row[field.name],
-                            listfield =  <FieldWithoutLabel field={field} value={value} edit={edit} onChange={self._inLinefieldChange.bind(self)} fc={edit && self.state.inline.fc && self.state.inline.fc.flds[field.name] || {visible: true, invalid: false}}/>;
-                        if (field.display === "primary" && field.type != "reference" &&  !self.state.inline.enabled) {
-                          if (self.props.parent )
-                            return (
-                            <td key={fidx}><a style={{color: "#0070d2", cursor: "pointer"}} onClick={self._ActionEdit.bind(self, i, true)}>{listfield}</a></td>);
-                          else
-                            return (
-                            <td key={fidx}><a href={Router.URLfor(true, "RecordPage", self.props.form._id, row._id)}>{listfield}</a></td>);
-                        } else {
-                          return (<td key={fidx}>{listfield}</td>);
-                        }
-                      })}
-
-                      { !self.props.viewonly &&
+                      <tr key={i} className="slds-hint-parent">
+                        { !self.state.inlineCtrl.enabled &&
                         <td className="slds-row-select">
-
-                          { self.props.selected &&
-                            <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
-                          ||  edit &&
-                            <div className="slds-button-group">
-                              <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)}>Save </button>
-                              <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, false)}>Cancel </button>
-                            </div>
-                          || self.state.inline.enabled &&
-                            <div className="slds-button-group">
-                              <a onClick={self._inLineDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </a>
-                              <a onClick={self._inLineEdit.bind(self, i, false)} disabled={self.state.inline.editidx} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </a>
-                           </div>
-                          ||
-                             <div className="slds-button-group">
-                               <a onClick={self._ActionDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </a>
-                               <a onClick={self._ActionEdit.bind(self, i, false)} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </a>
-                            </div>
-                          }
-
+                          <label className="slds-checkbox" >
+                            <input className="select-row1" type="checkbox" />
+                            <span className="slds-checkbox--faux"></span>
+                            <span className="slds-form-element__label slds-assistive-text">select row1</span>
+                          </label>
                         </td>
-                      }
-                    </tr>
-                  );})}
+                        }
+
+                        {self.state.listfields.map(function(field, fidx) {
+                          let listfield =  <FieldWithoutLabel field={field} value={row[field.name]} edit={edit} onChange={self._inLinefieldChange.bind(self)} fc={edit && self.state.inlineCtrl.fc && self.state.inlineCtrl.fc.flds[field.name] || {visible: true, invalid: false}}/>;
+                          if (field.display === "primary" && field.type != "reference" &&  !self.state.inlineCtrl.enabled) {
+                            if (self.props.parent )
+                              return (
+                              <td key={fidx}><a style={{color: "#0070d2", cursor: "pointer"}} onClick={self._ActionEdit.bind(self, i, true)}>{listfield}</a></td>);
+                            else
+                              return (
+                              <td key={fidx}><a href={Router.URLfor(true, "RecordPage", self.props.form._id, row._id)}>{listfield}</a></td>);
+                          } else {
+                            return (<td key={fidx}>{listfield}</td>);
+                          }
+                        })}
+
+                        { !self.props.viewonly &&
+                          <td className="slds-row-select">
+
+                            { self.props.selected &&
+                              <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
+                            ||  edit &&
+                              <div className="slds-button-group">
+                                <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)} disabled={self.state.inlineCtrl.fc.invalid}>Save </button>
+                                <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, false)}>Cancel </button>
+                              </div>
+                            || self.state.inlineCtrl.enabled &&
+                              <div className="slds-button-group">
+                                <a onClick={self._inLineDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </a>
+                                <a onClick={self._inLineEdit.bind(self, i, false)} disabled={self.state.inlineCtrl.editidx} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </a>
+                            </div>
+                            ||
+                              <div className="slds-button-group">
+                                <a onClick={self._ActionDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </a>
+                                <a onClick={self._ActionEdit.bind(self, i, false)} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </a>
+                              </div>
+                            }
+
+                          </td>
+                        }
+                      </tr>
+                    )
+                })}
                 </tbody>
               </table>
             </div>

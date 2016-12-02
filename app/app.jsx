@@ -148,79 +148,20 @@ export default class App extends Component {
 
             <AuthState user={this.state.user} currentApp={this.state.currentApp} onLogout={this._logout.bind(this)}/>
 
-            <li className="slds-context-bar__item slds-context-bar__dropdown-trigger slds-dropdown-trigger slds-dropdown-trigger--hover" aria-haspopup="true">
-              <a href="javascript:void(0);" className="slds-context-bar__label-action" title="Menu Item">
-                <span className="slds-truncate">Menu Item</span>
-              </a>
-              <div className="slds-context-bar__icon-action slds-p-left--none" tabIndex="0">
-                <button className="slds-button slds-button--icon slds-context-bar__button" tabIndex="-1" title="Open menu item submenu">
-                  <svg aria-hidden="true" className="slds-button__icon">
-                    <use xmlnsXlink="http://www.w3.org/1999/xlink" xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
-                  </svg>
-                  <span className="slds-assistive-text">Open menu item submenu</span>
-                </button>
-              </div>
-              <div className="slds-dropdown slds-dropdown--right">
-                <ul className="slds-dropdown__list" role="menu">
-                  <li className="slds-dropdown__item" role="presentation">
-                    <a href="javascript:void(0);" role="menuitem" tabIndex="-1">
-                      <span className="slds-truncate">
-                        <svg aria-hidden="true" className="slds-icon slds-icon--x-small slds-icon-text-default slds-m-right--x-small">
-                          <use xmlnsXlink="http://www.w3.org/1999/xlink" xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#add"></use>
-                        </svg>Main action</span>
-                    </a>
-                  </li>
-                  <li className="slds-dropdown__header slds-has-divider--top-space" role="separator">
-                    <span className="slds-text-title--caps">Menu header</span>
-                  </li>
-                  <li className="slds-dropdown__item" role="presentation">
-                    <a href="javascript:void(0);" role="menuitem" tabIndex="-1">
-                      <span className="slds-truncate">Menu Item One</span>
-                    </a>
-                  </li>
-                  <li className="slds-dropdown__item" role="presentation">
-                    <a href="javascript:void(0);" role="menuitem" tabIndex="-1">
-                      <span className="slds-truncate">Menu Item Two</span>
-                    </a>
-                  </li>
-                  <li className="slds-dropdown__item" role="presentation">
-                    <a href="javascript:void(0);" role="menuitem" tabIndex="-1">
-                      <span className="slds-truncate">Menu Item Three</span>
-                    </a>
-                  </li>
-                </ul>
-              </div>
-            </li>
-
-
             <li className="slds-dropdown-trigger slds-dropdown-trigger--click slds-m-left--x-small slds-is-open">
               <button className="slds-button" title="person name" >
                 <span className="slds-avatar slds-avatar--circle slds-avatar--medium">
                   <img src="/assets/images/avatar2.jpg" alt="person name" />
                 </span>
               </button>
-              <div className="slds-dropdown slds-dropdown--right">
-                <ul className="slds-dropdown__list" role="menu">
-                  <li className="slds-dropdown__item" role="presentation">
-                    <a href="/" role="menuitem" tabIndex="0">
-                      <span className="slds-truncate">Menu Item One</span>
-                    </a>
-                  </li>
-                  <li className="slds-dropdown__item" role="presentation">
-                    <a href="/" role="menuitem" tabIndex="-1">
-                      <span className="slds-truncate">Menu Item Two</span>
-                    </a>
-                  </li>
-                </ul>
-              </div>
             </li>
           </ul>
         </div>
       </header>
 
-      <div className="container">
+      <section>
         <Router key={this.state.currentApp && this.state.currentApp._id || 'none'} componentFactories={this.appComponents.factories} currentApp={this.state.currentApp} updateRoute={this.routeUpdated.bind(this)}/>
-      </div>
+      </section>
 
     </div>
     );

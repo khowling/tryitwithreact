@@ -163,7 +163,7 @@ export class FieldReference extends Component {
   /* Common          */
   /*******************/
   componentWillReceiveProps(nextProps) {
-    console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
+    console.log ('FieldReference componentWillReceiveProps ')// + JSON.stringify(nextProps));
     if (nextProps.value != this.props.value) {
       console.log ('the field value has been updated by the form, update the field (this will override the field state)');
       this.setState({value: nextProps.value});
@@ -243,7 +243,7 @@ export class FieldReference extends Component {
 
     // function to generate reference search form (for seleced value in edit and view modes, and list values)
     let referenceForm = (sform, rec) => {
-      console.log (`referenceForm called ${sform.name} ${JSON.stringify(rec)}`);
+      //console.log (`referenceForm called ${sform.name} ${JSON.stringify(rec)}`);
       if (!rec) {
         return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>no data</span>;
       } else if (rec.error) {
@@ -252,7 +252,7 @@ export class FieldReference extends Component {
         let priimage = <span>no image</span>, pritext = <span>no text</span>;
         for (let fld of sform.fields) {
           if (fld.display === 'primary') {
-            console.log (`referenceForm ${fld.type} ${JSON.stringify(rec[fld.name])}`);
+            //console.log (`referenceForm ${fld.type} ${JSON.stringify(rec[fld.name])}`);
             if (fld.type === 'icon' || fld.type === 'image')
               priimage = <Field fielddef={fld}  value={rec[fld.name]} inlist={true} />;
             else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id )
@@ -293,7 +293,7 @@ export class FieldReference extends Component {
         field = (<span/>);
       }
     } else {
-      console.log ('referencefield get search_form : ' + JSON.stringify(this.props.fielddef.search_form));
+      //console.log ('referencefield get search_form : ' + JSON.stringify(this.props.fielddef.search_form));
       let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id),
           cform = this.props.fielddef.createnew_form && df.getForm (this.props.fielddef.createnew_form._id);
       if (sform) {
@@ -618,7 +618,7 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
   /* inline Data  Functions */
   /**************************/
   let _inlineDataChange = function(val) {
-    //console.log ("Field: _inlineDataChange : got update from List : " + JSON.stringify(val));
+    console.log ("Field: _inlineDataChange : got update from List : " + JSON.stringify(val));
     if (onChange)
       onChange ({[fielddef.name]: val.data});
   };
@@ -686,7 +686,7 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
   } else switch (fielddef.type) {
     case 'text':
     case 'email':
-      field =  <input type="text" className="slds-input" placeholder={fielddef.placeholder} value={value} onChange={_handleValueChange}/>;
+      field =  <input type="text" className="slds-input" placeholder={fielddef.placeholder} value={value || ""} onChange={_handleValueChange}/>;
       break;
     case 'textarea':
     case 'formula':

@@ -643,6 +643,25 @@ module.exports = function(options) {
                   }
                   tv[tprop] = dtv;
 
+                } else if ('meta_data' in tcres) {
+                  console.log (`save() validateSetFields, checking "_data"`)
+                  let ctav = []
+                  for (let cval of tcres.value) {
+                  
+                    if (!cval._id) return {error: "data contains meta_data field, and data array row missing _id field: " + propname};
+                    let ctv = {_id: cval._id};  // target validated object
+                    for (let cpropname in cval) {
+                      let cfval = cval[cpropname]; // store the requrested property value
+                      let ctcres = typecheckFn (form, cpropname, cfval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
+                      if ('error' in ctcres)
+                        return ctcres;
+                      else if ('validated_value' in ctcres)
+                        ctv[cpropname] = ctcres.validated_value;
+                    }
+                    ctav.push(ctv);
+                  }
+                  tv[tprop] = ctav; //fval;
+
                 } else if ('childform_field' in tcres) {
 
                   if (!allowchildform) {

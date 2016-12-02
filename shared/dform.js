@@ -11,7 +11,7 @@ export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)
         if (fval && !Array.isArray(fval)) {
           return {error: "data contains value of incorrect type : " + propname};
         } else
-          return {validated_value: fval || null};
+         return {meta_data: "_data", value: fval};
       } else {
         return {error: `data contains _data field, needs to be a store='metadata', not ${formmeta.store}`};
       }

@@ -25,7 +25,7 @@ this time, with `express`, `mongo`, `react`, `es6`, my custom html router, and `
   SectionHeader  buttons=FormButtons
 </FormMain>
 
-<ListMain
+<ListMain>
   inline: if edits allowed inline!, store data in state.inlineData (mutable)
 
   _ActionDelete: delete row Button
@@ -35,9 +35,7 @@ this time, with `express`, `mongo`, `react`, `es6`, my custom html router, and `
   _inLinefieldChange: set state.inline
   
   _inLineDelete: 
-  _inLineSave: push to state.inline
-
-
+  _inLineSave (self, cancel?): push to state.inline
 
 </ListMain>
 

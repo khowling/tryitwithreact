@@ -45,7 +45,7 @@ export class AdminTileList extends Component {
 
     console.log ('TileList render : ' + metaview.length);
     return (
-      <div className="slds-section slds-is-open">
+      <div className="slds-section slds-is-open" style={{padding: "0.5em"}}>
         <div className="slds-section__title">
           <button className="slds-button slds-button--icon slds-m-right--small">
             <svg aria-hidden="true" className="slds-button__icon">
