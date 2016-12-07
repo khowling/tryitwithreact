@@ -39,7 +39,7 @@ let pdb = new Promise((resolve, reject) => {
     // routes
     // routes are the last thing to be initialised!
     app.use('/auth', require('./routes/auth')(passport, mongoPool));
-    app.use('/dform', require('./routes/dform')(mongoPool));
+    app.use('/api', require('./routes/dform')(mongoPool));
 
     /// catch 404 and forward to error handler
     app.use(function (req, res, next) {

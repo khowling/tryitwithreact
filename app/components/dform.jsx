@@ -362,7 +362,7 @@ export const FieldWithLabel = ({field, value, edit, fc, onChange}) => {
 
 export const FieldWithoutLabel = ({field, value, edit, fc, onChange}) => {
   return (
-    <div className={`slds-form-element__control ${field.required ? 'slds-is-required' : ''} ${fc.invalid ? 'slds-has-error' : ''}`}  style={{marginLeft: edit && '0' || "15px"}}>
+    <div className={`slds-form-element__control ${field.required ? 'slds-is-required' : ''} ${fc.invalid ? 'slds-has-error' : ''}`}  >
       <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
           <Field fielddef={field} value={value} edit={edit} onChange={onChange} inlist={true}/>
       </span>
@@ -392,16 +392,18 @@ export class ListPage extends Component {
     _dataChanged() {
       let df = DynamicForm.instance;
       console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.form._id));
-      if (this.state.metaview.store === "mongo")
+      if (this.state.metaview.store === "mongo" || this.state.metaview.store === "ams_api") {
         //df.query (this.props.form._id, this.props.query && JSON.parse(this.props.query)).then(
         df.query (this.props.form._id, this.props.query && this.props.query).then(
           succRes => this.setState({value: {status: "ready", records: succRes}}),
-          errRes  => this.setState({value: {status: "error", message: errRes }})
+          errRes  => this.setState({value: {status: "error", message: errRes.error }})
         );
-      else if (this.state.metaview.store === "rest")
+      } else if (this.state.metaview.store === "rest") {
         df._callServer(this.state.metaview.url).then(succRes =>
           this.setState({value: {status: "ready", records: succRes}})
         );
+      }
+
     }
 
     render() {

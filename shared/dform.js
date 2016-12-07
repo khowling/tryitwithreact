@@ -45,7 +45,7 @@ export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)
     }
   } else if (fldmeta.type === "image") {
     if (fval) try {
-      if (mongoObjectId) {
+      if (mongoObjectId && !fval.startsWith("http")) {
         return {validated_value: new mongoObjectId(fval)};
       } else return {validated_value: fval};
     } catch (e) {  return {error: "data contains image field with invalid _id: " + propname + "  : " + fval};}

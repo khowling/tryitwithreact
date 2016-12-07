@@ -205,8 +205,9 @@ module.exports = function (passport, options) {
 
     router.get('/logout', function (req,res) {
         console.error('logout called');
-        req.logOut();
-        res.send({ok: 1});
+        req.session.destroy(function (err) {
+            res.send({ok: 1})
+        })
 
     });
 

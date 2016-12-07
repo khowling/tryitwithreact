@@ -2,16 +2,19 @@
 
 import jexl from 'jexl';
 jexl.addTransform('get', function(ids, view) {
-  console.log ('jexl.Transform : ' + ids);
+  console.log ('jexl.Transform : ' + ids)
   let df = DynamicForm.instance,
-      f = df.getFormByName(view);
-  if (f)
-    if (f.store === 'mongo')
-      return df.get(f._id, ids);
-    else if (f.store === 'metadata')
-      return f._data.find(m => m._id === ids);
-  else
-    return Promise.reject(`cannot find view ${view}`);
+      f = df.getFormByName(view)
+
+  if (f) {
+    if (f.store === 'metadata') {
+      return f._data.find(m => m._id === ids)
+    } else {
+      return df.get(f._id, ids)
+    } 
+  } else {
+    return Promise.reject(`cannot find view ${view}`)
+  }
 });
 
 jexl.addTransform('toApiName', function(str) {
@@ -26,7 +29,7 @@ export default class DynamicForm {
       throw "DynamicForm() only allow to construct once";
     }
     this._host = server_url;
-    this.ROUTES = {dform: '/dform/', auth: '/auth/'};
+    this.ROUTES = {dform: '/api/', auth: '/auth/'};
     instance = this;
     this.clearApp();
     this._user = {};
@@ -72,6 +75,11 @@ export default class DynamicForm {
           }
         }
       }
+
+      client.addEventListener("error", (evt) => {
+        console.log(`An error occurred while transferring the file ${evt}`);
+      });
+
       client.open(mode, this._host  + path);
       client.setRequestHeader ("Authorization", "OAuth " + "Junk");
       client.withCredentials = true;

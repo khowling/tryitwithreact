@@ -12,6 +12,7 @@ import {ListMain, FormMain, RecordMain}       from './dform.jsx';
 import {FormHeader}       from './headers.jsx';
 
 import DynamicForm from '../services/dynamicForm.js';
+import uploadFile from '../services/azureBlob.js';
 
 export class FieldImage extends Component {
   constructor(props) {
@@ -58,7 +59,7 @@ export class FieldImage extends Component {
         file = e.currentTarget.files[0];
 
     console.log('Field _fileuploadhtml5 : ' + file.name);
-    df.uploadFile(file, progressEvt => {
+    uploadFile(file, progressEvt => {
       console.log ('progress ' + progressEvt.loaded);
       if (progressEvt.lengthComputable) {
         this.line.animate(Math.round(progressEvt.loaded / progressEvt.total));
@@ -70,9 +71,9 @@ export class FieldImage extends Component {
       this.line.animate(1, () => this.line.set(0));
       console.log ('got :' + JSON.stringify (succVal));
 
-      this.setState({value: succVal._id}, () => {
+      this.setState({value: succVal.url}, () => {
         if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: succVal._id});
+          this.props.onChange ({[this.props.fielddef.name]: succVal.url});
         });
      //data.documents[field.name] = evt.target.responseText;
    }, errEvt => {
@@ -107,7 +108,8 @@ export class FieldImage extends Component {
 
   render() {
     let df = DynamicForm.instance,
-        img_src = this.state.value && df.host+"/dform/file/"+this.state.value || "http://placehold.it/120x120";
+        img_src = this.state.value && this.state.value || "http://placehold.it/120x120";
+        //img_src = this.state.value && df.host+"/api/file/"+this.state.value || "http://placehold.it/120x120"
 
     if (!this.props.edit) {
       let marginBott = !this.props.inlist && {marginBottom: "4px"} || {};

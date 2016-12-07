@@ -7,8 +7,7 @@
     "devHost": "localhost",
     "devPort": 8000
   },
-  "eslintConfig": {
-  },
+  "eslintConfig": {},
   "scripts": {
     "start": "node dev-server",
     "test": "jest"
@@ -23,12 +22,16 @@
     "express-session": "*",
     "gridfs-stream": "*",
     "jexl": "*",
+    "jsonpath": "^0.2.9",
     "lwip": "*",
     "mongodb": "*",
     "passport": "*",
     "passport-facebook": "*",
     "passport-forcedotcom": "*",
-    "passport-local": "*"
+    "passport-local": "*",
+    "xml2js": "^0.4.17",
+    "xmldom": "^0.1.27",
+    "xpath": "0.0.23"
   },
   "devDependencies": {
     "@salesforce-ux/design-system": "*",

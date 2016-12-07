@@ -214,7 +214,7 @@ module.exports = function(options) {
                             key: "fromparent"
                         },
                         {
-                            name: "Metadata",
+                            name: "Inline (client cached, admin managed)",
                             key: "metadata"
                         },
                         {
@@ -224,6 +224,10 @@ module.exports = function(options) {
                         {
                             name: "Salesforce Rest API",
                             key: "sfdc"
+                        },
+                        {
+                            name: "Azure AMS API",
+                            key: "ams_api"
                         }
                     ]
                 },
@@ -238,20 +242,28 @@ module.exports = function(options) {
                 },
                 {
                     name: "collection",
-                    title: "Mongo Collection name",
+                    title: "API Name",
                     type: "text",
                     default_value: "rec['name']|toApiName",
-                    show_when: "rec['store'] == 'mongo'",
+                    show_when: "rec['store'] == 'mongo' || rec['store'] == 'ams_api'",
                     placeholder: "No Spaces please!",
-                    required: "rec['store'] == 'mongo'"
+                    required: "rec['store'] == 'mongo' || rec['store'] == 'ams_api'"
                 },
                 {
                     name: "url",
                     title: "REST Endpoint",
                     type: "text",
-                    show_when: "rec['store'] == 'rest'",
+                    show_when: "rec['store'] == 'rest' || rec['store'] == 'ams_api'",
                     placeholder: "No Spaces please!",
                     required: "rec['store'] == 'rest'"
+                },
+                {
+                    name: "externalid",
+                    title: "Id Path",
+                    type: "text",
+                    show_when: "rec['store'] == 'rest' || rec['store'] == 'ams_api'",
+                    placeholder: "No Spaces please!",
+                    required: "rec['store'] == 'rest' || rec['store'] == 'ams_api'"
                 },
                 {
                     name: "fields",

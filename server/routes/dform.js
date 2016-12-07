@@ -1,7 +1,11 @@
 "use strict";
 
-var   express = require('express')
-    , router = express.Router();
+const   
+  express = require('express'),
+  router = express.Router(),
+  jp = require("jsonpath"),
+  xpath = require('xpath'),
+  dom = require('xmldom').DOMParser
 /*
     , formidable = require('formidable')     // handle multipart post stream (already in express)
     , Grid = require('gridfs-stream')  // write to mongo grid filesystem
@@ -19,9 +23,11 @@ var   express = require('express')
 
 module.exports = function(options) {
 
-  var orm = require ("../libs/orm_mongo")(options);
-  console.log ('setting up dform routes ');
-  var db = options.db;
+  var orm = require ("../libs/orm_mongo")(options),
+      orm_ams = require ("../libs/orm_ams")
+
+  console.log ('setting up dform routes ')
+  var db = options.db
 
   var queryURLtoJSON = (urlquery) => {
     if (!urlquery)
@@ -47,6 +53,7 @@ module.exports = function(options) {
     }
     return jsonQuery;
   }
+
   var parentURLtoJSON = (parent) => {
     if (!parent)
       return;
@@ -59,6 +66,36 @@ module.exports = function(options) {
     }
   }
 
+ /*
+    $.content[0].m:properties[0].d:Id[0]
+    $.content[0].m:properties[0].d:Name[0]
+    $.content[0].m:properties[0].d:Uri[0]
+    $.content[0].m:properties[0].d:StorageAccountName[0]
+
+    /xmlns:feed/xmlns:entry
+
+    string(./xmlns:content/m:properties/d:Id)
+    string(./xmlns:id)
+    string(./xmlns:content/m:properties/d:Name)
+    string(./xmlns:content/m:properties/d:Uri)
+*/
+  var validate_store_result = (form, store_data, single) => {
+    //console.log (`validate_store_result:  ${store_data}`)
+    let doc = new dom().parseFromString(store_data),
+        select = xpath.useNamespaces({ 'xmlns': 'http://www.w3.org/2005/Atom', d: "http://schemas.microsoft.com/ado/2007/08/dataservices", m: "http://schemas.microsoft.com/ado/2007/08/dataservices/metadata" }),
+        entries = single ? select("/xmlns:entry", doc) : select("/xmlns:feed/xmlns:entry", doc)
+
+    let res = []
+    for (let row of entries) {
+      let r = {_id: select(form.externalid, row)}
+      for (let fld of form.fields) {
+        r[fld.name] = select(fld.name, row)
+      }
+      res.push(r)
+    }
+    return single ? res[0] : res
+  }
+
   var returnJsonError = (res, strerr) => {
     console.log ("returnJsonError : " + strerr)
     return res.status(400).send({error: strerr})
@@ -68,20 +105,37 @@ module.exports = function(options) {
   router.get('/db/:form', function(req, res) {
     let formparam = req.params["form"],
         query = queryURLtoJSON(req.query);
-    if (query && query.error) {
-      return returnJsonError(res, query.error)
-    } else {
-      let parent = null;
-      console.log (`/db/:form query : ${JSON.stringify(query)}`);
-      orm.find(formparam, parent, query, req.session.context).then((j) => { 
-        res.json(j); 
+
+    let form = req.session.context.appMeta.find((d) =>  String(d._id) === String (formparam))
+    
+    if (!form) {
+      return returnJsonError(res, `Form definition not found :${formparam}`)
+    } else if (form.store === "metadata") {
+      return returnJsonError(res, `Form definition is metadata, find on client :${formparam}`)
+    } else if (form.store === "mongo") {
+      if (query && query.error) {
+        return returnJsonError(res, query.error)
+      } else {
+        let parent = null;
+        console.log (`/db/:form query : ${JSON.stringify(query)}`);
+        orm.find(formparam, parent, query, req.session.context).then((j) => { 
+          res.json(j); 
+        }, (e) => {
+          return returnJsonError(res, e)
+        }).catch((e)=> {
+          return returnJsonError(res, e)
+        })
+      }
+    } else if (form.store === "ams_api") {
+      orm_ams.find (req, form.collection, query).then((j) => {
+        res.json(validate_store_result (form, j, (query && query._id))); 
       }, (e) => {
         return returnJsonError(res, e)
       }).catch((e)=> {
         return returnJsonError(res, e)
       })
     }
-  });
+  })
 
 //--------------------------------------------------------- DELETE
   router.delete('/db/:form',  function(req, res) {
