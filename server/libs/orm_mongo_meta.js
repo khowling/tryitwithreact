@@ -330,6 +330,12 @@ module.exports = function(options) {
                     required: true
                 },
                 {
+                    name: "source",
+                    title: "Field Source (xpath or jsonpath from API)",
+                    type: "text",
+                    required: false
+                },
+                {
                     name: "type",
                     title: "Field Type",
                     display: "list",
@@ -922,7 +928,7 @@ module.exports = function(options) {
         {
             _id: exps.forms.FileMeta,
             name: "FileMeta",
-            type: "fileform",
+            store: "mongogrid",
             fields: [
 
                 {

@@ -61,6 +61,7 @@ const ams_authkey = () =>  {
   })
 }
 
+// ---------------------------------------------- list
 const list_things =  (auth, thing) => {
     return new Promise ((acc,rej) => {
         let putreq = https.get({ hostname: auth.host, path: `/api/${thing}`,
@@ -104,8 +105,74 @@ const list_things =  (auth, thing) => {
     })
 }
 
+// ---------------------------------------------- save
+const save_things = (auth, thing, body) =>  {
+  return new Promise ((acc,rej) => {
+    console.log (`save_things: ${auth.host} /api/${thing} : ${JSON.stringify(body)}`)
+    let putreq = https.request({
+            hostname: auth.host,
+            path: `/api/${thing}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-ms-version': ams_api_version,
+                'Authorization': `Bearer ${auth.token.access_token}`
+            }}, (res) => {
 
-exports.find = (req, things, query) => {
+                console.log (`save_things status ${res.statusCode}`)
+
+                if(!(res.statusCode === 200 || res.statusCode === 201)) {
+                    console.log (`${res.statusCode} : ${res.statusMessage}`)
+                    res.resume();
+                    return rej({code: res.statusCode, message: res.statusMessage})
+                }
+
+                let rawData = '';
+                res.on('data', (chunk) => {
+                    rawData += chunk
+                })
+
+                res.on('end', () => {
+                    return acc(rawData)
+                });
+
+            }).on('error', (e) =>  rej(e));
+
+    putreq.write (JSON.stringify(body))
+    putreq.end()
+  })
+}
+
+
+exports.save = (things, parent, userdoc, context) => {
+    return new Promise ((acc,rej) => {
+      //  if (query && query._id) {
+      //      things = `${things}('${encodeURIComponent(query._id)}')`
+      //  }
+        console.log (`orm_ams: save ${things}`)
+
+        let authandfind = () => {
+            ams_authkey().then((ams_auth) => {
+                context.ams_auth = ams_auth;
+                save_things (context.ams_auth, things, userdoc).then ((things) => acc (things), (err) => rej (err))
+            }, (err) => res.status(400).send(err))
+        }
+
+        if (context.ams_auth) {
+            save_things (context.ams_auth, things, userdoc).then ((things) => acc (things), ({code, message}) => {
+                if (code === 401) {
+                    authandfind()
+                } else {
+                    rej (`${code} ${message}`)
+                }
+            })
+        } else {
+            authandfind()
+        }
+    })
+}
+
+exports.find = (things, query, context) => {
     return new Promise ((acc,rej) => {
         if (query && query._id) {
             things = `${things}('${encodeURIComponent(query._id)}')`
@@ -114,17 +181,17 @@ exports.find = (req, things, query) => {
 
         let authandfind = () => {
             ams_authkey().then((ams_auth) => {
-                req.session.ams_auth = ams_auth;
-                list_things (req.session.ams_auth, things).then ((things) => acc (things), (err) => rej (err))
+                context.ams_auth = ams_auth;
+                list_things (context.ams_auth, things).then ((things) => acc (things), (err) => rej (err))
             }, (err) => res.status(400).send(err))
         }
 
-        if (req.session.ams_auth) {
-            list_things (req.session.ams_auth, things).then ((things) => acc (things), ({code, message}) => {
+        if (context.ams_auth) {
+            list_things (context.ams_auth, things).then ((things) => acc (things), ({code, message}) => {
                 if (code === 401) {
                     authandfind()
                 } else {
-                    rej (err)
+                    rej (`${code} ${message}`)
                 }
             })
         } else {

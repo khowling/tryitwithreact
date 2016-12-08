@@ -89,7 +89,7 @@ module.exports = function(options) {
     for (let row of entries) {
       let r = {_id: select(form.externalid, row)}
       for (let fld of form.fields) {
-        r[fld.name] = select(fld.name, row)
+        r[fld.name] = select(fld.source, row)
       }
       res.push(r)
     }
@@ -118,7 +118,7 @@ module.exports = function(options) {
       } else {
         let parent = null;
         console.log (`/db/:form query : ${JSON.stringify(query)}`);
-        orm.find(formparam, parent, query, req.session.context).then((j) => { 
+        orm.find(formparam, parentURLtoJSON(req.query.parent), query, req.session.context).then((j) => { 
           res.json(j); 
         }, (e) => {
           return returnJsonError(res, e)
@@ -127,15 +127,51 @@ module.exports = function(options) {
         })
       }
     } else if (form.store === "ams_api") {
-      orm_ams.find (req, form.collection, query).then((j) => {
+      orm_ams.find (form.collection, query, req.session.context).then((j) => {
         res.json(validate_store_result (form, j, (query && query._id))); 
       }, (e) => {
         return returnJsonError(res, e)
       }).catch((e)=> {
         return returnJsonError(res, e)
       })
+    } else {
+      return returnJsonError(res, `unsupported form store ${form.store}`)
     }
   })
+
+//--------------------------------------------------------- SAVE
+  router.post('/db/:form',  function(req, res) {
+    var formparam = req.params["form"],
+        userdoc = req.body
+
+    if (!req.user)
+      return returnJsonError(res, `Permission Denied`);
+    else {
+      let form = req.session.context.appMeta.find((d) =>  String(d._id) === String (formparam))
+      console.log (`-----  post: calling save with ${formparam} ${req.query.parent}`);
+      if (!form) {
+        return returnJsonError(res, `Form definition not found :${formparam}`)
+      } else if (form.store === "mongo" || form.store === "metadata" || form.store === "fromparent") {  
+        orm.save (formparam, parentURLtoJSON(req.query.parent), userdoc, req.session.context).then((j) => {
+          console.log ('save() : responding : ' + JSON.stringify(j));
+          return res.json(j);
+        }, (e) => {
+          return returnJsonError(res, e)
+        }).catch((e) => {
+          return returnJsonError(res, e)
+        })
+      } else if (form.store === "ams_api") {
+        orm_ams.save (form.collection, parentURLtoJSON(req.query.parent), userdoc, req.session.context).then((j) => {
+        }, (e) => {
+          return returnJsonError(res, e)
+        }).catch((e) => {
+          return returnJsonError(res, e)
+        })
+      } else {
+      return returnJsonError(res, `unsupported form store ${form.store}`)
+      }
+    }
+  });
 
 //--------------------------------------------------------- DELETE
   router.delete('/db/:form',  function(req, res) {
@@ -157,25 +193,6 @@ module.exports = function(options) {
       }
   });
 
-//--------------------------------------------------------- SAVE
-  router.post('/db/:form',  function(req, res) {
-    var formparam = req.params["form"],
-        userdoc = req.body
-
-    if (!req.user)
-      res.status(400).send("Permission Denied");
-    else {
-      console.log (`-----  post: calling save with ${formparam} ${req.query.parent}`);
-      orm.save (formparam, parentURLtoJSON(req.query.parent), userdoc, req.session.context).then((j) => {
-        console.log ('save() : responding : ' + JSON.stringify(j));
-        return res.json(j);
-      }, (e) => {
-        return returnJsonError(res, e)
-      }).catch((e) => {
-        return returnJsonError(res, e)
-      })
-    }
-  });
 
 
   /* ------------------------------------- FILE HANDLING
