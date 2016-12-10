@@ -3,7 +3,6 @@
 const  
   express = require('express'),
   router = express.Router(),
-//  parseString = require('xml2js').parseString,
   https = require('https'),
   url = require('url'),
   ams_api_version = '2.13',
@@ -66,6 +65,7 @@ const list_things =  (auth, thing) => {
     return new Promise ((acc,rej) => {
         let putreq = https.get({ hostname: auth.host, path: `/api/${thing}`,
             headers: {
+                'Accept': 'application/json',
                 'x-ms-version': ams_api_version,
                 'Authorization': `Bearer ${auth.token.access_token}`
             }}, (res) => {
@@ -79,24 +79,12 @@ const list_things =  (auth, thing) => {
 
                 let rawData = '';
                 res.on('data', (chunk) => {
-                    //console.log (`on data ${chunk}`)
+                    //console.log (`list_things got data ${chunk}`)
                     rawData += chunk
-                    /*
-                    parseString(chunk, (err, res) => {
-                        console.log (`on data ${JSON.stringify(res, null, 1)}`)
-                        if (err) {
-                            return rej(err)
-                        } else if (res["m:error"]) {
-                            return rej(res["m:error"]["m:message"][0]["_"])
-                        } else {
-                            return acc(res.feed.entry)
-                        }
-                    });
-                    */
                 })
 
                 res.on('end', () => {
-                    //console.log (`on end ${rawData}`)
+                    console.log (`list_things got end ${rawData}`)
                     return acc(rawData)
                 })
 
@@ -106,22 +94,23 @@ const list_things =  (auth, thing) => {
 }
 
 // ---------------------------------------------- save
-const save_things = (auth, thing, body) =>  {
+const change_things = (mode, auth, thing, body) =>  {
   return new Promise ((acc,rej) => {
-    console.log (`save_things: ${auth.host} /api/${thing} : ${JSON.stringify(body)}`)
+    console.log (`change_things: ${auth.host} ${mode} /api/${thing} : ${JSON.stringify(body)}`)
     let putreq = https.request({
             hostname: auth.host,
             path: `/api/${thing}`,
-            method: 'POST',
+            method: mode,
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'x-ms-version': ams_api_version,
                 'Authorization': `Bearer ${auth.token.access_token}`
             }}, (res) => {
 
-                console.log (`save_things status ${res.statusCode}`)
+                console.log (`change_things status ${res.statusCode} : headers ${res.rawHeaders}`)
 
-                if(!(res.statusCode === 200 || res.statusCode === 201)) {
+                if(!(res.statusCode === 200 || res.statusCode === 201 || res.statusCode === 204)) {
                     console.log (`${res.statusCode} : ${res.statusMessage}`)
                     res.resume();
                     return rej({code: res.statusCode, message: res.statusMessage})
@@ -129,37 +118,40 @@ const save_things = (auth, thing, body) =>  {
 
                 let rawData = '';
                 res.on('data', (chunk) => {
+                    console.log (`change_things got data: ${chunk}`)
                     rawData += chunk
                 })
 
                 res.on('end', () => {
+                    console.log (`change_things got end ${rawData}`)
                     return acc(rawData)
                 });
 
             }).on('error', (e) =>  rej(e));
 
-    putreq.write (JSON.stringify(body))
+    if (body) putreq.write (JSON.stringify(body))
     putreq.end()
   })
 }
 
 
-exports.save = (things, parent, userdoc, context) => {
+exports.save = (formdef, userdoc, context) => {
     return new Promise ((acc,rej) => {
-      //  if (query && query._id) {
-      //      things = `${things}('${encodeURIComponent(query._id)}')`
-      //  }
-        console.log (`orm_ams: save ${things}`)
+        let things = formdef.parent ? formdef.parent.field.name : formdef.form.collection
+        if (formdef.parent) {
+            userdoc.ParentAssetId = formdef.parent.query._id
+        }
+        console.log (`orm_ams: save ${things} ${JSON.stringify(userdoc, null, 1)}`)
 
         let authandfind = () => {
             ams_authkey().then((ams_auth) => {
                 context.ams_auth = ams_auth;
-                save_things (context.ams_auth, things, userdoc).then ((things) => acc (things), (err) => rej (err))
+                change_things ('POST', context.ams_auth, things, userdoc).then ((things) => acc (things), (err) => rej (err))
             }, (err) => res.status(400).send(err))
         }
 
         if (context.ams_auth) {
-            save_things (context.ams_auth, things, userdoc).then ((things) => acc (things), ({code, message}) => {
+            change_things ('POST', context.ams_auth, things, userdoc).then ((things) => acc (things), ({code, message}) => {
                 if (code === 401) {
                     authandfind()
                 } else {
@@ -174,8 +166,15 @@ exports.save = (things, parent, userdoc, context) => {
 
 exports.find = (things, query, context) => {
     return new Promise ((acc,rej) => {
+        console.log (`ams find things: ${JSON.stringify(things)}, query ${JSON.stringify(query)}`)
         if (query && query._id) {
             things = `${things}('${encodeURIComponent(query._id)}')`
+            if (query.display === "all") {
+                console.log (`ams find: pull all the childforms`)
+                for (var field of form.fields.filter((f) => f.type === 'childform')) {
+                    // TODO
+                }
+            }
         }
         console.log (`orm_ams: find ${things}`)
 
@@ -200,3 +199,33 @@ exports.find = (things, query, context) => {
     })
 }
 
+exports.delete = (things, parent, query, context) => {
+    return new Promise ((acc,rej) => {
+        if (query && query._id) {
+            things = `${things}('${encodeURIComponent(query._id)}')`
+        
+            console.log (`orm_ams: find ${things}`)
+
+            let authandfind = () => {
+                ams_authkey().then((ams_auth) => {
+                    context.ams_auth = ams_auth;
+                    change_things ('DELETE', context.ams_auth, things, userdoc).then ((things) => acc (things), (err) => rej (err))
+                }, (err) => res.status(400).send(err))
+            }
+
+            if (context.ams_auth) {
+                change_things ('DELETE', context.ams_auth, things, null).then ((things) => acc (things), ({code, message}) => {
+                    if (code === 401) {
+                        authandfind()
+                    } else {
+                        rej (`${code} ${message}`)
+                    }
+                })
+            } else {
+                authandfind()
+            } 
+        } else {
+            return rej(`delete requires an ${things} id`)
+        }
+    })
+}

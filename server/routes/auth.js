@@ -1,18 +1,19 @@
-var   express = require('express')
-    , router = express.Router()
-    , LocalStrategy = require('passport-local').Strategy
-    , FacebookStrategy = require('passport-facebook').Strategy
-    , ForceDotComStrategy = require('passport-forcedotcom').Strategy
+const   
+    express = require('express'),
+    router = express.Router(),
+    LocalStrategy = require('passport-local').Strategy,
+    FacebookStrategy = require('passport-facebook').Strategy,
+    ForceDotComStrategy = require('passport-forcedotcom').Strategy,
 //    , bcrypt = require('bcrypt')
-    , ObjectID = require('mongodb').ObjectID;
+    ObjectID = require('mongodb').ObjectID,
+    meta = require('../libs/orm_mongo_meta')
 
 
 module.exports = function (passport, options) {
 
-    console.log ('setting up auth routes ');
-    var orm = require ("../libs/orm_mongo")(options);
-    var meta = require('../libs/orm_mongo_meta')(options);
-    var db = options.db;
+    console.log ('setting up auth routes ')
+    var orm = require ("../libs/orm_mongo")(options)
+    var db = options.db
 
     // Passport session setup.
     // To support persistent login sessions, Passport needs to be able to
@@ -28,7 +29,7 @@ module.exports = function (passport, options) {
     passport.deserializeUser(function (id, done) {
         console.log(`-------- passport.deserializeUser : ${id}`);
 
-        orm.find(meta.forms.Users, null, {_id: id, display: 'all_no_system'}).then( user => {
+        orm.find({form: meta.FORMMETA.find(f => f._id === meta.Forms.Users)}, {_id: id, display: 'all_no_system'}).then( user => {
             console.log("-------- passport.deserializeUser : got user");
             done(null, user);
         }, err => res.status(400).send(err)).catch (err => res.status(400).send(err));
@@ -61,14 +62,14 @@ module.exports = function (passport, options) {
     ));
 
     var gotSocialLoginDetails = function(mappedUserObj, provider, provider_id, done) {
-      orm.find(meta.forms.Users, null, {q: {'provider.provider_id': provider_id}, display: 'all_no_system'}).then(function success(existinguser) {
+      orm.find({form: meta.FORMMETA.find(f => f._id === meta.Forms.Users)}, {q: {'provider.provider_id': provider_id}, display: 'all_no_system'}).then(function success(existinguser) {
 
           if (existinguser.length == 0) {
               mappedUserObj.provider = [{type: provider, provider_id: provider_id }]
               console.log(provider + ' strategy: no existing user, creating from social profile : ' + JSON.stringify(mappedUserObj));
 
               // exps.forms.AuthProviders
-              orm.save (meta.forms.Users, null, mappedUserObj).then(function success(newuser) {
+              orm.save ({form: meta.FORMMETA.find(f => f._id === meta.Forms.Users)}, mappedUserObj).then(function success(newuser) {
                       console.log (provider + ' saved new user : ' + JSON.stringify(newuser));
                       done(null, newuser);
                   }, function error(ee) {

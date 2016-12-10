@@ -1,12 +1,13 @@
 "use strict"
-var   express = require('express')
-    , router = express.Router()
-    , Grid = require('gridfs-stream')  // write to mongo grid filesystem
+const express = require('express'),
+    router = express.Router(),
+    Grid = require('gridfs-stream'),  // write to mongo grid filesystem
 //  , fs = require('fs') // TESTING ONLY
-    , mongo = require('mongodb')
-    , GridStore = require('mongodb').GridStore
-    , ObjectID = require('mongodb').ObjectID
-    , jexl = require('jexl');
+    mongo = require('mongodb'),
+    GridStore = require('mongodb').GridStore,
+    ObjectID = require('mongodb').ObjectID,
+    jexl = require('jexl'),
+    meta = require('../libs/orm_mongo_meta')
 
 
 var typecheckFn, async_kh;
@@ -27,7 +28,6 @@ loader.import('./shared/dform.js').then(dform_mod => {
 
 module.exports = function(options) {
 
-  var meta = require('../libs/orm_mongo_meta')(options);
   var db = options.db;
   var exps = {};
 
@@ -102,10 +102,10 @@ module.exports = function(options) {
     return mquery;
   }
 
-  exps.find = function (formid, parent, query, context) {
+  exps.find = function (formdef, query, context) {
     return new Promise(function (resolve, reject)  {
       let appMeta =  meta.FORMMETA.concat (context && context.appMeta || []);
-      console.log (`find() [query: ${JSON.stringify(query)}] with context [app: ${context && context.app.name}, appMeta: ${appMeta.length}]`);
+      console.log (`find() formdef: ${JSON.stringify(formdef)},  query: ${JSON.stringify(query)}] with context [app: ${context && context.app.name}, appMeta: ${appMeta.length}]`);
       
       /* search form meta-data for 'reference' fields to resolve (also search through 'childform' subforms) */
       var projectionAndLookups = function (display, form, parentField, dynamicField) {
@@ -120,7 +120,7 @@ module.exports = function(options) {
           }
         } else {
           // get all system fields on top level collection
-          if (form._id === meta.forms.formMetadata) {
+          if (form._id === meta.Forms.formMetadata) {
             result.projection["_data"] = 1
           }
           if (display === 'all') {
@@ -133,7 +133,7 @@ module.exports = function(options) {
 
         // instruct find to resolve lookup for "_updatedBy" on top level and childforms (but not dynamicfields)
         if (display === 'all') {
-          let v = {reference_field_name: "_updatedBy",search_form_id: meta.forms.Users};
+          let v = {reference_field_name: "_updatedBy",search_form_id: meta.Forms.Users};
           if (parentField) v.parent_field_name = parentField;
           if (dynamicField) v.dynamic_field_name = dynamicField;
           result.lookups.push(v);
@@ -299,7 +299,7 @@ module.exports = function(options) {
                 // need to call process lookupids in update mode to format the reference fields
                 // TODO: Should this be done on the client??
 
-                if (objids.length > docs.length && form._id === meta.forms.formMetadata) {
+                if (objids.length > docs.length && form._id === meta.Forms.formMetadata) {
                   let metares = [];
                   for (let lid of objids) {
                     if (docs.filter(r => r._id === lid).length == 0)  {
@@ -370,41 +370,38 @@ module.exports = function(options) {
         });
       }
 
-      let form = appMeta.find((d) =>  String(d._id) === String (formid)),
-          collection, parent_form = null, parent_field  = null;
+      let collection
 
-      if (!form) {
-        return reject ("find() form not Found or no defined collection : " + formid);
+      if (formdef.error || !formdef.form) {
+        return reject (`find() formdef parameter error: ${formdef && formdef.error || 'no formdef'}`);
       }
-      if (form.store ===  'mongo') {
-        collection = form.collection;
-        if (parent)  return reject ("find() cannot supply parent parameter for top level form : " + form.name);
-      } else if (form.store ===  'fromparent') {
-        if (!(parent && parent.field_id && parent.form_id && parent.query))  return reject ("find() got child form, but not complete parent data : " + JSON.stringify(parent));
-        parent_form = appMeta.find((d) => String(d._id) === String (parent.form_id));
-        if (!parent_form) {
-          return reject ("find() parent form not Found : " + parent.form_id);
-        } else {
-          collection = parent_form.collection;
-          parent_field = parent_form.fields.find(f => f._id == parent.field_id);
-          if (!(parent_field && parent_field.child_form && parent_field.child_form._id == formid))
-             return reject ('find() childform not assosiated to parent (check your schema child_form): ' + parent.field_id);
+      if (formdef.form.store ===  'mongo') {
+        collection = formdef.form.collection;
+        if (formdef.parent)  return reject ("find() cannot supply parent parameter for top level form : " + formdef.form.name);
+      } else if (formdef.form.store ===  'fromparent') {
+        if (!(formdef.parent && formdef.parent.field && formdef.parent.form && formdef.parent.query))  {
+          return reject ("find() got child form, but not complete parent data : " + JSON.stringify(parent));
         }
+        if (!(formdef.parent.field && formdef.parent.field.child_form && formdef.parent.field.child_form._id == formdef.form._id)) {
+            return reject ('find() childform not assosiated to parent (check your schema child_form): ' + parent.field_id);
+        }
+        collection = formdef.parent.form.collection;
       }
 
       let mquery, findone = query._id && !Array.isArray(query._id);
-      if (parent_field) {
-        mquery = genQuery(parent.query, parent_form);
-        Object.assign(mquery, genQuery(query, form, parent_field.name));
+      if (formdef.parent) {
+        mquery = genQuery(formdef.parent.query, formdef.parent.form);
+        Object.assign(mquery, genQuery(query, formdef.form, formdef.parent.field.name));
       } else {
-        mquery = genQuery(query, form);
+        mquery = genQuery(query, formdef.form);
       }
       // console.log("find() create the mongo query : " + JSON.stringify(mquery));
-      if (mquery.error) return reject(`query ${mquery.error}`);
-
+      if (mquery.error) {
+        return reject(`query ${mquery.error}`);
+      }
 
       //console.log(`find() calling projectionAndLookups : ${query.d}`);
-      let fieldsandlookups = projectionAndLookups(query.display, form, parent_field && parent_field.name);
+      let fieldsandlookups = projectionAndLookups(query.display, formdef.form, formdef.parent && formdef.parent.field.name);
 
       //  console.log('find() calling projectionAndLookups finished ' + JSON.stringify(fieldsandlookups)); // + JSON.stringify(fieldsandlookups));
       if (fieldsandlookups.error) {
@@ -478,38 +475,35 @@ module.exports = function(options) {
     });
   };
 
-  exps.delete = function(formid, parent, query, context) {
+  exps.delete = function(formdef, query, context) {
     return new Promise(function (resolve, reject)  {
 
       let appMeta =  meta.FORMMETA.concat (context && context.appMeta || []);
       console.log (`delete() with context ${context && context.app.name} appMeta ${appMeta.length}`);
 
-      let form = appMeta.find((d) =>  String(d._id) === String (formid)),
-          collection, parent_form = null, parent_field  = null;
+      let collection
 
-      if (!form) {
-        return reject ("delete() form not Found or no defined collection : " + formid);
+      if (formdef.error || !formdef.form) {
+        return reject (`delete() formdef parameter error: ${formdef && formdef.error || 'no formdef'}`);
       }
-      if (form.store ===  'mongo') {
-        collection = form.collection;
-        if (parent)  return reject ("delete() cannot supply parent parameter for top level form : " + form.name);
-      } else if (form.store ===  'fromparent') {
-        if (!(parent && parent.field_id && parent.form_id && parent.query))  return reject ("delete() got child form, but not complete parent data : " + JSON.stringify(parent));
-        parent_form = appMeta.find((d) => String(d._id) === String (parent.form_id));
-        if (!parent_form) {
-          return reject ("delete() parent form not Found : " + parent.form_id);
-        } else {
-          collection = parent_form.collection;
-          parent_field = parent_form.fields.find(f => f._id == parent.field_id);
-          if (!(parent_field && parent_field.child_form && parent_field.child_form._id == formid))
-             return reject ('delete() childform not assosiated to parent (check your schema child_form): ' + parent.field_id);
+      if (formdef.form.store ===  'mongo') {
+        collection = formdef.form.collection;
+        if (formdef.parent)  return reject ("delete() cannot supply parent parameter for top level form : " + formdef.form.name);
+      } else if (formdef.form.store ===  'fromparent') {
+
+        if (!(formdef.parent && formdef.parent.field && formdef.parent.form && formdef.parent.query))  {
+          return reject ("delete() got child form, but not complete parent data : " + JSON.stringify(parent));
         }
+        if (!(formdef.parent.field && formdef.parent.field.child_form && formdef.parent.field.child_form._id == formdef.form._id)) {
+            return reject ('delete() childform not assosiated to parent (check your schema child_form): ' + parent.field_id);
+        }
+        collection = formdef.parent.form.collection;
       }
 
       let mquery, update;
-      if (parent_field) {
-        mquery = genQuery(parent.query, parent_form);
-        update = { $pull: { [parent_field.name]: genQuery(query, form) } };
+      if (formdef.parent) {
+        mquery = genQuery(formdef.parent.query, formdef.parent.form);
+        update = { $pull: { [formdef.parent.field.name]: genQuery(query, formdef.form) } };
         if (mquery.error) return reject(mquery.error);
 
         console.log(`delete() <${collection}>  query:  ${JSON.stringify(mquery)}, update: ${JSON.stringify(update)}`);
@@ -517,14 +511,14 @@ module.exports = function(options) {
           console.log (`delete() update ${JSON.stringify(out)} err: ${err}`);
           if (err) {
              return reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
-          } else if (out.nModified == 0) {
+          } else if (out.nModified === 0) {
             return reject ("nothing deleted");
           } else {
             return resolve ({'deleted': true});
           }
         });
       } else {
-        mquery = genQuery(query, form);
+        mquery = genQuery(query, formdef.form);
         console.log(`delete() <${collection}>  query:  ${JSON.stringify(mquery)}`);
         db.collection(collection).remove(mquery, function (err, out) {
           console.log (`delete() update ${JSON.stringify(out)} err: ${err}`);
@@ -543,275 +537,267 @@ module.exports = function(options) {
     });
   };
 
-  exps.save = function (formid, parent, userdoc, context) {
+  exps.save = function (formdef, userdoc, context) {
     return new Promise( function(resolve, reject)  {
       let appMeta =  meta.FORMMETA.concat (context && context.appMeta || []);
-      console.log (`save() with context ${context && context.app.name} appMeta ${appMeta.length}`);
 
-      let form = appMeta.find((d) =>  String(d._id) === String (formid)),
-          isInsert = Array.isArray (userdoc) || typeof userdoc._id === 'undefined',
-          isEmbedded = (parent && parent.field_id && parent.form_id && parent.query);
+      let collection, 
+          isInsert = Array.isArray (userdoc) || typeof userdoc._id === 'undefined'
 
-      if (!form) {
-        return reject ("save() form not Found : " + formid);
-      } else if (!isEmbedded && parent){
-        return reject (`save() need to supply parent 'field_id', 'form_id' & 'query' for embedded document save:  ${JSON.stringify(parent)}`);
-      } else if (Array.isArray (userdoc) && isEmbedded){
-        return reject ("save() cannot save array of records into embedded doc");
-      } else {
+      console.log (`save() with formdef : ${formdef.form.name}, context: ${context && context.app.name}, appMeta ${appMeta.length}`);
 
-        //  console.log ('save() formid:' + formid + ' : got form lookup: ' + form.name);
-        var coll = form.collection;
-        var embedfield;
 
-        if (isEmbedded) {
-          // console.log ('save() Its a childform, get the collection & field from theparent.field_id : ' + parent.field_id);
-          let parent_form = appMeta.find((d) =>  String(d._id) === String (parent.form_id)),
-              parent_field = parent_form.fields.find(f => f._id == parent.field_id);
+      if (formdef.error || !formdef.form) {
+        return reject (`save() formdef parameter error: ${formdef && formdef.error || 'no formdef'}`);
+      }
+      if (formdef.form.store ===  'mongo') {
+        collection = formdef.form.collection;
+        if (formdef.parent)  return reject ("save() cannot supply parent parameter for top level form : " + formdef.form.name);
+      } else if (formdef.form.store ===  'fromparent') {
 
-          if (!parent_form) {
-              return reject ('save() Cannot find parent form field for this childform: ' + parent.field_id);
-          } else if (!(parent_field && parent_field.child_form && parent_field.child_form._id == formid)) {
-              return reject ('save() childform cannot be saved to parent (check your schema child_form): ' + parent.field_id);
-          } else {
-              coll = parent_form.collection;
-              embedfield = parent_field.name;
-              // console.log ('save() its embedded, top level collection : ' + coll + ', fieldname : ' + embedfield);
+        if (!(formdef.parent && formdef.parent.field && formdef.parent.form && formdef.parent.query))  {
+          return reject ("save() got child form, but not complete parent data : " + JSON.stringify(parent));
+        }
+        if (!(formdef.parent.field && formdef.parent.field.child_form && formdef.parent.field.child_form._id == formdef.form._id)) {
+            return reject ('save() childform not assosiated to parent (check your schema child_form): ' + parent.field_id);
+        }
+        if (Array.isArray (userdoc)){
+          return reject ("save() cannot save array of records into embedded doc");
+        }
+        collection = formdef.parent.form.collection;
+      }
+
+      // console.log('save() collection: '+collection+' userdoc: ' + JSON.stringify(userdoc));
+      // build the field set based on metadata - NOT the passed in JSON!
+      // 'allowchildform'  if its a INSERT of a TOP LEVEL form, allow a childform to be passed in (used by auth.js)
+      var validateSetFields = function (isInsert, form, dataval, embedField, allowchildform, existing_rec) {
+        return async_kh(function *(isInsert, form, dataval, embedField, allowchildform, existing_rec) {
+
+          var isarray = Array.isArray(dataval),
+                reqval = isarray && dataval || [dataval],
+                setval = [];
+
+          //console.log ("Save: validateSetFields, looping through save records: " + reqval.length);
+          for (let rv of reqval) { // for each data record
+            let tv = {};  // target validated object
+
+            if (isInsert) {
+              if (rv._id) return {error: "Insert request, data already contains key (_id) : " + rv._id};
+              // generate new ID.
+              tv._id = new ObjectID();
+              tv._createDate = new Date();
+              tv._createdBy = context && {_id: ObjectID(context.user._id)};
+              tv._updateDate = new Date();
+              tv._updatedBy = context && {_id: ObjectID(context.user._id)};
+            } else { // update
+              // if updating, data doesn't need new _id.
+              if (!rv._id) return {error: "Update request, data doesnt contain key (_id)"};
+              tv[embedField && formdef.parent.field.name+'.$._updateDate' || '_updateDate'] = new Date();
+              tv[embedField && formdef.parent.field.name+'.$._updatedBy' || '_updatedBy'] = context && {_id: ObjectID(context.user._id)};
+            }
+            //console.log ("Save: validateSetFields, looping through record propities");
+            for (let propname in rv) { // for each property in data object
+              let fval = rv[propname], // store the requrested property value
+                  tprop = embedField && formdef.parent.field.name+'.$.'+propname || propname;  // format the target property name for mongo
+
+              let tcres = typecheckFn (form, propname, fval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
+              if ('error' in tcres)
+                return tcres;
+              else if ('validated_value' in tcres) {
+                tv[tprop] = tcres.validated_value;
+              } else if ('dynamic_field' in tcres) {
+                // DONE : Validate dynamic files, function needs to be sync generator
+                console.log (`save() validateSetFields, dynamic_fields validation [el: ${tcres.dynamic_field.fieldmeta_el}] :  [rec: ${JSON.stringify(Object.assign({}, existing_rec, rv),null,2)}]`);
+                let dynamic_fields = yield jexl.eval(tcres.dynamic_field.fieldmeta_el, Object.assign({rec: Object.assign({}, existing_rec, rv)}, context));
+                console.log ("dynamic_fields validation : " + JSON.stringify(dynamic_fields));
+                if ((!dynamic_fields) || dynamic_fields.error) return {error: "data contains dynamic field, but error evaluating expression: " + tcres.dynamic_field.fieldmeta_el};
+
+                let dtv = {},  // dynamic target validated object
+                    newdynamicfield = Object.assign({},  existing_rec ? existing_rec[propname] || {} : {}, tcres.value); // Need to combine existing record dynamic field with changes from client, otherwise loose values that are not changed!
+                for (let propname in newdynamicfield) { // for each property in data object
+                  let fval = newdynamicfield[propname];
+
+                  console.log (`save() validateSetFields, checking ${propname} : ${newdynamicfield[propname]}`);
+                  let dtcres = typecheckFn ({fields: dynamic_fields}, propname, fval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
+                  if ('error' in dtcres)
+                    return dtcres;
+                  else if ('validated_value' in dtcres) {
+                    dtv[propname] = dtcres.validated_value;
+                    console.log (`save() validateSetFields, validated [${propname}], value ${JSON.stringify(dtcres.validated_value)}`);
+                  } else {
+                    return {error: "dynamic data contains childform or another dynamic field, not allowed as developer not clever enough"};
+                  }
+                }
+                tv[tprop] = dtv;
+
+              } else if ('meta_data' in tcres) {
+                console.log (`save() validateSetFields, checking "_data"`)
+                let ctav = []
+                for (let cval of tcres.value) {
+                
+                  if (!cval._id) return {error: "data contains meta_data field, and data array row missing _id field: " + propname};
+                  let ctv = {_id: cval._id};  // target validated object
+                  for (let cpropname in cval) {
+                    let cfval = cval[cpropname]; // store the requrested property value
+                    let ctcres = typecheckFn (form, cpropname, cfval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
+                    if ('error' in ctcres)
+                      return ctcres;
+                    else if ('validated_value' in ctcres)
+                      ctv[cpropname] = ctcres.validated_value;
+                  }
+                  ctav.push(ctv);
+                }
+                tv[tprop] = ctav; //fval;
+
+              } else if ('childform_field' in tcres) {
+
+                if (!allowchildform) {
+                  continue; // just ignore the childform data!
+                  return {error: "data contains childform field, not allowed in this mode: " + propname};
+                }
+
+                let ctav = [];  // child  target array validated
+                // create formfield object keyed on fieldname
+                let cform = tcres.childform_field.child_form && appMeta.find((d) =>  String(d._id) === String (tcres.childform_field.child_form._id));
+                if (!cform) return {error: "data contains childform field, but no child_form defined for the field: " + propname};
+
+                for (let cval of tcres.value) {
+                  let ctv = {};  // target validated object
+
+                  if (cval._id) return {error: "data contains childform field, and data array contains existing _id: " + propname};
+                  ctv._id =  new ObjectID();
+
+                  for (let cpropname in cval) {
+                    let cfval = cval[cpropname]; // store the requrested property value
+                    let ctcres = typecheckFn (cform, cpropname, cfval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
+                    if ('error' in ctcres)
+                      return ctcres;
+                    else if ('validated_value' in ctcres)
+                      ctv[cpropname] = ctcres.validated_value;
+                  }
+                  ctav.push(ctv);
+                }
+                tv[tprop] = ctav; //fval;
+              }
+            }
+            setval.push(tv);
           }
-        }
+          return {data: isarray && setval || setval[0]};
+        })(isInsert, form, dataval, embedField, allowchildform, existing_rec);
+      };
 
-        // console.log('save() collection: '+coll+' userdoc: ' + JSON.stringify(userdoc));
-        // build the field set based on metadata - NOT the passed in JSON!
-        // 'allowchildform'  if its a INSERT of a TOP LEVEL form, allow a childform to be passed in (used by auth.js)
-        var validateSetFields = function (isInsert, form, dataval, embedField, allowchildform, existing_rec) {
-          return async_kh(function *(isInsert, form, dataval, embedField, allowchildform, existing_rec) {
-
-            var isarray = Array.isArray(dataval),
-                  reqval = isarray && dataval || [dataval],
-                  setval = [];
-
-            //console.log ("Save: validateSetFields, looping through save records: " + reqval.length);
-            for (let rv of reqval) { // for each data record
-              let tv = {};  // target validated object
-
-              if (isInsert) {
-                if (rv._id) return {error: "Insert request, data already contains key (_id) : " + rv._id};
-                // generate new ID.
-                tv._id = new ObjectID();
-                tv._createDate = new Date();
-                tv._createdBy = context && {_id: ObjectID(context.user._id)};
-                tv._updateDate = new Date();
-                tv._updatedBy = context && {_id: ObjectID(context.user._id)};
-              } else { // update
-                // if updating, data doesn't need new _id.
-                if (!rv._id) return {error: "Update request, data doesnt contain key (_id)"};
-                tv[embedField && embedfield+'.$._updateDate' || '_updateDate'] = new Date();
-                tv[embedField && embedfield+'.$._updatedBy' || '_updatedBy'] = context && {_id: ObjectID(context.user._id)};
-              }
-              //console.log ("Save: validateSetFields, looping through record propities");
-              for (let propname in rv) { // for each property in data object
-                let fval = rv[propname], // store the requrested property value
-                    tprop = embedField && embedfield+'.$.'+propname || propname;  // format the target property name for mongo
-
-                let tcres = typecheckFn (form, propname, fval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
-                if ('error' in tcres)
-                  return tcres;
-                else if ('validated_value' in tcres) {
-                  tv[tprop] = tcres.validated_value;
-                } else if ('dynamic_field' in tcres) {
-                  // DONE : Validate dynamic files, function needs to be sync generator
-                  console.log (`save() validateSetFields, dynamic_fields validation [el: ${tcres.dynamic_field.fieldmeta_el}] :  [rec: ${JSON.stringify(Object.assign({}, existing_rec, rv),null,2)}]`);
-                  let dynamic_fields = yield jexl.eval(tcres.dynamic_field.fieldmeta_el, Object.assign({rec: Object.assign({}, existing_rec, rv)}, context));
-                  console.log ("dynamic_fields validation : " + JSON.stringify(dynamic_fields));
-                  if ((!dynamic_fields) || dynamic_fields.error) return {error: "data contains dynamic field, but error evaluating expression: " + tcres.dynamic_field.fieldmeta_el};
-
-                  let dtv = {},  // dynamic target validated object
-                      newdynamicfield = Object.assign({},  existing_rec ? existing_rec[propname] || {} : {}, tcres.value); // Need to combine existing record dynamic field with changes from client, otherwise loose values that are not changed!
-                  for (let propname in newdynamicfield) { // for each property in data object
-                    let fval = newdynamicfield[propname];
-
-                    console.log (`save() validateSetFields, checking ${propname} : ${newdynamicfield[propname]}`);
-                    let dtcres = typecheckFn ({fields: dynamic_fields}, propname, fval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
-                    if ('error' in dtcres)
-                      return dtcres;
-                    else if ('validated_value' in dtcres) {
-                      dtv[propname] = dtcres.validated_value;
-                      console.log (`save() validateSetFields, validated [${propname}], value ${JSON.stringify(dtcres.validated_value)}`);
-                    } else {
-                      return {error: "dynamic data contains childform or another dynamic field, not allowed as developer not clever enough"};
-                    }
-                  }
-                  tv[tprop] = dtv;
-
-                } else if ('meta_data' in tcres) {
-                  console.log (`save() validateSetFields, checking "_data"`)
-                  let ctav = []
-                  for (let cval of tcres.value) {
-                  
-                    if (!cval._id) return {error: "data contains meta_data field, and data array row missing _id field: " + propname};
-                    let ctv = {_id: cval._id};  // target validated object
-                    for (let cpropname in cval) {
-                      let cfval = cval[cpropname]; // store the requrested property value
-                      let ctcres = typecheckFn (form, cpropname, cfval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
-                      if ('error' in ctcres)
-                        return ctcres;
-                      else if ('validated_value' in ctcres)
-                        ctv[cpropname] = ctcres.validated_value;
-                    }
-                    ctav.push(ctv);
-                  }
-                  tv[tprop] = ctav; //fval;
-
-                } else if ('childform_field' in tcres) {
-
-                  if (!allowchildform) {
-                    continue; // just ignore the childform data!
-                    return {error: "data contains childform field, not allowed in this mode: " + propname};
-                  }
-
-                  let ctav = [];  // child  target array validated
-                  // create formfield object keyed on fieldname
-                  let cform = tcres.childform_field.child_form && appMeta.find((d) =>  String(d._id) === String (tcres.childform_field.child_form._id));
-                  if (!cform) return {error: "data contains childform field, but no child_form defined for the field: " + propname};
-
-                  for (let cval of tcres.value) {
-                    let ctv = {};  // target validated object
-
-                    if (cval._id) return {error: "data contains childform field, and data array contains existing _id: " + propname};
-                    ctv._id =  new ObjectID();
-
-                    for (let cpropname in cval) {
-                      let cfval = cval[cpropname]; // store the requrested property value
-                      let ctcres = typecheckFn (cform, cpropname, cfval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
-                      if ('error' in ctcres)
-                        return ctcres;
-                      else if ('validated_value' in ctcres)
-                        ctv[cpropname] = ctcres.validated_value;
-                    }
-                    ctav.push(ctv);
-                  }
-                  tv[tprop] = ctav; //fval;
-                }
-              }
-              setval.push(tv);
+      if (formdef.parent || !isInsert) {
+        // get existing document.
+        exps.find (formdef, {_id: new ObjectID(userdoc._id), display: 'all_no_system'}, context).then(existing_rec => {
+          console.log (`save() got existing record : ${JSON.stringify(existing_rec, null, ' ')}`);
+          if (formdef.parent)  {  // its embedded, so modifing a existing top document
+            let query, update;
+            // its embedded, so filter existing_rec for just embedded doc for dynamic jexl
+            // TODO I find existing if its inserting a new embedded doc, I should ensure I just get the parent
+            if (existing_rec) existing_rec = existing_rec[formdef.parent.field.name][0];
+            //console.log('/db/'+collection+'  set or push a embedded document :' + parentid);
+            try {
+              // TODO: use genQuery?
+              query = {_id: new ObjectID(formdef.parent.query._id)};
+            } catch (e) {
+              return reject ("save() parent.record_id not acceptable format : " + formdef.parent.query._id);
             }
-            return {data: isarray && setval || setval[0]};
-          })(isInsert, form, dataval, embedField, allowchildform, existing_rec);
-        };
+            /***** TRYING TO DO EMBEDDED ARRAY inside EMBEDDED ARRAY, BUT MONGO DOESNT SUPPORT NESTED POSITIONAL OPERATORS
+             var embedsplit = formdef.parent.field.name.split('.');
+              if (embedsplit.length == 2) {
+                query['"' + embedsplit[0] + '._id"'] = new ObjectID(parent.record_id);
+            }  else {
+                query = {_id: new ObjectID(parent.record_id)};
+            }
+              */
 
-        if (isEmbedded || !isInsert) {
-          // get existing document.
-          exps.find (formid, parent, {_id: new ObjectID(userdoc._id), display: 'all_no_system'}, context).then(existing_rec => {
-            console.log (`save() got existing record : ${JSON.stringify(existing_rec, null, ' ')}`);
-            if (isEmbedded)  {  // its embedded, so modifing a existing top document
-              let query, update;
-              // its embedded, so filter existing_rec for just embedded doc for dynamic jexl
-              // TODO I find existing if its inserting a new embedded doc, I should ensure I just get the parent
-              if (existing_rec) existing_rec = existing_rec[embedfield][0];
-              //console.log('/db/'+coll+'  set or push a embedded document :' + parentid);
+            if (!isInsert) { // its updating a existing embedded entry
               try {
-                // TODO: use genQuery?
-                query = {_id: new ObjectID(parent.query._id)};
+                // add embedded doc id to the query
+                query[`${formdef.parent.field.name}._id`] =  new ObjectID(userdoc._id);
               } catch (e) {
-                return reject ("save() parent.record_id not acceptable format : " + parent.record_id);
+                return reject ("save() _id not acceptable format : " + userdoc._id);
               }
-              /***** TRYING TO DO EMBEDDED ARRAY inside EMBEDDED ARRAY, BUT MONGO DOESNT SUPPORT NESTED POSITIONAL OPERATORS
-               var embedsplit = embedfield.split('.');
-               if (embedsplit.length == 2) {
-                  query['"' + embedsplit[0] + '._id"'] = new ObjectID(parent.record_id);
-              }  else {
-                  query = {_id: new ObjectID(parent.record_id)};
-              }
-               */
-
-              if (!isInsert) { // its updating a existing embedded entry
-                try {
-                  // add embedded doc id to the query
-                  query[`${embedfield}._id`] =  new ObjectID(userdoc._id);
-                } catch (e) {
-                  return reject ("save() _id not acceptable format : " + userdoc._id);
-                }
-              }
-              //query[embedfield] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
-              validateSetFields(isInsert, form, userdoc, !isInsert && embedfield, false, existing_rec).then((validatedUpdates) => {
-                if (validatedUpdates.error)
-                  return reject (validatedUpdates.error);
-                else {
-                  if (!isInsert)
-                    update = {'$set': validatedUpdates.data};
-                  else
-                    update = {'$push': { [embedfield]: validatedUpdates.data}};
-                }
-
-                console.log(`save() update [collection: ${coll}] [query: ${JSON.stringify(query)}] update: ${JSON.stringify(update)}`);
-                db.collection(coll).update(query, update, function (err, out) {
-                  console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
-                  if (err) {
-                     return reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
-                  } else if (out.nModified == 0) {
-                    return reject (`no update made ${JSON.stringify(query)}`);
-                  } else {
-                    return resolve ({_id: isInsert && update['$push'][embedfield]._id || query[embedfield+"._id"]});
-                  }
-                });
-              }, err => reject (`validateSetFields error ${err}`)).catch(err => reject (`validateSetFields error ${err}`));
-            } else {
-              // its a top level Update (!isInsert)
-              //console.log('/db/'+coll+' got _id,  update doc, use individual fields : ' + userdoc._id);
-              let query, update;
-
-              try {
-                query = {_id: new ObjectID(userdoc._id)};
-              } catch (e) {
-                return reject  ("save() _id not acceptable format : " + userdoc._id);
-              }
-              validateSetFields(isInsert, form, userdoc, null, false, existing_rec).then((validatedUpdates) => {
-
-                if (validatedUpdates.error)
-                  return reject (validatedUpdates.error);
+            }
+            //query[formdef.parent.field.name] = {'$elemMatch': { _id:  savedEmbedDoc._id}}
+            validateSetFields(isInsert, formdef.form, userdoc, !isInsert && formdef.parent.field.name, false, existing_rec).then((validatedUpdates) => {
+              if (validatedUpdates.error)
+                return reject (validatedUpdates.error);
+              else {
+                if (!isInsert)
+                  update = {'$set': validatedUpdates.data};
                 else
-                  update = { '$set': validatedUpdates.data};
+                  update = {'$push': { [formdef.parent.field.name]: validatedUpdates.data}};
+              }
 
-                console.log(`save() update [collection: ${coll}] [query: ${JSON.stringify(query)}] update: ${JSON.stringify(update)}`);
-                db.collection(coll).update (query, update,  function (err, out) {
-                  console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
-                  if (err) {
-                     return reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
-                  } else if (out.nModified == 0) {
-                    return reject (`no update made ${JSON.stringify(query)}`);
-                  } else {
-                    resolve ({_id: query._id});
-                  }
-                });
+              console.log(`save() update [collection: ${collection}] [query: ${JSON.stringify(query)}] update: ${JSON.stringify(update)}`);
+              db.collection(collection).update(query, update, function (err, out) {
+                console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+                if (err) {
+                    return reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+                } else if (out.nModified == 0) {
+                  return reject (`no update made ${JSON.stringify(query)}`);
+                } else {
+                  return resolve ({_id: isInsert && update['$push'][formdef.parent.field.name]._id || query[formdef.parent.field.name+"._id"]});
+                }
               });
+            }, err => reject (`validateSetFields error ${err}`)).catch(err => reject (`validateSetFields error ${err}`));
+          } else {
+            // its a top level Update (!isInsert)
+            //console.log('/db/'+collection+' got _id,  update doc, use individual fields : ' + userdoc._id);
+            let query, update;
+
+            try {
+              query = {_id: new ObjectID(userdoc._id)};
+            } catch (e) {
+              return reject  ("save() _id not acceptable format : " + userdoc._id);
             }
-          }, err => reject (`failed to retrieve existing record : ${err}`)
-        ).catch(err => reject (`program error : ${err}`));
-        }  else {
-          // its a insert, no existing record
-          //console.log('/db/'+coll+'  insert toplevel document, use individual fields');
-          let insert;
-          validateSetFields(isInsert, form, userdoc, null, true).then((validatedUpdates) => {
+            validateSetFields(isInsert, formdef.form, userdoc, null, false, existing_rec).then((validatedUpdates) => {
 
-            if (validatedUpdates.error)
-              return reject (validatedUpdates.error);
-            else
-              insert = validatedUpdates.data;
+              if (validatedUpdates.error)
+                return reject (validatedUpdates.error);
+              else
+                update = { '$set': validatedUpdates.data};
 
-            console.log(`save() insert <${coll}>: insert: ${JSON.stringify(insert)}`);
-            db.collection(coll).insert (insert, function (err, out) {
-              console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
-              if (err) {
-                 reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
-              } else {
-                if (Array.isArray(userdoc))
-                  resolve (out);
-                else
-                  resolve ({_id: insert._id});
-              }
+              console.log(`save() update [collection: ${collection}] [query: ${JSON.stringify(query)}] update: ${JSON.stringify(update)}`);
+              db.collection(collection).update (query, update,  function (err, out) {
+                console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+                if (err) {
+                    return reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+                } else if (out.nModified == 0) {
+                  return reject (`no update made ${JSON.stringify(query)}`);
+                } else {
+                  resolve ({_id: query._id});
+                }
+              });
             });
+          }
+        }, err => reject (`failed to retrieve existing record : ${err}`)
+      ).catch(err => reject (`program error : ${err}`));
+      }  else {
+        // its a insert, no existing record
+        //console.log('/db/'+collection+'  insert toplevel document, use individual fields');
+        let insert;
+        validateSetFields(isInsert, formdef.form, userdoc, null, true).then((validatedUpdates) => {
+
+          if (validatedUpdates.error)
+            return reject (validatedUpdates.error);
+          else
+            insert = validatedUpdates.data;
+
+          console.log(`save() insert <${collection}>: insert: ${JSON.stringify(insert)}`);
+          db.collection(collection).insert (insert, function (err, out) {
+            console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+            if (err) {
+                reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+            } else {
+              if (Array.isArray(userdoc))
+                resolve (out);
+              else
+                resolve ({_id: insert._id});
+            }
           });
-        }
+        });
       }
     }).catch(function (err) {
       console.log (`save() catch program error: ${err}`);
@@ -893,10 +879,6 @@ module.exports = function(options) {
     })
   }
 
-  exps.forms = meta.forms;
-  // expose these from the static data
-  exps.adminApp = meta.adminApp;
-  exps.systemMetabyId = meta.systemMetabyId;
 
   jexl.addTransform('get', function(ids, view) {
     console.log (`jexl.Transform  [id:${ids}] [viewname: ${view}]`);
@@ -906,7 +888,7 @@ module.exports = function(options) {
       console.log (`jexl.Transform get [name : ${f.name} ${f.store}] finding [_id:  ${ids}]`);
       if (ids) {
         if (f.store === 'mongo')
-          return exps.find(f._id, null, {_id:ids});
+          return exps.find({form: f}, {_id:ids, display: 'all_no_system'});
         else if (f.store === 'metadata') {
           console.log (`jexl.Transform get metadata ${f._data.length}`)
           return f._data.find(m => m._id === ids)

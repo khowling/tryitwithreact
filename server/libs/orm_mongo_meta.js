@@ -3,32 +3,9 @@
  * Created by keith on 17/10/14.
  */
 
-var ObjectID = require('mongodb').ObjectID;
-
-module.exports = function(options) {
-
-    var db = options.db;
-    var exps = {
-        forms: {
-            "formMetadata" : new ObjectID('000000000100'),
-            "ComponentMetadata" : new ObjectID('000000000150'),
-            "FormFieldMetadata": new ObjectID('000000000200'),
-            "DropDownOption": new ObjectID('000000000250'),
-            "iconSearch": new ObjectID('000000000300'),
-            "Users": new ObjectID('000000000600'),
-            "AuthProviders": new ObjectID('000000000700'),
-            "FileMeta": new ObjectID('000000000800'),
-            "UserApps": new ObjectID('000000000900'),
-            "App": new ObjectID('000000000a00'),
-            "AppPerms": new ObjectID('000000000b00'),
-            "AppPageComponent": new ObjectID('000000000e00'),
-            "ImportMeta": new ObjectID('000000000c00'),
-            "ImportMetaData": new ObjectID('000000000d00')
-        }
-    };
-
-    exps.ICONS = [
-      {_id: "std1", name: "account", icon: {type: "standard", name: "account"}},
+const ObjectID = require('mongodb').ObjectID
+const ICONS = [
+{_id: "std1", name: "account", icon: {type: "standard", name: "account"}},
 {_id: "std2", name: "announcement", icon: {type: "standard", name: "announcement"}},
 {_id: "std3", name: "answer_best", icon: {type: "standard", name: "answer_best"}},
 {_id: "std4", name: "answer_private", icon: {type: "standard", name: "answer_private"}},
@@ -112,10 +89,27 @@ module.exports = function(options) {
 {_id: "std86", name: "topic", icon: {type: "standard", name: "topic"}},
 {_id: "std87", name: "unmatched", icon: {type: "standard", name: "unmatched"}},
 {_id: "std88", name: "user", icon: {type: "standard", name: "user"}}
+]
 
-    ]
+const Forms = {
+        "formMetadata" : new ObjectID('000000000100'),
+        "ComponentMetadata" : new ObjectID('000000000150'),
+        "FormFieldMetadata": new ObjectID('000000000200'),
+        "DropDownOption": new ObjectID('000000000250'),
+        "iconSearch": new ObjectID('000000000300'),
+        "Users": new ObjectID('000000000600'),
+        "AuthProviders": new ObjectID('000000000700'),
+        "FileMeta": new ObjectID('000000000800'),
+        "UserApps": new ObjectID('000000000900'),
+        "App": new ObjectID('000000000a00'),
+        "AppPerms": new ObjectID('000000000b00'),
+        "AppPageComponent": new ObjectID('000000000e00'),
+        "ImportMeta": new ObjectID('000000000c00'),
+        "ImportMetaData": new ObjectID('000000000d00')
+    }
 
-    exps.Compoments = [
+
+const UIComponents = [
       {
         _id: "RecordPage",
         name: "RecordPage",
@@ -125,7 +119,7 @@ module.exports = function(options) {
               name: "form",
               title: "Data Form",
               type: "reference",
-              search_form: { _id: exps.forms.formMetadata}
+              search_form: { _id: Forms.formMetadata}
           },
           {
               name: "xid",
@@ -149,7 +143,7 @@ module.exports = function(options) {
               name: "form",
               title: "Data Form",
               type: "reference",
-              search_form: { _id: exps.forms.formMetadata}
+              search_form: { _id: Forms.formMetadata}
           },
           {
               name: "query",
@@ -171,11 +165,11 @@ module.exports = function(options) {
           }
         ]
       }
-    ];
+    ]
 
-    exps.FORMMETA = [
+const FORMMETA = [
         {
-            _id: exps.forms.formMetadata,
+            _id: Forms.formMetadata,
             name: "Form Metadata",
             desc: "This is where you define and extend your application forms",
             collection: "formmeta",
@@ -237,7 +231,7 @@ module.exports = function(options) {
                     title: "Form Icon",
                     type: "reference",
                     required: false,
-                    search_form: { _id: exps.forms.iconSearch}
+                    search_form: { _id: Forms.iconSearch}
 
                 },
                 {
@@ -269,15 +263,15 @@ module.exports = function(options) {
                     name: "fields",
                     title: "Form Feilds",
                     type: "childform",
-                    child_form: { _id: exps.forms.FormFieldMetadata},
+                    child_form: { _id: Forms.FormFieldMetadata},
                     _id: new ObjectID('000000000106')
                 }
             ]
         },
         {
-            _id: exps.forms.ComponentMetadata,
+            _id: Forms.ComponentMetadata,
             name: "Component Metadata",
-            desc: "This is you compoments",
+            desc: "This is you UIComponents",
             collection: "compomentmeta",
             store: "metadata",
             icon: {_id:"std28"},
@@ -302,14 +296,14 @@ module.exports = function(options) {
                     name: "props",
                     title: "Properties",
                     type: "childform",
-                    child_form: { _id: exps.forms.FormFieldMetadata},
+                    child_form: { _id: Forms.FormFieldMetadata},
                     _id: new ObjectID('000000000156')
                 }
             ],
-            _data: exps.Compoments
+            _data: UIComponents
         },
         {
-            _id: exps.forms.FormFieldMetadata,
+            _id: Forms.FormFieldMetadata,
             name: "FormFieldMetadata",
             store: "fromparent",
             fields: [
@@ -440,9 +434,9 @@ module.exports = function(options) {
                     type: "reference",
                     placeholder: "only for lookup fields",
                     show_when: "rec['type'] == 'reference'",
-                    createnew_form: { _id: exps.forms.formMetadata},
+                    createnew_form: { _id: Forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": {}}',
-                    search_form: { _id: exps.forms.formMetadata},
+                    search_form: { _id: Forms.formMetadata},
                     required: false,
                     _id: new ObjectID('000000000207'),
                 },
@@ -460,9 +454,9 @@ module.exports = function(options) {
                     type: "reference",
                     placeholder: "only for lookup fields",
                     show_when: "rec['type'] == 'reference'",
-                    createnew_form: { _id: exps.forms.formMetadata},
+                    createnew_form: { _id: Forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": {}}',
-                    search_form: { _id: exps.forms.formMetadata},
+                    search_form: { _id: Forms.formMetadata},
                     required: false,
                     _id: new ObjectID('000000000209'),
                 },
@@ -471,9 +465,9 @@ module.exports = function(options) {
                     title: "Child Form",
                     type: "reference",
                     show_when: "rec['type'] == 'childform' || rec['type'] == 'relatedlist'",
-                    createnew_form: { _id: exps.forms.formMetadata},
+                    createnew_form: { _id: Forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": { "type": "childform"}}',
-                    search_form: { _id: exps.forms.formMetadata},
+                    search_form: { _id: Forms.formMetadata},
                     required: false,
                     _id: new ObjectID('000000000210'),
                 },
@@ -507,12 +501,12 @@ module.exports = function(options) {
                     title: "Dropdown Options",
                     show_when: "rec['type'] == 'dropdown'",
                     type: "dropdown_options",
-                    child_form: {_id: exps.forms.DropDownOption}
+                    child_form: {_id: Forms.DropDownOption}
                 }
             ]
         },
         {
-            _id: exps.forms.DropDownOption,
+            _id: Forms.DropDownOption,
             name: "DropDown Option",
             store: "fromparent",
             fields: [
@@ -531,7 +525,7 @@ module.exports = function(options) {
             ]
         },
         {
-            _id: exps.forms.iconSearch,
+            _id: Forms.iconSearch,
             name: "iconSearch",
             store: "metadata",
             fields: [
@@ -548,10 +542,10 @@ module.exports = function(options) {
                   type: "text",
               }
             ],
-            _data: exps.ICONS,
+            _data: ICONS
         },
         {
-            _id: exps.forms.Users,
+            _id: Forms.Users,
             name: "Users",
             desc: "This is all the users that can logon to your applications",
             collection: "user",
@@ -611,21 +605,21 @@ module.exports = function(options) {
                     name: "provider",
                     title: "Auth Providers",
                     type: "childform",
-                    child_form: { _id: exps.forms.AuthProviders},
+                    child_form: { _id: Forms.AuthProviders},
                     _id: new ObjectID('000000000604')
                 },
                 {
                     name: "apps",
                     title: "Apps",
                     type: "childform",
-                    createnew_form: { _id: exps.forms.UserApps},
-                    child_form: { _id: exps.forms.UserApps},
+                    createnew_form: { _id: Forms.UserApps},
+                    child_form: { _id: Forms.UserApps},
                     _id: new ObjectID('000000000601'),
                 }
             ]
         },
         {
-            _id: exps.forms.AuthProviders,
+            _id: Forms.AuthProviders,
             name: "AuthProviders",
             store: "fromparent",
             fields: [
@@ -667,7 +661,7 @@ module.exports = function(options) {
             ]
         },
         {
-            _id: exps.forms.UserApps,
+            _id: Forms.UserApps,
             name: "User Apps",
             store: "fromparent",
             fields: [
@@ -676,8 +670,8 @@ module.exports = function(options) {
                   display: "primary",
                   title: "App",
                   type: "reference",
-                  createnew_form: { _id: exps.forms.App},
-                  search_form: { _id: exps.forms.App},
+                  createnew_form: { _id: Forms.App},
+                  search_form: { _id: Forms.App},
                   required: true,
                   _id: new ObjectID('000000000901')
               },
@@ -691,7 +685,7 @@ module.exports = function(options) {
             ]
         },
         {
-            _id: exps.forms.App,
+            _id: Forms.App,
             name: "App",
             desc: "Define your app permissions",
             collection: "app",
@@ -761,34 +755,34 @@ module.exports = function(options) {
                     title: "App Icon",
                     display: "primary",
                     type: "reference",
-                    search_form: { _id: exps.forms.iconSearch}
+                    search_form: { _id: Forms.iconSearch}
                 },
                 {
                     name: "appperms",
                     title: "App Forms",
                     type: "childform",
-                    child_form: { _id: exps.forms.AppPerms},
+                    child_form: { _id: Forms.AppPerms},
                     _id: new ObjectID('000000000a01')
                 },
                 {
                     name: "landingpage",
                     title: "Landing Page",
                     type: "childform",
-                    createnew_form: { _id: exps.forms.AppPageComponent},
-                    child_form: { _id: exps.forms.AppPageComponent},
+                    createnew_form: { _id: Forms.AppPageComponent},
+                    child_form: { _id: Forms.AppPageComponent},
                     _id: new ObjectID('000000000a02'),
                 },
                 {
                     name: "userfields",
                     title: "User Dynamic Fields",
                     type: "childform",
-                    child_form: { _id: exps.forms.FormFieldMetadata},
+                    child_form: { _id: Forms.FormFieldMetadata},
                     _id: new ObjectID('000000000a03')
                 }
             ]
         },
         {
-            _id: exps.forms.AppPageComponent,
+            _id: Forms.AppPageComponent,
             name: "App Page Component",
             store: "fromparent",
             fields: [
@@ -804,7 +798,7 @@ module.exports = function(options) {
                   title: "component",
                   display: "list",
                   type: "reference",
-                  search_form: { _id: exps.forms.ComponentMetadata},
+                  search_form: { _id: Forms.ComponentMetadata},
                   required: true,
                   _id: new ObjectID('000000000e01'),
               },
@@ -843,7 +837,7 @@ module.exports = function(options) {
             ]
         },
         {
-            _id: exps.forms.AppPerms,
+            _id: Forms.AppPerms,
             name: "App Meta",
             store: "fromparent",
             fields: [
@@ -852,7 +846,7 @@ module.exports = function(options) {
                   title: "Form",
                   display: "list",
                   type: "reference",
-                  search_form: { _id: exps.forms.formMetadata},
+                  search_form: { _id: Forms.formMetadata},
                   required: true,
                   _id: new ObjectID('000000000b01'),
               },
@@ -885,7 +879,7 @@ module.exports = function(options) {
             ]
         },
         {
-            _id: exps.forms.ImportMeta,
+            _id: Forms.ImportMeta,
             name: "ImportMeta",
             desc: "Import applications",
             icon: {_id:"std43"},
@@ -902,13 +896,13 @@ module.exports = function(options) {
                     name: "metadata",
                     title: "App Meta Data",
                     type: "childform",
-                    child_form: { _id: exps.forms.ImportMetaData},
+                    child_form: { _id: Forms.ImportMetaData},
                     _id: new ObjectID('000000000d01')
                 }
             ]
         },
         {
-            _id: exps.forms.ImportMetaData,
+            _id: Forms.ImportMetaData,
             name: "FormFieldMetadata",
             store: "fromparent",
             fields: [
@@ -916,7 +910,7 @@ module.exports = function(options) {
                     name: "form",
                     title: "Form",
                     type: "reference",
-                    search_form: { _id: exps.forms.formMetadata}
+                    search_form: { _id: Forms.formMetadata}
                 },
                 {
                     name: "load",
@@ -926,7 +920,7 @@ module.exports = function(options) {
             ]
         },
         {
-            _id: exps.forms.FileMeta,
+            _id: Forms.FileMeta,
             name: "FileMeta",
             store: "mongogrid",
             fields: [
@@ -957,28 +951,29 @@ module.exports = function(options) {
                 }
             ]
         }
-    ];
+    ]
 
-    exps.adminApp = {_id: "admin",
+const AdminApp = {
+        _id: "admin",
         name: "Admin App",
         type: "deployed",
         public: "yes",
         default: "yes",
         appperms: [
-      {form: {_id: exps.forms.formMetadata}, crud: "crud"},
-      {form: {_id: exps.forms.ComponentMetadata}, crud: "crud"},
-      {form: {_id: exps.forms.FormFieldMetadata}, crud: "crud"},
-      {form: {_id: exps.forms.DropDownOption}, crud: "crud"},
-      {form: {_id: exps.forms.Users}, crud: "crud"},
-      {form: {_id: exps.forms.AuthProviders}, crud: "crud"},
-      {form: {_id: exps.forms.UserApps}, crud: "crud"},
-      {form: {_id: exps.forms.App}, crud: "crud"},
-      {form: {_id: exps.forms.AppPerms}, crud: "crud"},
-      {form: {_id: exps.forms.AppPageComponent}, crud: "crud"},
-      {form: {_id: exps.forms.iconSearch}, crud: "crud"},
-      {form: {_id: exps.forms.FileMeta}, crud: "crud"},
-      {form: {_id: exps.forms.ImportMeta}, crud: "crud"},
-      {form: {_id: exps.forms.ImportMetaData}, crud: "crud"}
+      {form: {_id: Forms.formMetadata}, crud: "crud"},
+      {form: {_id: Forms.ComponentMetadata}, crud: "crud"},
+      {form: {_id: Forms.FormFieldMetadata}, crud: "crud"},
+      {form: {_id: Forms.DropDownOption}, crud: "crud"},
+      {form: {_id: Forms.Users}, crud: "crud"},
+      {form: {_id: Forms.AuthProviders}, crud: "crud"},
+      {form: {_id: Forms.UserApps}, crud: "crud"},
+      {form: {_id: Forms.App}, crud: "crud"},
+      {form: {_id: Forms.AppPerms}, crud: "crud"},
+      {form: {_id: Forms.AppPageComponent}, crud: "crud"},
+      {form: {_id: Forms.iconSearch}, crud: "crud"},
+      {form: {_id: Forms.FileMeta}, crud: "crud"},
+      {form: {_id: Forms.ImportMeta}, crud: "crud"},
+      {form: {_id: Forms.ImportMetaData}, crud: "crud"}
             ],
         landingpage: [
           {
@@ -986,58 +981,14 @@ module.exports = function(options) {
             component: {_id: "AdminTileList"},
             title: "Admin Tile List",
             props: {
-              formids: [exps.forms.formMetadata, exps.forms.Users, exps.forms.App, exps.forms.ImportMeta]
+              formids: [Forms.formMetadata, Forms.Users, Forms.App, Forms.ImportMeta]
             }
           }
         ]
-      };
-
-    exps.systemMetabyId = function() {
-      let res = {};
-
-      for (let v of exps.FORMMETA) {
-        res[v._id.toString()] = v;
-      }
-      return res;
-    }
-/*
-    exps.findFormById = function (meta, name) {
-        try {
-          var oname = new ObjectID(name);
-          //console.log ('findFormById() searching for: "' + oname +'"');
-          for (var i = 0, len = meta.length; i < len; i += 1) {
-              //console.log('findFormById() got the id: ' + meta[i].name + ' : "' + meta[i]._id + '"');
-              if (meta[i]._id.equals(oname)) {
-                  //console.log ('findFormById() returning : ' + meta[i].name);
-                  return meta[i];
-              }
-          }
-        } catch (e) {
-          console.log('findFormById() err ' + JSON.stringify(e));
-        }
-        return;
     }
 
-    exps.findFieldById = function (meta, name) {
-      try {
-        var oname = new ObjectID(name);
-        console.log ('findFieldById() searching for: "' + oname +'"');
-        for (let form of meta) {
-          //var flds = meta[i].fields;
-          console.log('findFieldById() checking the form: ' + form.name);
-          if (form.fields) for (let fld of form.fields) {
-            console.log('findFieldById() got the field : ' + fld.name + ' "' + fld._id + '"');
-            if (fld._id && fld._id.equals(oname)) {
-              console.log("findFieldById() found it");
-              return {form: form, field: fld};
-            }
-          }
-        }
-      } catch (e) {
-        console.log('findFieldById() err ' + JSON.stringify(e));
-      }
-        return;
-    }
-*/
-    return exps;
-}
+
+// 'exports' the object that's actually returned as the result of a require call
+exports.Forms = Forms
+exports.FORMMETA = FORMMETA
+exports.AdminApp = AdminApp

@@ -185,11 +185,11 @@ export class FieldReference extends Component {
     let inval = e.target.value,
         df = DynamicForm.instance,
         sform = this.props.fielddef.search_form && df.getForm(this.props.fielddef.search_form._id);
-
+        
     if (!inval)
       this.setState({lookup: {visible: false, fields: null, values: [], offercreate: false}});
     else if (sform.store === "metadata") {
-      console.log ("its from meta : " + JSON.stringify(sform._data));
+      console.log ("_handleLookupKeypress: its from meta : " + JSON.stringify(sform._data));
       // TODO : need text search logic here
       this.setState({lookup: {visible: true, fields: sform.fields, values: sform._data, offercreate: false}});
     } else {
