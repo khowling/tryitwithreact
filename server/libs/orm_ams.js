@@ -63,6 +63,7 @@ const ams_authkey = () =>  {
 // ---------------------------------------------- list
 const list_things =  (auth, thing) => {
     return new Promise ((acc,rej) => {
+        console.log (`AMS list_things: /api/${thing}`)
         let putreq = https.get({ hostname: auth.host, path: `/api/${thing}`,
             headers: {
                 'Accept': 'application/json',
@@ -85,7 +86,7 @@ const list_things =  (auth, thing) => {
 
                 res.on('end', () => {
                     console.log (`list_things got end ${rawData}`)
-                    return acc(rawData)
+                    return acc(JSON.parse(rawData))
                 })
 
                 
@@ -118,12 +119,12 @@ const change_things = (mode, auth, thing, body) =>  {
 
                 let rawData = '';
                 res.on('data', (chunk) => {
-                    console.log (`change_things got data: ${chunk}`)
+                    //console.log (`change_things got data: ${chunk}`)
                     rawData += chunk
                 })
 
                 res.on('end', () => {
-                    console.log (`change_things got end ${rawData}`)
+                    //console.log (`change_things got end ${rawData}`)
                     return acc(rawData)
                 });
 
@@ -147,7 +148,7 @@ exports.save = (formdef, userdoc, context) => {
             ams_authkey().then((ams_auth) => {
                 context.ams_auth = ams_auth;
                 change_things ('POST', context.ams_auth, things, userdoc).then ((things) => acc (things), (err) => rej (err))
-            }, (err) => res.status(400).send(err))
+            }, (err) => rej(err))
         }
 
         if (context.ams_auth) {
@@ -164,37 +165,53 @@ exports.save = (formdef, userdoc, context) => {
     })
 }
 
-exports.find = (things, query, context) => {
+exports.find = (formdef, query, context) => {
     return new Promise ((acc,rej) => {
-        console.log (`ams find things: ${JSON.stringify(things)}, query ${JSON.stringify(query)}`)
+        console.log (`ams find formdef: ${JSON.stringify(formdef.form.name)}, query ${JSON.stringify(query)}`)
+        let things = formdef.form.collection, children = []
         if (query && query._id) {
-            things = `${things}('${encodeURIComponent(query._id)}')`
+            things = `${formdef.form.collection}('${encodeURIComponent(query._id)}')`
             if (query.display === "all") {
                 console.log (`ams find: pull all the childforms`)
-                for (var field of form.fields.filter((f) => f.type === 'childform')) {
+                for (var field of formdef.form.fields.filter((f) => f.type === 'childform')) {
                     // TODO
+                    console.log (`ams find: push ${field.name}`)
+                    children.push(field.name)
                 }
             }
         }
         console.log (`orm_ams: find ${things}`)
 
-        let authandfind = () => {
-            ams_authkey().then((ams_auth) => {
-                context.ams_auth = ams_auth;
-                list_things (context.ams_auth, things).then ((things) => acc (things), (err) => rej (err))
-            }, (err) => res.status(400).send(err))
-        }
+        let list_things_promise = (auth) => { return new Promise((acc, rej) => {
+            list_things (auth, things).then ((topthing) => {
+                    
+                    if (children.length === 0) {
+                        acc (topthing)
+                    } else {
+                        list_things (context.ams_auth, `${things}/${children[0]}`).then ((childthings) => {
+                            topthing[children[0]] = childthings
+                            acc (topthing)
+                        }, (err) => rej (err))
+                    }
+                }, (err) => rej (err))
+        })}
 
         if (context.ams_auth) {
-            list_things (context.ams_auth, things).then ((things) => acc (things), ({code, message}) => {
-                if (code === 401) {
-                    authandfind()
+            list_things_promise(context.ams_auth).then((succ) =>  acc (succ), ({code, message}) => {
+                if (code === 401) { // unathenticated
+                    ams_authkey().then((ams_auth) => {
+                        context.ams_auth = ams_auth;
+                        list_things_promise(ams_auth).then((succ) =>  acc (succ), ({code, message}) => rej (`${code} ${message}`))
+                    }, (err) => rej(err))
                 } else {
-                    rej (`${code} ${message}`)
+                    rej (`${code} ${message}`)   
                 }
             })
         } else {
-            authandfind()
+             ams_authkey().then((ams_auth) => {
+                context.ams_auth = ams_auth;
+                list_things_promise(ams_auth).then((succ) =>  acc (succ), ({code, message}) => rej (`${code} ${message}`))
+            }, (err) => rej(err))
         } 
     })
 }
@@ -210,7 +227,7 @@ exports.delete = (things, parent, query, context) => {
                 ams_authkey().then((ams_auth) => {
                     context.ams_auth = ams_auth;
                     change_things ('DELETE', context.ams_auth, things, userdoc).then ((things) => acc (things), (err) => rej (err))
-                }, (err) => res.status(400).send(err))
+                }, (err) => rej(err))
             }
 
             if (context.ams_auth) {

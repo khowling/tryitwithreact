@@ -144,15 +144,19 @@ module.exports = function(options) {
     return res.status(400).send({error: strerr})
   }
 
-   var validate_store_json_result = (form, store_data, single) => {
-    console.log (`validate_store_json_result:  ${store_data}`)
-    let jsondoc = JSON.parse(store_data),
-        entries = single ? [jsondoc] : jsondoc.value
+   var validate_store_json_result = (form, store_data, single, context) => {
+    console.log (`validate_store_json_result: ${form.name} ${store_data}`)
+    let entries = single ? [store_data] : store_data.value
 
     let res = entries.map((row,i) => {
-      let r = {_id: row[form.externalid]}
+      let r = {_id: row.Id}
       for (let fld of form.fields) {
-        r[fld.name] =  row[fld.name] == null ? null : row[fld.name].toString()
+        if (fld.type === 'childform' && row[fld.name]) {
+          let childform = fld.child_form && context.appMeta.find((d) => String(d._id) === String (fld.child_form._id));
+          r[fld.name] = validate_store_json_result (childform, row[fld.name], false, context)
+        } else {
+          r[fld.name] = row[fld.name] == null ? null : row[fld.name].toString()
+        }
       }
       return r
     })
@@ -190,8 +194,8 @@ module.exports = function(options) {
 
     } else if (formdef.store === "ams_api") {
 
-      orm_ams.find (formdef.form.collection, query, req.session.context).then((j) => {
-        res.json(validate_store_json_result (formdef.form, j, (query && query._id))); 
+      orm_ams.find (formdef, query, req.session.context).then((j) => {
+        res.json(validate_store_json_result (formdef.form, j, (query && query._id), req.session.context)); 
       }, (e) => {
         return returnJsonError(res, e)
       }).catch((e)=> {
@@ -225,7 +229,7 @@ module.exports = function(options) {
         })
       } else if (formdef.store === "ams_api") {
         orm_ams.save (formdef, userdoc, req.session.context).then((j) => {
-          res.json(validate_store_json_result (formdef.form, j, true))
+          res.json(validate_store_json_result (formdef.form, j, true, req.session.context))
         }, (e) => {
           return returnJsonError(res, e)
         }).catch((e) => {
