@@ -194,6 +194,7 @@ const FORMMETA = [
                 },
                 {
                     name: "store",
+                    display: "list",
                     title: "Storage Type",
                     type: "dropdown",
                     required: true,
@@ -237,6 +238,7 @@ const FORMMETA = [
                 {
                     name: "collection",
                     title: "API Name",
+                    display: "list",
                     type: "text",
                     default_value: "rec['name']|toApiName",
                     show_when: "rec['store'] == 'mongo' || rec['store'] == 'ams_api'",
@@ -344,6 +346,10 @@ const FORMMETA = [
                         {
                           name: "Picture",
                           key: "image"
+                        },
+                        {
+                          name: "Attachment",
+                          key: "attachment"
                         },
                         {
                           name: "Email",

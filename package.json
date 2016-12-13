@@ -18,6 +18,7 @@
     "connect-heroku-memcached": "*",
     "connect-mongo": "*",
     "cookie-parser": "*",
+    "crypto": "*",
     "express": "*",
     "express-session": "*",
     "gridfs-stream": "*",

@@ -1,16 +1,7 @@
 
 
-const BLOCK_SIZE = 4* 1024 * 1024
-
-
-const storageacc = "kehowlimedia",
-      storageaccurl = `https://${storageacc}.blob.core.windows.net`,
-      acccontainer = "uploads",
-      sas = "sv=2015-04-05&ss=b&srt=sco&sp=rwdlac&se=2017-02-04T04:07:11Z&st=2016-12-07T20:07:11Z&spr=https&sig=OGxCypsc6o5eLx2jwhHKMZHYHOdgK47anR5xmmdbMzU%3D"
-
-
 // ---------------------------------------------- creates a new block blob
-const putblock = (fileName, blockid, data) => {
+const putblock = (blockid, data, saslocator) => {
     return new Promise ((acc,rej) => {
 
         let comp
@@ -27,7 +18,13 @@ const putblock = (fileName, blockid, data) => {
 
         console.log (`putting blockid ${blockid}`)// size: ${data.length.toLocaleString()} bytes`)
         let xhr = new XMLHttpRequest();
-        xhr.open('PUT', storageaccurl  + `/${acccontainer}/${encodeURIComponent(fileName)}?${comp}&${sas}`);
+
+        xhr.open('PUT', `${saslocator}&${comp}`);
+
+        // Requires CORS set on Storage Account
+        xhr.setRequestHeader("Access-Control-Allow-Origin", "*")
+        //xhr.setRequestHeader("Access-Control-Request-Method", "POST")
+        //xhr.setRequestHeader("Access-Control-Request-Headers", "Content-Type")
 
         xhr.onreadystatechange = () => {
           if (xhr.readyState === XMLHttpRequest.DONE) {
@@ -44,11 +41,19 @@ const putblock = (fileName, blockid, data) => {
     })
 }
 
+const BLOCK_SIZE = 4* 1024 * 1024
 
-export default function (file, evtFn) {
+const storageacc = "kehowlimedia",
+      storageaccurl = `https://${storageacc}.blob.core.windows.net`,
+      acccontainer = "uploads",
+      sas = "sv=2015-04-05&ss=b&srt=sco&sp=rwdlac&se=2017-02-04T04:07:11Z&st=2016-12-07T20:07:11Z&spr=https&sig=OGxCypsc6o5eLx2jwhHKMZHYHOdgK47anR5xmmdbMzU%3D"
+
+
+export default function (file, evtFn, locator) {
   return new Promise ((acc,rej) => {
     let startt = new Date().getTime(),
         reader = new FileReader(),
+        saslocator = locator || `${storageaccurl}/${acccontainer}/${encodeURIComponent(file.name)}?${sas}`,
         new_index
 
     console.log (`uploading file ${file.name}, size: ${file.size.toLocaleString()}, blocksz: ${BLOCK_SIZE}`)
@@ -65,14 +70,14 @@ export default function (file, evtFn) {
       console.log (`putting block (${sendblockids.length}) ${blockid}`)
       
 
-      putblock(file.name, blockid, event.target.result).then((succ) => {
+      putblock(blockid, event.target.result, saslocator).then((succ) => {
         if (new_index < file.size) {
           readNextChunk(new_index)
           evtFn({loaded: new_index, total: file.size})
         } else {
-          putblock(file.name, sendblockids, null).then ((succ) => {
+          putblock(sendblockids, null, saslocator).then ((succ) => {
             console.log (`finished  ${(new Date().getTime() - startt)/1000}s`);
-            acc({url: `${storageaccurl}/${acccontainer}/${file.name}?${sas}`})
+            acc({url: saslocator})
           }, (err) => rej(err))
         }
       }, (err) => {

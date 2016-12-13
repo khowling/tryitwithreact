@@ -26,12 +26,19 @@ export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)
     if (fval && typeof fval !== 'string') return {error: "data contains value of incorrect type : " + propname};
     if (fldmeta.required && (!fval)) return {error: "required field missing : " + propname};
     return {validated_value: fval || null};
+  } else if (fldmeta.type === "boolean" ) {
+    if (fval && typeof fval !== 'boolean') return {error: "data contains value of incorrect type : " + propname};
+    if (fldmeta.required && (!fval)) return {error: "required field missing : " + propname};
+    return {validated_value: fval || false};
   } else if (fldmeta.type === "jsonarea") {
     if (fval) try {
       return {validated_value: JSON.parse(fval)}
     } catch (e) { return {error: "data contains invalid json format : " + propname}; }
     else
       return {validated_value:  null};
+  } else if (fldmeta.type === "attachment") {
+    if (fval && (typeof fval !== 'object' || fval.name == null || fval.size <0 )) return {error: "data contains value of incorrect type : " + propname};
+    return {validated_value: fval || null};
   } else if (fldmeta.type === "datetime") {
     if (fval) {
       let fdate = Date.parse(fval);

@@ -14,6 +14,67 @@ import {FormHeader}       from './headers.jsx';
 import DynamicForm from '../services/dynamicForm.js';
 import uploadFile from '../services/azureBlob.js';
 
+export class FieldAttachment extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      value: props.value, // needs to be mutatable
+    };
+  }
+
+  /*******************/
+  /* Common          */
+  /*******************/
+  componentWillReceiveProps(nextProps) {
+    //console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
+    if (nextProps.value != this.props.value) {
+      //console.log ('the field value has been updated by the form, update the field (this will override the field state)');
+      this.setState({value: nextProps.value});
+    }
+  }
+
+  _clickFile() {
+    this.refs.imageinput.click();
+  }
+
+  _fileuploadhtml5(e) {
+    var file = e.currentTarget.files[0];
+
+    
+    this.setState({value: file}, () => {
+      if (this.props.onChange)
+        this.props.onChange ({[this.props.fielddef.name]: file});
+      });
+     //data.documents[field.name] = evt.target.responseText;
+  
+   return false;
+  }
+
+
+  render() {
+    let df = DynamicForm.instance,
+        img_src = this.state.value && this.state.value.name || "Select File"
+
+    if (!this.props.edit) {
+      let marginBott = !this.props.inlist && {marginBottom: "4px"} || {}
+      return (
+        <div className={this.props.inlist && "slds-avatar slds-avatar--circle slds-avatar--x-small"} style={marginBott}>
+          <div style={{maxHeight: "150px"}} alt="message user image">{img_src}</div>
+        </div>)
+
+    } else {
+
+      return (
+        <div>
+          <input type="file"  name="file"  accept="image/*" onChange={this._fileuploadhtml5.bind(this)} />
+          
+        </div>
+      );
+    }
+  }
+}
+
+
 export class FieldImage extends Component {
   constructor(props) {
     super(props);
@@ -641,8 +702,10 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
       self = this,
       df = DynamicForm.instance;
 
-  if (fielddef.type === "image") {
+  if (fielddef.type === "image" ) {
     field = (<FieldImage fielddef={fielddef} value={value} edit={edit} onChange={onChange} inlist={inlist}/>);
+  } else if (fielddef.type === 'attachment') {
+    field = (<FieldAttachment fielddef={fielddef} value={value} edit={edit} onChange={onChange} inlist={inlist}/>);
   } else if (fielddef.type === "reference") {
     field = (<FieldReference fielddef={fielddef} value={value} edit={edit} onChange={onChange} inlist={inlist}/>);
   } else if (fielddef.type === "datetime") {
@@ -652,6 +715,9 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
       case 'email':
       case 'textarea':
       case 'formula':
+        field = (<span>{value}</span>);
+        break;
+      case 'attachment':
         field = (<span>{value}</span>);
         break;
       case 'boolean':

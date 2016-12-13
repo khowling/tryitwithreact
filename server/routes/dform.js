@@ -145,11 +145,13 @@ module.exports = function(options) {
   }
 
    var validate_store_json_result = (form, store_data, single, context) => {
-    console.log (`validate_store_json_result: ${form.name} ${store_data}`)
+    console.log (`validate_store_json_result: [${form.name}]: ${JSON.stringify(store_data)}`)
     let entries = single ? [store_data] : store_data.value
 
     let res = entries.map((row,i) => {
       let r = {_id: row.Id}
+      if (row._saslocator) r._saslocator = row._saslocator
+
       for (let fld of form.fields) {
         if (fld.type === 'childform' && row[fld.name]) {
           let childform = fld.child_form && context.appMeta.find((d) => String(d._id) === String (fld.child_form._id));
@@ -268,7 +270,7 @@ module.exports = function(options) {
         })
       } else if (formdef.store === "ams_api") {
 
-        orm_ams.delete (form.collection, formdef.parent, query, req.session.context).then((j) => {
+        orm_ams.delete (formdef, query, req.session.context).then((j) => {
             res.json({'deleted': true})
           }, (e) => {
             return returnJsonError(res, e)

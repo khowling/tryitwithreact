@@ -12,6 +12,7 @@ const { range, seq, compose, map, filter } = t;
 import DynamicForm from '../services/dynamicForm.js';
 import async_kh from '../../shared/async.js';
 import {typecheckFn} from '../../shared/dform.js';
+import uploadFile from '../services/azureBlob.js';
 
 
   // form control - visibility and validity
@@ -146,8 +147,19 @@ export class FormMain extends Component {
           body =  (this.props.value && this.props.value.record._id) && Object.assign({_id: this.props.value.record._id}, this.state.changedata) || this.state.changedata;
 
       df.save (this.props.form._id, body, this.props.parent).then(succval => {
-        //console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
-        resolve(succval);
+        console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
+        if (this.props.form.name === 'AMS Asset Files' && body.file) {
+          
+          console.log('Field _fileuploadhtml5 : ' + body.file.name);
+          uploadFile(body.file, progressEvt => {
+            console.log ('progress ' + progressEvt.loaded);
+            
+          }, `${succval._saslocator.container_url}/${succval.Name}?${succval._saslocator.sas}`).then (succVal => {
+            resolve(succval)
+          })
+        } else {
+          resolve(succval);
+        }
         //return succfn (succval);
       }, errval => {
           self.setState({formcontrol: Object.assign (this.state.formcontrol, {serverError: JSON.stringify(errval), change: true })});
