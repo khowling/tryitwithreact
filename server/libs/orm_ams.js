@@ -14,9 +14,10 @@ function createSAS (storageacc, container, minutes) {
 // then encode the string as UTF-8 and compute the signature using the HMAC-SHA256 algorithm
 // Note that fields included in the string-to-sign must be URL-decoded
 
-    let signedpermissions = "rwd",
+    let exp_date = new Date(Date.now() + (minutes*60*1000)),
+        signedpermissions = "rwdl",
         signedstart = '',
-        signedexpiry= new Date(Date.now() + (minutes*60*1000)).toISOString().substring(0, 19) + 'Z',
+        signedexpiry= exp_date.toISOString().substring(0, 19) + 'Z',
         canonicalizedresource= `/blob/${storageacc}/${container}`,
         signedidentifier = '', //if you are associating the request with a stored access policy.
         signedIP = '',
@@ -45,15 +46,17 @@ ${rsct}`
 
     const sig = crypto.createHmac('sha256', new Buffer(SIGN_KEY, 'base64')).update(stringToSign, 'utf-8').digest('base64');
 
-    return { container_url: `https://${storageacc}.blob.core.windows.net/${container}`, sas: 
-        `sv=${signedversion}&` +  // signed version
-        "sr=c&" +   // signed resource 'c' = Container 'b' = Blob
-        `sp=${signedpermissions}&` + //  The permissions associated with the shared access signature
-        //    "st=2016-08-15T11:03:04Z&" +
-        `se=${signedexpiry}&` + // signed expire 2017-08-15T19:03:04Z
-        //    "sip=0.0.0.0-255.255.255.255&" +
-        `spr=${signedProtocol}&` +
-        `sig=${sig}`}
+    return { exp_date: exp_date.getTime(),
+            container_url: `https://${storageacc}.blob.core.windows.net/${container}`, 
+            sas: `sv=${signedversion}&` +  // signed version
+                "sr=c&" +   // signed resource 'c' = Container 'b' = Blob
+                `sp=${signedpermissions}&` + //  The permissions associated with the shared access signature
+                //    "st=2016-08-15T11:03:04Z&" +
+                `se=${signedexpiry}&` + // signed expire 2017-08-15T19:03:04Z
+                //    "sip=0.0.0.0-255.255.255.255&" +
+                `spr=${signedProtocol}&` +
+                `sig=${encodeURIComponent(sig)}`
+            }
 
 
 
@@ -107,7 +110,7 @@ const ams_authkey = () =>  {
                             //console.log (`${res2.statusCode}  ${res2.statusMessage} ${(res2.headers.location)}`)
                             auth.host = url.parse(res2.headers.location).hostname
                         }
-                        /* --- No, dont call AMS proxy Storage methods
+                        /* ------------ No, dont call AMS proxy Storage methods ---------------
                         // get AccessPolicy (to write to AssetFiles)
                         let apolicy_req = https.request({
                             hostname: auth.host,
@@ -144,7 +147,7 @@ const ams_authkey = () =>  {
 
                         apolicy_req.write (JSON.stringify({"Name":"NewUploadPolicy", "DurationInMinutes":"440", "Permissions":"2"}))
                         apolicy_req.end()
-                        ---------------------------------- */
+                        ------------------------------------------------------- */
                          return acc(auth)
 
                     }).on('error', (e) =>  rej(e));
@@ -168,10 +171,10 @@ const list_things =  (auth, thing) => {
                 'x-ms-version': ams_api_version,
                 'Authorization': `Bearer ${auth.token.access_token}`
             }}, (res) => {
-                console.log (`list_things status ${res.statusCode}`)
+                //console.log (`list_things status ${res.statusCode}`)
 
                 if(!(res.statusCode === 200 || res.statusCode === 201)) {
-                    console.log (`${res.statusCode} : ${res.statusMessage}`)
+                    //console.log (`${res.statusCode} : ${res.statusMessage}`)
                     res.resume();
                     return rej({code: res.statusCode, message: res.statusMessage})
                 }
@@ -183,7 +186,7 @@ const list_things =  (auth, thing) => {
                 })
 
                 res.on('end', () => {
-                    console.log (`list_things got end ${rawData}`)
+                    //console.log (`list_things got end ${rawData}`)
                     return acc(JSON.parse(rawData))
                 })
 
@@ -207,10 +210,10 @@ const change_things = (mode, auth, thing, body) =>  {
                 'Authorization': `Bearer ${auth.token.access_token}`
             }}, (res) => {
 
-                console.log (`change_things status ${res.statusCode} : headers ${res.rawHeaders}`)
+                //console.log (`change_things status ${res.statusCode} : headers ${res.rawHeaders}`)
 
                 if(!(res.statusCode === 200 || res.statusCode === 201 || res.statusCode === 204)) {
-                    console.log (`${res.statusCode} : ${res.statusMessage}`)
+                    //console.log (`${res.statusCode} : ${res.statusMessage}`)
                     res.resume();
                     return rej({code: res.statusCode, message: res.statusMessage})
                 }
@@ -236,24 +239,40 @@ const change_things = (mode, auth, thing, body) =>  {
 
 exports.save = (formdef, userdoc, context) => {
     return new Promise ((acc,rej) => {
-        let things = formdef.parent ? formdef.parent.field.name : formdef.form.collection
+        let things = formdef.parent ? formdef.parent.field.name : formdef.form.collection,
+            create_sas_for_upload = false,
+            method = 'POST'
+
         if (formdef.parent) {
             userdoc.ParentAssetId = formdef.parent.query._id
             // remove the attachment
-            if (formdef.form.name === 'AMS Asset Files' ) {
+            if (formdef.form.name === 'AMS Asset Files' && userdoc.file != null ) {
                 delete userdoc.file
+                create_sas_for_upload = true
             }
         }
 
         console.log (`AMS Save: ${things} ${JSON.stringify(userdoc, null, 1)}`)
+        if (userdoc._id) {
+            things = `${things}('${encodeURIComponent(userdoc._id)}')`
+            userdoc.Id = userdoc._id
+            delete userdoc._id
+            method = 'MERGE'
+            console.log (`AMS Save: its a UPDATE ${things}`)
+        }
 
         let change_things_promise = (auth) => { return new Promise((acc, rej) => {
-            change_things ('POST', auth, things, userdoc).then ((topthing) => {
-                if (formdef.form.name !== 'AMS Asset Files') {
+            change_things (method, auth, things, userdoc).then ((topthing) => {
+                if (!create_sas_for_upload) {
                     acc (topthing)
                 } else {
-                    console.log ('AMS Save: get SAS locator for the asset: ${topthing.Uri}')
-                    topthing._saslocator = createSAS ('kehowlimedia', userdoc.ParentAssetId.replace('nb:cid:UUID:','asset-'), 10)
+                    let container = userdoc.ParentAssetId.replace('nb:cid:UUID:','asset-')
+                    console.log (`AMS Save: get SAS locator for the asset container: ${container}`)
+                    if (!(context.saslocator && (Date.now() + (5*60*1000)) < context.saslocator.exp_date)) {
+                        console.log (`AMS Save: regenerating SAS`)
+                        context.saslocator = createSAS ('kehowlimedia', container , 30)
+                    }
+                    topthing._saslocator = context.saslocator
                     acc (topthing)
                     
                     /* ------ Just create SAS directly -----
@@ -294,15 +313,15 @@ exports.save = (formdef, userdoc, context) => {
 
 exports.find = (formdef, query, context) => {
     return new Promise ((acc,rej) => {
-        console.log (`ams find formdef: ${JSON.stringify(formdef.form.name)}, query ${JSON.stringify(query)}`)
+        //console.log (`ams find formdef: ${JSON.stringify(formdef.form.name)}, query ${JSON.stringify(query)}`)
         let things = formdef.form.collection, children = []
         if (query && query._id) {
             things = `${formdef.form.collection}('${encodeURIComponent(query._id)}')`
             if (query.display === "all") {
-                console.log (`ams find: pull all the childforms`)
+                //console.log (`ams find: pull all the childforms`)
                 for (var field of formdef.form.fields.filter((f) => f.type === 'childform')) {
                     // TODO
-                    console.log (`ams find: push ${field.name}`)
+                    //console.log (`ams find: push ${field.name}`)
                     children.push(field.name)
                 }
             }
@@ -348,7 +367,7 @@ exports.delete = (formdef, query, context) => {
         if (query && query._id) {
             let things = `${formdef.form.collection}('${encodeURIComponent(query._id)}')`
         
-            console.log (`orm_ams: find ${things}`)
+            console.log (`orm_ams: delete ${things}`)
 
             let authandfind = () => {
                 ams_authkey().then((ams_auth) => {

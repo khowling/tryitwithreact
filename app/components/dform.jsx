@@ -146,19 +146,24 @@ export class FormMain extends Component {
           df = DynamicForm.instance,
           body =  (this.props.value && this.props.value.record._id) && Object.assign({_id: this.props.value.record._id}, this.state.changedata) || this.state.changedata;
 
-      df.save (this.props.form._id, body, this.props.parent).then(succval => {
-        console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
+      df.save (this.props.form._id, body, this.props.parent).then(saveval => {
+        console.log (`FormMain _save, response from server: ${JSON.stringify(saveval)}`);
         if (this.props.form.name === 'AMS Asset Files' && body.file) {
           
-          console.log('Field _fileuploadhtml5 : ' + body.file.name);
+          console.log(`FormMain _save [${this.props.form.name}] _fileuploadhtml5: ${body.file.name}`);
           uploadFile(body.file, progressEvt => {
             console.log ('progress ' + progressEvt.loaded);
             
-          }, `${succval._saslocator.container_url}/${succval.Name}?${succval._saslocator.sas}`).then (succVal => {
-            resolve(succval)
+          }, `${saveval._saslocator.container_url}/${saveval.Name}?${saveval._saslocator.sas}`).then (filesaveval => {
+            console.log (`FormMain _save [${this.props.form.name}] _fileuploadhtml5: success: ${JSON.stringify(filesaveval)}`)
+            // update body with size
+            df.save (this.props.form._id, {_id: saveval._id, ContentFileSize: '' + body.file.size}, this.props.parent).then(updateval => {
+              console.log ('FormMain _save, response from server : ' + JSON.stringify(updateval));
+               resolve(updateval)
+            })
           })
         } else {
-          resolve(succval);
+          resolve(saveval);
         }
         //return succfn (succval);
       }, errval => {

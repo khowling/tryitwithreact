@@ -27,10 +27,10 @@ module.exports = function (passport, options) {
 
     // from the id, retrieve the user details
     passport.deserializeUser(function (id, done) {
-        console.log(`-------- passport.deserializeUser : ${id}`);
+        //console.log(`-------- passport.deserializeUser : ${id}`);
 
         orm.find({form: meta.FORMMETA.find(f => f._id === meta.Forms.Users)}, {_id: id, display: 'all_no_system'}).then( user => {
-            console.log("-------- passport.deserializeUser : got user");
+            //console.log("-------- passport.deserializeUser : got user");
             done(null, user);
         }, err => res.status(400).send(err)).catch (err => res.status(400).send(err));
     });

@@ -145,7 +145,7 @@ module.exports = function(options) {
   }
 
    var validate_store_json_result = (form, store_data, single, context) => {
-    console.log (`validate_store_json_result: [${form.name}]: ${JSON.stringify(store_data)}`)
+    //console.log (`validate_store_json_result: [${form.name}]: ${JSON.stringify(store_data)}`)
     let entries = single ? [store_data] : store_data.value
 
     let res = entries.map((row,i) => {
@@ -222,7 +222,7 @@ module.exports = function(options) {
         return returnJsonError(res, `Form definition not found :${formdef.error}`)
       } else if (formdef.store === "mongo" || formdef.store === "metadata") {  
         orm.save (formdef, userdoc, req.session.context).then((j) => {
-          console.log ('save() : responding : ' + JSON.stringify(j));
+          //console.log ('save() : responding : ' + JSON.stringify(j));
           return res.json(j);
         }, (e) => {
           return returnJsonError(res, e)

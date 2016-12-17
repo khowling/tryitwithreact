@@ -22,7 +22,10 @@ const putblock = (blockid, data, saslocator) => {
         xhr.open('PUT', `${saslocator}&${comp}`);
 
         // Requires CORS set on Storage Account
-        xhr.setRequestHeader("Access-Control-Allow-Origin", "*")
+        // response headers!
+        //xhr.setRequestHeader("Access-Control-Allow-Origin", "*")
+
+        // request headers, automatic??
         //xhr.setRequestHeader("Access-Control-Request-Method", "POST")
         //xhr.setRequestHeader("Access-Control-Request-Headers", "Content-Type")
 

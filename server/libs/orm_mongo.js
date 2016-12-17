@@ -105,11 +105,11 @@ module.exports = function(options) {
   exps.find = function (formdef, query, context) {
     return new Promise(function (resolve, reject)  {
       let appMeta =  meta.FORMMETA.concat (context && context.appMeta || []);
-      console.log (`find() formdef: ${JSON.stringify(formdef)},  query: ${JSON.stringify(query)}] with context [app: ${context && context.app.name}, appMeta: ${appMeta.length}]`);
+      //console.log (`find() formdef: ${JSON.stringify(formdef)},  query: ${JSON.stringify(query)}] with context [app: ${context && context.app.name}, appMeta: ${appMeta.length}]`);
       
       /* search form meta-data for 'reference' fields to resolve (also search through 'childform' subforms) */
       var projectionAndLookups = function (display, form, parentField, dynamicField) {
-        console.log(`find() projectionAndLookups [display: ${display}] [form: ${form.name}] [parent: ${parentField}] [dynamicField: ${dynamicField}]`);
+        //console.log(`find() projectionAndLookups [display: ${display}] [form: ${form.name}] [parent: ${parentField}] [dynamicField: ${dynamicField}]`);
         var result = {projection: {}, lookups: [], dynamics: []};
 
         if (parentField) {
@@ -140,10 +140,10 @@ module.exports = function(options) {
         }
 
         if (form.fields) for (var field of form.fields) {
-          console.log(`find() projectionAndLookups processing field [${field.name}]`);
-          if ((display === 'primary' && field.display !== 'primary') || (display === 'list' && (field.display !== 'primary' && field.display !== 'list')))
-            console.log (`skipping field ${field.name}`);
-          else {
+          //console.log(`find() projectionAndLookups processing field [${field.name}]`);
+          if ((display === 'primary' && field.display !== 'primary') || (display === 'list' && (field.display !== 'primary' && field.display !== 'list'))) {
+            //console.log (`skipping field ${field.name}`);
+          } else {
 
             let fullfieldname = (parentField ? `${parentField}.${field.name}` : field.name);
             // console.log(`find() projectionAndLookups: ${fullfieldname}`);
@@ -208,7 +208,7 @@ module.exports = function(options) {
                 if (fval) {
                   if (harvest) { //--------------------- harvest mode
                     try {
-                      console.log (`find() processlookupids (harvest) [find: ${lookup.reference_field_name}] [val: ${JSON.stringify(fval)}]`);
+                      //console.log (`find() processlookupids (harvest) [find: ${lookup.reference_field_name}] [val: ${JSON.stringify(fval)}]`);
                         if (fval._id)
                           lookupkeys[lookup.search_form_id].add(fval._id);
                         else
@@ -219,7 +219,7 @@ module.exports = function(options) {
                   } else { //----------------------------  update mode
                     if (lookup.search_form_id && !fval.error) {
                       let lookupresult = subq[lookup.search_form_id] && subq[lookup.search_form_id][fval._id] || {_id: fval._id, _error:'missing id'};
-                      console.log (`find() processlookupids (update) [set: ${lookup.reference_field_name}] [val: ${lookupresult.name || lookupresult.error}]`);
+                      //console.log (`find() processlookupids (update) [set: ${lookup.reference_field_name}] [val: ${lookupresult.name || lookupresult.error}]`);
                       if (lookup.dynamic_field_name  === undefined)
                         doc[lookup.reference_field_name] = lookupresult;
                       else
@@ -265,7 +265,7 @@ module.exports = function(options) {
               //if (harvest && !l.search_form_id) continue; // no recorded search form, so dont run subquery
               // if in harvest mode, initialise lookupkeys array
               if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
-              console.log (`find() processlookupids found lookup [harvest: ${harvest}] [parent: ${l.parent_field_name}] [field: ${l.reference_field_name}]`);
+              //console.log (`find() processlookupids found lookup [harvest: ${harvest}] [parent: ${l.parent_field_name}] [field: ${l.reference_field_name}]`);
               if (l.parent_field_name && Array.isArray(doc[l.parent_field_name])) for (let edoc of doc[l.parent_field_name]) {
                 processFn(edoc, l, lookupkeys, subq);
               } else // if field is NOT in an embedded-document, just add id to lookupkeys
